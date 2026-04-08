@@ -78,9 +78,20 @@ class HeadInteractionMatrix:
         # Moyenne sur batch et séquence pour obtenir η moyen: (V,)
         eta_mean = eta.mean(dim=(0, 1))  # (V,)
 
+        # Projeter η de l'espace vocabulaire (V) vers l'espace caché (d)
+        # ∂L/∂hidden = (∂L/∂logits) @ W_lm_head  car logits = hidden @ W_lm_head^T
+        # W_lm_head: (V, d)  →  eta_mean @ W_lm_head : (V,) @ (V, d) = (d,)
+        lm_head_weight = None
+        for name, module in model.named_modules():
+            if hasattr(module, 'weight') and 'lm_head' in name:
+                lm_head_weight = module.weight  # (V, d)
+                break
+        if lm_head_weight is None:
+            raise RuntimeError("lm_head introuvable dans le modèle")
+        eta_mean = (eta_mean.float() @ lm_head_weight.float())  # (d,)
+
         H = W_O.shape[0]
-        # g_i = (W_O^(i))^T η ∈ R^{d_h}
-        # W_O: (H, d, d_h), eta_mean: (V,) where V = d (model dim)
+        # g_i = (W_O^(i))^T η ∈ R^{d_h},  W_O: (H, d, d_h), eta_mean: (d,)
         g = torch.einsum('hdi,d->hi', W_O.float(), eta_mean.float())  # (H, d_h)
 
         norms = g.norm(dim=1, keepdim=True).clamp(min=1e-8)

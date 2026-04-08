@@ -91,6 +91,7 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
     accum_ce = 0.0
     accum_ldb = 0.0
     accum_abt = 0.0
+    best_loss = float("inf")
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
@@ -119,19 +120,14 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
             abt_val = torch.tensor(0.0, device=device)
 
             if head_outputs is not None and (lambda_abt > 0 or lambda_ldb > 0):
-                # Interaction matrix G (Def 2.3)
+                # Interaction matrix G = ω ⊙ ρ (Def 2.3, Eq 6)
                 W_O = get_output_projection_weights(model, design_layer).to(device)
                 omega = HeadInteractionMatrix.compute_weight_coupling(W_O)
-                # Gradient coupling: besoin logits avec grad
-                # Simplification: on utilise omega seul comme proxy pour G
-                # (le calcul complet de ρ nécessite un backward séparé)
-                G = omega  # approximation sans gradient coupling pour efficacité
-                # Note: pour le calcul complet avec ρ, décommenter ci-dessous :
-                # rho = HeadInteractionMatrix.compute_gradient_coupling(
-                #     model, out.logits, labels, W_O,
-                #     head_dim=head_outputs.shape[-1]
-                # )
-                # G = HeadInteractionMatrix.compute_G(omega, rho)
+                rho = HeadInteractionMatrix.compute_gradient_coupling(
+                    model, out.logits, labels, W_O,
+                    head_dim=head_outputs.shape[-1]
+                )
+                G = HeadInteractionMatrix.compute_G(omega, rho)
 
                 # L_LDB (Eq 28)
                 if lambda_ldb > 0:
@@ -264,6 +260,14 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
                         except Exception:
                             pass
                     wandb.log(log_dict, step=opt_step)
+
+            # Sauvegarde best model (basé sur CE loss uniquement)
+            if accum_ce < best_loss:
+                best_loss = accum_ce
+                best_path = os.path.join(cfg.output_dir, "best")
+                model.save_pretrained(best_path)
+                tokenizer.save_pretrained(best_path)
+                logger.info(f"Nouveau best model (CE={best_loss:.4f}) → {best_path}")
 
             accum_loss = 0.0
             accum_ce = 0.0

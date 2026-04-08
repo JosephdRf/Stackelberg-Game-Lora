@@ -648,6 +648,10 @@ if __name__ == "__main__":
     parser.add_argument("--n_samples", type=int, default=EVAL_PARAMS["n_samples"])
     parser.add_argument("--seed", type=int, default=EVAL_PARAMS["seed"])
     parser.add_argument("--output_json", default="eval_results.json")
+    parser.add_argument(
+        "--reference", choices=["baseline", "game_lora"], default="baseline",
+        help="Colonne de référence de l'article (Table 1) : 'baseline' ou 'game_lora'",
+    )
     args = parser.parse_args()
 
     model, tokenizer, device = load_model(args.model_path, args.base_model)
@@ -657,22 +661,39 @@ if __name__ == "__main__":
     for k, v in results.items():
         logger.info(f"  {k:<20} = {v:.4f}")
 
-    # Comparaison avec les valeurs de référence de l'article (Table 1, colonne Baseline)
-    reference = {
-        # Hallucination (higher is better)
+    # Table 1 — colonne Baseline
+    REFERENCE_BASELINE = {
         "HE-Dial":     0.458,
         "HE-QA":       0.376,
         "HE-Summ":     0.438,
         "MemoTrap":    0.642,
         "TFQA-MC1":    0.252,
         "TFQA-MC2":    0.401,
-        # Knowledge (higher is better, except WikiText_BPB lower is better)
         "MMLU":        0.477,
         "NQ":          0.066,
         "PopQA":       0.111,
         "WikiText_BPB": 0.784,
         "Winogrande":  0.573,
     }
+
+    # Table 1 — colonne GAME-LoRA
+    REFERENCE_GAME_LORA = {
+        "HE-Dial":     0.491,
+        "HE-QA":       0.445,
+        "HE-Summ":     0.500,
+        "MemoTrap":    0.650,
+        "TFQA-MC1":    0.263,
+        "TFQA-MC2":    0.412,
+        "MMLU":        0.469,
+        "NQ":          0.067,
+        "PopQA":       0.112,
+        "WikiText_BPB": 0.786,
+        "Winogrande":  0.565,
+    }
+
+    reference = REFERENCE_GAME_LORA if args.reference == "game_lora" else REFERENCE_BASELINE
+    logger.info(f"\nRéférence utilisée : Table 1 — {args.reference}")
+    # Comparaison avec les valeurs de référence de l'article
 
     # Lower-is-better tasks (negated in relative improvement formula)
     LOWER_IS_BETTER = {"WikiText_BPB"}
