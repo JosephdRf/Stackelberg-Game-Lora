@@ -52,11 +52,53 @@ Paramètres communs (Appendix A) :
 GAME-LoRA ajoute ~5% de surcoût (Appendix A) dû au calcul des losses de régularisation sur la couche design (layer 19).
 
 
-## Installation
+## Installation (Compute Canada / Alliance)
+
+Sur les clusters de l'Alliance de recherche numérique du Canada (ex. Narval, Béluga, Cedar…),
+`pyarrow` et plusieurs dépendances NumPy/pandas ne sont **pas** installables via pip seul :
+elles sont fournies sous forme de modules Lmod et doivent être chargées **avant** d'activer
+le virtualenv.
+
+### Pourquoi le module `arrow` est-il nécessaire ?
+
+Le cluster expose un *dummy wheel* `pyarrow` qui échoue volontairement à l'installation
+et renvoie le message :
+
+```
+IMPORTANT: the module must be loaded before activating your virtual environment.
+1. Deactivate your virtual environment : deactivate
+2. Load the Arrow module : module load gcc arrow/x.y.z
+3. Activate your virtual env. : source <env>/bin/activate
+4. And re-run your pip install command.
+```
+
+**Mécanisme :** quand le module `arrow/x.y.z` est chargé via Lmod, il ajoute son répertoire
+`lib/python3.x/site-packages` au `PYTHONPATH` (et donc à `sys.path`).  
+Le paquet `pyarrow` réel est déjà compilé et présent dans ce répertoire — il n'y a rien à
+télécharger ni à compiler. Le dummy wheel sert uniquement à bloquer `pip` et à forcer les
+utilisateurs à passer par la bonne procédure.
+
+De même, `numpy`, `pandas`, `scipy`, etc. proviennent du module `scipy-stack` qui est chargé
+automatiquement avec l'environnement de base du cluster.
+
+### Procédure d'installation
 
 ```bash
+# 1. Charger les modules système requis
+module load gcc arrow/21.0.0
+
+# 2. Créer le virtualenv (une seule fois)
+python -m venv venv
+
+# 3. Activer le venv (toujours APRÈS module load)
+source venv/bin/activate
+
+# 4. Installer les dépendances Python
 pip install -r requirements.txt
 ```
+
+> **Important :** à chaque nouvelle session, toujours faire `module load gcc arrow/21.0.0`
+> **avant** `source venv/bin/activate`, sinon `pyarrow` et `numpy` ne seront pas trouvés.
 
 
 ## Entraînement
