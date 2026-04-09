@@ -1,26 +1,37 @@
-# Reproduction GAME-LoRA
+# Stackelberg Game LoRA
 
-Reproduction de l'article "Multi-Head Attention is a Multi-Player Game"
-(Chakrabarti & Balachundar, 2026) — baseline LoRA + GAME-LoRA.
+Trois expériences de fine-tuning LoRA de **Qwen2.5-0.5B** sur The Pile (20M tokens),
+explorant des régularisations game-théoriques sur les attention heads.
 
-## Ce qu'on reproduit
+## Expériences
 
-**Baseline** : LoRA fine-tuning de Qwen2.5-0.5B sur The Pile (20M tokens).
+### 1. Baseline (`baseline/`)
+LoRA fine-tuning standard avec `loss = L_CE`.
 
-**GAME-LoRA** : même setup + régularisation game-théorique (Eq 27) :
-- `L = L_CE + λ_LDB · L_LDB + λ_ABT · L_ABT`
+### 2. GAME-LoRA (`game_lora/`)
+Reproduction de "Multi-Head Attention is a Multi-Player Game"
+(Chakrabarti & Balachundar, 2026) :
+- `L = L_CE + λ_LDB · L_LDB + λ_ABT · L_ABT` (Eq 27)
 - `L_LDB` : log-determinant barrier sur la matrice d'interaction G (Eq 28)
 - `L_ABT` : Barlow Twins adaptatif entre paires de têtes (Eq 29)
 - Gradients arbitrés via Nash-MTL (Navon et al., 2022)
 - Schedule 3 phases : warmup 0–2%, constant 2–87.9%, cooldown 87.9–100%
 
-Paramètres communs (Appendix A) :
+### 3. Stackelberg Attention Diversity (`exp1/`)
+Modélisation des attention heads comme un jeu de Stackelberg :
+- Head 0 = leader (optimise L_CE via o_proj LoRA)
+- Heads 1..13 = followers (optimise L_CE + diversity penalty via q/k/v LoRA)
+- Bilevel K=1 update : simulated follower step → leader lookahead → follower update
+- Similarité = Frobenius inner product normalisé des matrices d'attention
+
+Paramètres communs :
 - LoRA rank=16, alpha=32, dropout=0.1, cibles Q/K/V/O toutes couches
-- AdamW lr=3e-4, weight_decay=0.1, cosinus schedule, 2% warmup
-- Batch effectif=16, séquences 1024 tokens, 19 531 forward passes
+- AdamW, cosinus schedule, 2% warmup
+- Batch effectif=16, séquences 1024 tokens
+- Design layer: 19 (Qwen2.5-0.5B, 14 heads, 24 layers)
 
 
-## Résultats attendus (Table 1)
+## Résultats attendus — GAME-LoRA (Table 1, papier)
 
 | Benchmark    | Baseline | GAME-LoRA |
 |--------------|----------|-----------|
@@ -39,49 +50,10 @@ Paramètres communs (Appendix A) :
 | **Knowl. Δ**  | –       | **-0.1%** |
 
 
-## Prérequis matériel
-
-| GPU       | VRAM  | batch/gpu | grad_accum | temps estimé (baseline) | temps estimé (GAME) |
-|-----------|-------|-----------|------------|-------------------------|---------------------|
-| A100 80GB | 80GB  | 4         | 4          | ~45 min                 | ~50 min             |
-| A100 40GB | 40GB  | 2         | 8          | ~55 min                 | ~65 min             |
-| RTX 4090  | 24GB  | 1         | 16         | ~2h                     | ~2h15               |
-| RTX 3090  | 24GB  | 1         | 16         | ~3h                     | ~3h30               |
-| V100 16GB | 16GB  | 1         | 16         | ~4h                     | ~4h30               |
-
-GAME-LoRA ajoute ~5% de surcoût (Appendix A) dû au calcul des losses de régularisation sur la couche design (layer 19).
-
-
 ## Installation (Compute Canada / Alliance)
 
-Sur les clusters de l'Alliance de recherche numérique du Canada (ex. Narval, Béluga, Cedar…),
-`pyarrow` et plusieurs dépendances NumPy/pandas ne sont **pas** installables via pip seul :
-elles sont fournies sous forme de modules Lmod et doivent être chargées **avant** d'activer
-le virtualenv.
-
-### Pourquoi le module `arrow` est-il nécessaire ?
-
-Le cluster expose un *dummy wheel* `pyarrow` qui échoue volontairement à l'installation
-et renvoie le message :
-
-```
-IMPORTANT: the module must be loaded before activating your virtual environment.
-1. Deactivate your virtual environment : deactivate
-2. Load the Arrow module : module load gcc arrow/x.y.z
-3. Activate your virtual env. : source <env>/bin/activate
-4. And re-run your pip install command.
-```
-
-**Mécanisme :** quand le module `arrow/x.y.z` est chargé via Lmod, il ajoute son répertoire
-`lib/python3.x/site-packages` au `PYTHONPATH` (et donc à `sys.path`).  
-Le paquet `pyarrow` réel est déjà compilé et présent dans ce répertoire — il n'y a rien à
-télécharger ni à compiler. Le dummy wheel sert uniquement à bloquer `pip` et à forcer les
-utilisateurs à passer par la bonne procédure.
-
-De même, `numpy`, `pandas`, `scipy`, etc. proviennent du module `scipy-stack` qui est chargé
-automatiquement avec l'environnement de base du cluster.
-
-### Procédure d'installation
+Sur les clusters de l'Alliance de recherche numérique du Canada (Narval, Béluga, Cedar…),
+`pyarrow` et plusieurs dépendances sont fournies via modules Lmod.
 
 ```bash
 # 1. Charger les modules système requis
@@ -98,66 +70,79 @@ pip install -r requirements.txt
 ```
 
 > **Important :** à chaque nouvelle session, toujours faire `module load gcc arrow/21.0.0`
-> **avant** `source venv/bin/activate`, sinon `pyarrow` et `numpy` ne seront pas trouvés.
+> **avant** `source venv/bin/activate`.
 
 
 ## Entraînement
+
+Toutes les commandes se lancent depuis la **racine du repo**.
 
 ### Baseline
 
 ```bash
 # Test rapide (100 steps)
-python train_baseline.py --dry_run
+python baseline/train_baseline.py --dry_run
 
 # Run complet
-python train_baseline.py \
-    --batch_size_per_gpu 1 \
-    --grad_accum 16 \
-    --output_dir ./checkpoints/baseline
+python baseline/train_baseline.py
 ```
 
 ### GAME-LoRA
 
 ```bash
 # Test rapide (100 steps)
-python train_game_lora.py --dry_run
+python game_lora/train_game_lora.py --dry_run
 
 # Run complet
-python train_game_lora.py \
-    --batch_size_per_gpu 1 \
-    --grad_accum 16 \
-    --design_layer 19 \
-    --output_dir ./checkpoints/game_lora
+python game_lora/train_game_lora.py
 
-# Sans Nash-MTL (combinaison linéaire simple)
-python train_game_lora.py --no_nash_mtl --output_dir ./checkpoints/game_lora_no_nash
+# Sans Nash-MTL
+python game_lora/train_game_lora.py --no_nash_mtl
 ```
 
-### Seeds multiples (3 seeds comme dans l'article)
+### Stackelberg (Exp1)
+
+```bash
+# Test rapide (100 steps)
+python exp1/train_exp1.py --dry_run
+
+# Run complet
+python exp1/train_exp1.py
+
+# Avec hyperparamètres custom
+python exp1/train_exp1.py --lr_leader 1e-4 --lr_follower 3e-4 --lambda_lead 0.1 --lambda_peer 0.01
+```
+
+### Seeds multiples (3 seeds)
 ```bash
 for seed in 42 43 44; do
-    python train_baseline.py --seed $seed --output_dir ./checkpoints/baseline_s${seed}
-    python train_game_lora.py --seed $seed --output_dir ./checkpoints/game_lora_s${seed}
+    python baseline/train_baseline.py --seed $seed
+    python game_lora/train_game_lora.py --seed $seed
+    python exp1/train_exp1.py --seed $seed
 done
 ```
 
 
 ## Évaluation
 
-Le même script `eval_baseline.py` sert pour évaluer les deux méthodes.
-
 ```bash
 # Évaluer le baseline
 python eval_baseline.py \
-    --model_path ./checkpoints/baseline/final \
+    --model_path baseline/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
-    --output_json results_baseline.json
+    --output_json baseline/results.json
 
 # Évaluer GAME-LoRA
 python eval_baseline.py \
-    --model_path ./checkpoints/game_lora/final \
+    --model_path game_lora/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
-    --output_json results_game_lora.json
+    --output_json game_lora/results.json
+
+# Évaluer Stackelberg
+python eval_baseline.py \
+    --model_path exp1/checkpoints/final \
+    --base_model Qwen/Qwen2.5-0.5B \
+    --output_json exp1/results.json
 
 # Évaluer le modèle de base (sans fine-tuning)
 python eval_baseline.py \
@@ -166,36 +151,42 @@ python eval_baseline.py \
 ```
 
 
-## Structure des fichiers
+## Structure du repo
 
 ```
 .
-├── requirements.txt        # dépendances
-├── train.py                # code commun (config, dataset, modèle, optimizer)
-├── train_baseline.py       # entraînement baseline (CE only)
-├── train_game_lora.py      # entraînement GAME-LoRA (CE + LDB + ABT + Nash-MTL)
-├── game_losses.py          # losses GAME-LoRA (interaction matrix, LDB, ABT, Nash-MTL, scheduler)
-├── eval_baseline.py        # évaluation (benchmarks hallucination + knowledge)
-└── checkpoints/
-    ├── baseline/
-    │   └── final/
-    └── game_lora/
-        └── final/
+├── train.py                    # code commun (config, dataset, modèle, optimizer)
+├── eval_baseline.py            # évaluation (benchmarks hallucination + knowledge)
+├── requirements.txt
+│
+├── baseline/                   # Exp: Baseline LoRA
+│   ├── train_baseline.py
+│   ├── checkpoints/            # (généré) step_N/ et final/
+│   └── results_lora.json
+│
+├── game_lora/                  # Exp: GAME-LoRA
+│   ├── train_game_lora.py
+│   ├── game_losses.py
+│   ├── checkpoints/            # (généré) step_N/ et final/
+│   └── results_game_lora.json
+│
+└── exp1/                       # Exp: Stackelberg Attention Diversity
+    ├── train_exp1.py
+    ├── stackelberg_losses.py
+    └── checkpoints/            # (généré) step_N/ et final/
 ```
 
 ### Architecture du code
 
-- **`train.py`** : partagé entre baseline et GAME-LoRA — `TrainConfig`, `PileStreamDataset`,
-  `build_model_and_tokenizer`, `setup_training` (optimizer, scheduler, dataloader)
-- **`train_baseline.py`** : boucle d'entraînement simple avec `loss = L_CE`
-- **`train_game_lora.py`** : boucle avec les 3 losses, hooks sur la couche design, Nash-MTL
-- **`game_losses.py`** : implémentation fidèle au papier des composants GAME :
-  - `HeadInteractionMatrix` : G = ω⊙ρ (Def 2.3), Γ(G) = ||G-I||_F
-  - `LogDetBarrierLoss` : -log det(G+εI) (Eq 28)
-  - `AdaptiveBarlowTwinsLoss` : E_{i<j}[w_ij ||Ĉ_ij - I||²_F] (Eq 29)
-  - `NashMTL` : Nash bargaining pour arbitrer les gradients
-  - `GAMELossScheduler` : schedule 3 phases (warmup/constant/cooldown)
-  - `HeadOutputCapture` : hook pour capturer les sorties par tête
+- **`train.py`** : partagé entre les 3 expériences — `TrainConfig`, `PileStreamDataset`,
+  `build_model_and_tokenizer`, `setup_training`
+- **`baseline/train_baseline.py`** : boucle simple `loss = L_CE`
+- **`game_lora/train_game_lora.py`** : 3 losses + Nash-MTL, hooks sur layer 19
+- **`game_lora/game_losses.py`** : `HeadInteractionMatrix`, `LogDetBarrierLoss`,
+  `AdaptiveBarlowTwinsLoss`, `NashMTL`, `GAMELossScheduler`
+- **`exp1/train_exp1.py`** : bilevel Stackelberg K=1, 2 Adam optimizers (leader/follower)
+- **`exp1/stackelberg_losses.py`** : `compute_diversity_loss`, `split_leader_follower_params`,
+  `AttentionWeightCapture`
 
 
 ## Notes importantes
