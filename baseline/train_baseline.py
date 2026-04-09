@@ -10,9 +10,13 @@ Usage :
 """
 
 import os
+import sys
 import argparse
 import logging
 import time
+
+# Add repo root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
 import numpy as np

@@ -648,6 +648,10 @@ if __name__ == "__main__":
     parser.add_argument("--n_samples", type=int, default=EVAL_PARAMS["n_samples"])
     parser.add_argument("--seed", type=int, default=EVAL_PARAMS["seed"])
     parser.add_argument("--output_json", default="eval_results.json")
+    parser.add_argument("--csv", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv"),
+                        help="Path to results.csv (shared across experiments)")
+    parser.add_argument("--csv_column", default=None,
+                        help="Column name to update in results.csv (e.g. 'baseline', 'game-lora', 'exp1')")
     parser.add_argument(
         "--reference", choices=["baseline", "game_lora"], default="baseline",
         help="Colonne de référence de l'article (Table 1) : 'baseline' ou 'game_lora'",
@@ -726,3 +730,46 @@ if __name__ == "__main__":
     with open(args.output_json, "w") as f:
         json.dump({"results": results, "reference": reference, "relative_improvement_pct": {k: round(v, 4) for k, v in deltas.items()}}, f, indent=2)
     logger.info(f"\nRésultats sauvegardés → {args.output_json}")
+
+    # --- Update results.csv if --csv_column is specified ---
+    if args.csv_column:
+        import csv
+        csv_path = args.csv
+        # Read existing CSV
+        rows = {}
+        if os.path.exists(csv_path):
+            with open(csv_path, "r") as f:
+                reader = csv.DictReader(f)
+                fieldnames = list(reader.fieldnames) if reader.fieldnames else ["metric"]
+                for row in reader:
+                    rows[row["metric"]] = row
+        else:
+            fieldnames = ["metric"]
+
+        # Ensure column exists
+        col = args.csv_column
+        if col not in fieldnames:
+            fieldnames.append(col)
+
+        # Update values
+        for metric, value in results.items():
+            if metric not in rows:
+                rows[metric] = {"metric": metric}
+            rows[metric][col] = str(value)
+
+        # Canonical metric order
+        METRIC_ORDER = [
+            "HE-Dial", "HE-QA", "HE-Summ", "MemoTrap",
+            "TFQA-MC1", "TFQA-MC2", "MMLU", "NQ", "PopQA",
+            "Winogrande", "WikiText_BPB",
+        ]
+        ordered_metrics = [m for m in METRIC_ORDER if m in rows]
+        ordered_metrics += [m for m in rows if m not in METRIC_ORDER]
+
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for m in ordered_metrics:
+                writer.writerow(rows[m])
+
+        logger.info(f"Colonne '{col}' mise à jour dans {csv_path}")

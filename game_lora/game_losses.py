@@ -138,6 +138,7 @@ class LogDetBarrierLoss(nn.Module):
             loss: scalar
         """
         H = G.shape[0]
+        print("Number of heads (H):", H)
         G_reg = G.float() + self.epsilon * torch.eye(H, device=G.device, dtype=torch.float32)
 
         # Clamp eigenvalues for numerical stability (Appendix A)

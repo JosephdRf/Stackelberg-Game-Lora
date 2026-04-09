@@ -12,9 +12,15 @@ Usage :
 """
 
 import os
+import sys
 import argparse
 import logging
 import time
+
+# Add repo root and current dir to path for imports
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_HERE))  # repo root (for train.py)
+sys.path.insert(0, _HERE)                   # current dir (for game_losses.py)
 
 import torch
 import numpy as np

@@ -125,29 +125,31 @@ done
 
 ## Évaluation
 
+Les résultats sont centralisés dans `results.csv` à la racine du repo.
+
 ```bash
-# Évaluer le baseline
+# Évaluer le baseline → colonne "baseline" dans results.csv
 python eval_baseline.py \
     --model_path baseline/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
-    --output_json baseline/results.json
+    --csv_column baseline
 
-# Évaluer GAME-LoRA
+# Évaluer GAME-LoRA → colonne "game-lora"
 python eval_baseline.py \
     --model_path game_lora/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
-    --output_json game_lora/results.json
+    --csv_column game-lora
 
-# Évaluer Stackelberg
+# Évaluer Stackelberg → colonne "exp1"
 python eval_baseline.py \
     --model_path exp1/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
-    --output_json exp1/results.json
+    --csv_column exp1
 
 # Évaluer le modèle de base (sans fine-tuning)
 python eval_baseline.py \
     --model_path Qwen/Qwen2.5-0.5B \
-    --output_json results_base.json
+    --csv_column base
 ```
 
 
@@ -157,18 +159,17 @@ python eval_baseline.py \
 .
 ├── train.py                    # code commun (config, dataset, modèle, optimizer)
 ├── eval_baseline.py            # évaluation (benchmarks hallucination + knowledge)
+├── results.csv                 # résultats centralisés (toutes expériences)
 ├── requirements.txt
 │
 ├── baseline/                   # Exp: Baseline LoRA
 │   ├── train_baseline.py
-│   ├── checkpoints/            # (généré) step_N/ et final/
-│   └── results_lora.json
+│   └── checkpoints/            # (généré) step_N/ et final/
 │
 ├── game_lora/                  # Exp: GAME-LoRA
 │   ├── train_game_lora.py
 │   ├── game_losses.py
-│   ├── checkpoints/            # (généré) step_N/ et final/
-│   └── results_game_lora.json
+│   └── checkpoints/            # (généré) step_N/ et final/
 │
 └── exp1/                       # Exp: Stackelberg Attention Diversity
     ├── train_exp1.py
