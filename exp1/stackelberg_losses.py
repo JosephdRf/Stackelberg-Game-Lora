@@ -27,7 +27,7 @@ from typing import List, Tuple, Optional
 
 
 def compute_diversity_loss(
-    attn_weights: torch.Tensor,
+    attn_weights: torch.Tensor, 
     leader_idx: int = 0,
     lambda_lead: float = 0.1,
     lambda_peer: float = 0.01,

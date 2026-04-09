@@ -68,8 +68,8 @@ class TrainConfig:
     lr: float = 3e-4
     weight_decay: float = 0.1
     warmup_ratio: float = 0.02  # "2% warmup"
-    batch_size_per_gpu: int = 1  # à ajuster selon VRAM
-    grad_accum: int = 16  # batch effectif = batch_size_per_gpu * grad_accum = 16
+    batch_size_per_gpu: int = 8  # à ajuster selon VRAM
+    grad_accum: int = 2  # batch effectif = batch_size_per_gpu * grad_accum = 16
 
     @property
     def effective_batch_size(self) -> int:
@@ -208,7 +208,7 @@ def setup_training(cfg: TrainConfig, model, tokenizer):
     Crée les composants d'entraînement communs.
     Returns: (dataloader, optimizer, scheduler, total_steps)
     """
-    max_tokens = 100 * cfg.seq_len * cfg.grad_accum if cfg.dry_run else cfg.total_tokens
+    max_tokens = 100 * cfg.seq_len * cfg.effective_batch_size if cfg.dry_run else cfg.total_tokens
     dataset = PileStreamDataset(tokenizer, cfg.seq_len, max_tokens, cfg.seed)
     dataloader = DataLoader(
         dataset,
@@ -253,8 +253,8 @@ def add_common_args(parser):
     """Ajoute les arguments communs au parser."""
     parser.add_argument("--model_name", default="Qwen/Qwen2.5-0.5B")
     parser.add_argument("--total_tokens", type=int, default=20_000_000)
-    parser.add_argument("--batch_size_per_gpu", type=int, default=1)
-    parser.add_argument("--grad_accum", type=int, default=16)
+    parser.add_argument("--batch_size_per_gpu", type=int, default=2)
+    parser.add_argument("--grad_accum", type=int, default=8)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--wandb_project", default=None)
     parser.add_argument("--seed", type=int, default=42)

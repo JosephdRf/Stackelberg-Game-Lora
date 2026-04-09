@@ -647,7 +647,6 @@ if __name__ == "__main__":
                         help="Si model_path est un dossier LoRA, spécifier le base model ici")
     parser.add_argument("--n_samples", type=int, default=EVAL_PARAMS["n_samples"])
     parser.add_argument("--seed", type=int, default=EVAL_PARAMS["seed"])
-    parser.add_argument("--output_json", default="eval_results.json")
     parser.add_argument("--csv", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv"),
                         help="Path to results.csv (shared across experiments)")
     parser.add_argument("--csv_column", default=None,
@@ -726,10 +725,6 @@ if __name__ == "__main__":
         if cat_deltas:
             avg = sum(cat_deltas) / len(cat_deltas)
             logger.info(f"  {cat:<20} : {avg:+.1f}%")
-
-    with open(args.output_json, "w") as f:
-        json.dump({"results": results, "reference": reference, "relative_improvement_pct": {k: round(v, 4) for k, v in deltas.items()}}, f, indent=2)
-    logger.info(f"\nRésultats sauvegardés → {args.output_json}")
 
     # --- Update results.csv if --csv_column is specified ---
     if args.csv_column:
