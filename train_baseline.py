@@ -62,7 +62,6 @@ def train(cfg: TrainConfig):
     model.train()
     global_step = 0
     accum_loss = 0.0
-    best_loss = float("inf")
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
@@ -124,14 +123,6 @@ def train(cfg: TrainConfig):
                         },
                         step=opt_step,
                     )
-
-            # Sauvegarde best model
-            if avg_loss < best_loss:
-                best_loss = avg_loss
-                best_path = os.path.join(cfg.output_dir, "best")
-                model.save_pretrained(best_path)
-                tokenizer.save_pretrained(best_path)
-                logger.info(f"Nouveau best model (loss={best_loss:.4f}) → {best_path}")
 
             # Sauvegarde checkpoint
             if opt_step % cfg.save_every == 0:

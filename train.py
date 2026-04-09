@@ -260,5 +260,5 @@ def add_common_args(parser):
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--log_every", type=int, default=50)
-    parser.add_argument("--save_every", type=int, default=2000)
+    parser.add_argument("--save_every", type=int, default=200)
     return parser

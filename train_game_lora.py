@@ -91,7 +91,6 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
     accum_ce = 0.0
     accum_ldb = 0.0
     accum_abt = 0.0
-    best_loss = float("inf")
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
@@ -260,14 +259,6 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
                         except Exception:
                             pass
                     wandb.log(log_dict, step=opt_step)
-
-            # Sauvegarde best model (basé sur CE loss uniquement)
-            if accum_ce < best_loss:
-                best_loss = accum_ce
-                best_path = os.path.join(cfg.output_dir, "best")
-                model.save_pretrained(best_path)
-                tokenizer.save_pretrained(best_path)
-                logger.info(f"Nouveau best model (CE={best_loss:.4f}) → {best_path}")
 
             accum_loss = 0.0
             accum_ce = 0.0
