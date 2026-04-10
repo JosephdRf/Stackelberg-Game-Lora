@@ -1,11 +1,11 @@
 """
-Évaluation baseline — benchmarks identiques à l'article
+Évaluation — benchmarks identiques à l'article
 Table 1 : HaluEval (dial/QA/summ), TruthfulQA MC1/MC2, MemoTrap
            MMLU, NQ, PopQA, WikiText BPB, WinoGrande
 
 Usage :
-    python eval_baseline.py --model_path ./checkpoints/baseline/final
-    python eval_baseline.py --model_path Qwen/Qwen2.5-0.5B  # évaluation du modèle de base
+    python eval.py --model_path ./checkpoints/baseline/final
+    python eval.py --model_path Qwen/Qwen2.5-0.5B  # évaluation du modèle de base
 """
 
 import os
@@ -232,7 +232,12 @@ def eval_halueval_dial(model, tokenizer, device, n, seed):
         right_resp = ex.get("right_response", "")
         hall_resp  = ex.get("hallucinated_response", "")
 
-        context = (knowledge + "\n" + history.strip() if knowledge else history.strip()) + " [Assistant]: "
+        # Use natural dialogue format (matches Qwen pre-training distribution better
+        # than [Assistant]: which caused below-chance scores)
+        context = ""
+        if knowledge:
+            context += knowledge.strip() + "\n\n"
+        context += history.strip() + "\n"
         score_right = conditional_log_likelihood(model, tokenizer, device, context, right_resp)
         score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_resp)
 
@@ -290,8 +295,9 @@ def eval_halueval_summ(model, tokenizer, device, n, seed):
         right_s   = ex.get("right_summary", "")
         hall_s    = ex.get("hallucinated_summary", "")
 
-        score_right = conditional_log_likelihood(model, tokenizer, device, doc + " ", right_s)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + " ", hall_s)
+        # Use max_length=4096 to avoid truncating long CNN/DM documents
+        score_right = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", right_s, max_length=4096)
+        score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", hall_s, max_length=4096)
 
         if score_right > score_hall:
             correct += 1

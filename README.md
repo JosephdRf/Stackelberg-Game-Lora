@@ -129,25 +129,25 @@ Les résultats sont centralisés dans `results.csv` à la racine du repo.
 
 ```bash
 # Évaluer le baseline → colonne "baseline" dans results.csv
-python eval_baseline.py \
+python eval.py \
     --model_path baseline/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
     --csv_column baseline
 
 # Évaluer GAME-LoRA → colonne "game-lora"
-python eval_baseline.py \
+python eval.py \
     --model_path game_lora/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
     --csv_column game-lora
 
 # Évaluer Stackelberg → colonne "exp1"
-python eval_baseline.py \
+python eval.py \
     --model_path exp1/checkpoints/final \
     --base_model Qwen/Qwen2.5-0.5B \
     --csv_column exp1
 
 # Évaluer le modèle de base (sans fine-tuning)
-python eval_baseline.py \
+python eval.py \
     --model_path Qwen/Qwen2.5-0.5B \
     --csv_column base
 ```
@@ -158,7 +158,7 @@ python eval_baseline.py \
 ```
 .
 ├── train.py                    # code commun (config, dataset, modèle, optimizer)
-├── eval_baseline.py            # évaluation (benchmarks hallucination + knowledge)
+├── eval.py                     # évaluation (benchmarks hallucination + knowledge)
 ├── results.csv                 # résultats centralisés (toutes expériences)
 ├── requirements.txt
 │
@@ -179,6 +179,7 @@ python eval_baseline.py \
 
 ### Architecture du code
 
+- **`eval.py`** : évaluation sur tous les benchmarks (HaluEval, TruthfulQA, MemoTrap, MMLU, NQ, PopQA, WikiText, WinoGrande)
 - **`train.py`** : partagé entre les 3 expériences — `TrainConfig`, `PileStreamDataset`,
   `build_model_and_tokenizer`, `setup_training`
 - **`baseline/train_baseline.py`** : boucle simple `loss = L_CE`
