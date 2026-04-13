@@ -88,22 +88,21 @@ def log_likelihood(model, tokenizer, device, text: str) -> float:
 
 
 def conditional_log_likelihood(model, tokenizer, device, context: str, completion: str, max_length: int = 2048) -> float:
-    """
-    Mean log-likelihood of `completion` tokens given `context`.
-    Normalised per completion token → length-agnostic comparison.
-    This is the correct scoring function for all paired / MC evaluations.
-    """
-    ctx_ids  = tokenizer(context,             add_special_tokens=True)["input_ids"]
-    full_ids = tokenizer(context + completion, add_special_tokens=True, truncation=True, max_length=max_length)["input_ids"]
+    # CORRECTION bug 3 : n_ctx calculé sur les ids tronqués
+    # Le contexte et la complétion sont concaténés, mais seuls les tokens de la complétion contribuent à la vraisemblance conditionnelle.
+    ctx_ids  = tokenizer(context,             add_special_tokens=True,
+                         truncation=True, max_length=max_length)["input_ids"]
+    full_ids = tokenizer(context + completion, add_special_tokens=True,
+                         truncation=True, max_length=max_length)["input_ids"]
     n_ctx = len(ctx_ids)
     if len(full_ids) <= n_ctx:
         return float("-inf")
     input_ids = torch.tensor([full_ids], dtype=torch.long).to(device)
     labels    = input_ids.clone()
-    labels[0, :n_ctx] = -100  # mask context tokens; only completion contributes to loss
+    labels[0, :n_ctx] = -100
     with torch.no_grad():
         out = model(input_ids=input_ids, labels=labels)
-    return -out.loss.item()  # negative mean NLL over completion tokens (higher = more likely)
+    return -out.loss.item()
 
 
 def multiple_choice_accuracy(model, tokenizer, device, examples: list) -> float:
@@ -179,7 +178,8 @@ def generate_greedy(model, tokenizer, device, prompt: str, max_new_tokens: int =
     """Greedy decode; returns only the generated continuation (first line)."""
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=450).to(device)
     with torch.no_grad():
-        output = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+        output = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False,
+                                pad_token_id=tokenizer.eos_token_id)
     text = tokenizer.decode(output[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
     return text.split("\n")[0].strip()
 
@@ -210,15 +210,8 @@ def exact_match_any(prediction: str, gold_answers: list) -> bool:
 # ---------------------------------------------------------------------------
 
 def eval_halueval_dial(model, tokenizer, device, n, seed):
-    """
-    HaluEval Dialogue — paired right/hallucinated response comparison.
-    Dataset schema (pminervini/HaluEval, 'dialogue' subset):
-      knowledge, dialogue_history, right_response, hallucinated_response
-    """
     try:
         from datasets import load_dataset
-        # 'dialogue' has paired right_response / hallucinated_response fields.
-        # 'dialogue_samples' has binary labels only — wrong for this protocol.
         ds = load_dataset("pminervini/HaluEval", "dialogue", split="data")
         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
     except Exception as e:
@@ -232,12 +225,14 @@ def eval_halueval_dial(model, tokenizer, device, n, seed):
         right_resp = ex.get("right_response", "")
         hall_resp  = ex.get("hallucinated_response", "")
 
-        # Use natural dialogue format (matches Qwen pre-training distribution better
-        # than [Assistant]: which caused below-chance scores)
-        context = ""
-        if knowledge:
-            context += knowledge.strip() + "\n\n"
-        context += history.strip() + "\n"
+        # CORRECTION bug 1 : pas de template artificiel, knowledge inclus proprement
+        parts = []
+        if knowledge.strip():
+            parts.append(knowledge.strip())
+        if history.strip():
+            parts.append(history.strip())
+        context = "\n".join(parts) + "\n"
+
         score_right = conditional_log_likelihood(model, tokenizer, device, context, right_resp)
         score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_resp)
 
@@ -248,11 +243,8 @@ def eval_halueval_dial(model, tokenizer, device, n, seed):
 
 
 def eval_halueval_qa(model, tokenizer, device, n, seed):
-    """HaluEval QA — accuracy de détection d'hallucination"""
     try:
         from datasets import load_dataset
-        # "qa" subset has paired right_answer / hallucinated_answer fields.
-        # "qa_samples" has binary hallucination labels only — wrong format.
         ds = load_dataset("pminervini/HaluEval", "qa", split="data")
         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
     except Exception as e:
@@ -261,14 +253,16 @@ def eval_halueval_qa(model, tokenizer, device, n, seed):
 
     correct = 0
     for ex in tqdm(ds, desc="HaluEval-QA", leave=False):
-        q = ex.get("question", "")
+        knowledge = ex.get("knowledge", "")   # CORRECTION bug 2 : champ knowledge inclus
+        q         = ex.get("question", "")
         right_ans = ex.get("right_answer", "")
         hall_ans  = ex.get("hallucinated_answer", "")
 
-        score_right = conditional_log_likelihood(model, tokenizer, device, q + " ", right_ans)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, q + " ", hall_ans)
+        context = (knowledge.strip() + "\n" + q.strip() if knowledge.strip() else q.strip()) + " "
 
-        # Le modèle "détecte" correctement si il préfère la vraie réponse
+        score_right = conditional_log_likelihood(model, tokenizer, device, context, right_ans)
+        score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_ans)
+
         if score_right > score_hall:
             correct += 1
 
@@ -276,11 +270,6 @@ def eval_halueval_qa(model, tokenizer, device, n, seed):
 
 
 def eval_halueval_summ(model, tokenizer, device, n, seed):
-    """
-    HaluEval Summarization — paired right/hallucinated summary comparison.
-    Dataset schema (pminervini/HaluEval, 'summarization' subset):
-      document, right_summary, hallucinated_summary
-    """
     try:
         from datasets import load_dataset
         ds = load_dataset("pminervini/HaluEval", "summarization", split="data")
@@ -291,18 +280,115 @@ def eval_halueval_summ(model, tokenizer, device, n, seed):
 
     correct = 0
     for ex in tqdm(ds, desc="HaluEval-Summ", leave=False):
-        doc       = ex.get("document", "")
-        right_s   = ex.get("right_summary", "")
-        hall_s    = ex.get("hallucinated_summary", "")
+        doc     = ex.get("document", "")
+        right_s = ex.get("right_summary", "")
+        hall_s  = ex.get("hallucinated_summary", "")
 
-        # Use max_length=4096 to avoid truncating long CNN/DM documents
-        score_right = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", right_s, max_length=4096)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", hall_s, max_length=4096)
+        # Bug 3 déjà corrigé dans conditional_log_likelihood ci-dessus
+        # Le document long sera tronqué correctement côté n_ctx
+        score_right = conditional_log_likelihood(model, tokenizer, device, doc + " ", right_s)
+        score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + " ", hall_s)
 
         if score_right > score_hall:
             correct += 1
 
     return correct / len(ds)
+
+
+# def eval_halueval_dial(model, tokenizer, device, n, seed):
+#     """
+#     HaluEval Dialogue — paired right/hallucinated response comparison.
+#     Dataset schema (pminervini/HaluEval, 'dialogue' subset):
+#       knowledge, dialogue_history, right_response, hallucinated_response
+#     """
+#     try:
+#         from datasets import load_dataset
+#         # 'dialogue' has paired right_response / hallucinated_response fields.
+#         # 'dialogue_samples' has binary labels only — wrong for this protocol.
+#         ds = load_dataset("pminervini/HaluEval", "dialogue", split="data")
+#         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+#     except Exception as e:
+#         logger.warning(f"HaluEval Dialogue non disponible : {e}")
+#         return None
+
+#     correct = 0
+#     for ex in tqdm(ds, desc="HaluEval-Dial", leave=False):
+#         knowledge  = ex.get("knowledge", "")
+#         history    = ex.get("dialogue_history", "")
+#         right_resp = ex.get("right_response", "")
+#         hall_resp  = ex.get("hallucinated_response", "")
+
+#         # Use natural dialogue format (matches Qwen pre-training distribution better
+#         # than [Assistant]: which caused below-chance scores)
+#         context = ""
+#         if knowledge:
+#             context += knowledge.strip() + "\n\n"
+#         context += history.strip() + "\n"
+#         score_right = conditional_log_likelihood(model, tokenizer, device, context, right_resp)
+#         score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_resp)
+
+#         if score_right > score_hall:
+#             correct += 1
+
+#     return correct / len(ds)
+
+
+# def eval_halueval_qa(model, tokenizer, device, n, seed):
+#     """HaluEval QA — accuracy de détection d'hallucination"""
+#     try:
+#         from datasets import load_dataset
+#         # "qa" subset has paired right_answer / hallucinated_answer fields.
+#         # "qa_samples" has binary hallucination labels only — wrong format.
+#         ds = load_dataset("pminervini/HaluEval", "qa", split="data")
+#         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+#     except Exception as e:
+#         logger.warning(f"HaluEval QA non disponible : {e}")
+#         return None
+
+#     correct = 0
+#     for ex in tqdm(ds, desc="HaluEval-QA", leave=False):
+#         q = ex.get("question", "")
+#         right_ans = ex.get("right_answer", "")
+#         hall_ans  = ex.get("hallucinated_answer", "")
+
+#         score_right = conditional_log_likelihood(model, tokenizer, device, q + " ", right_ans)
+#         score_hall  = conditional_log_likelihood(model, tokenizer, device, q + " ", hall_ans)
+
+#         # Le modèle "détecte" correctement si il préfère la vraie réponse
+#         if score_right > score_hall:
+#             correct += 1
+
+#     return correct / len(ds)
+
+
+# def eval_halueval_summ(model, tokenizer, device, n, seed):
+#     """
+#     HaluEval Summarization — paired right/hallucinated summary comparison.
+#     Dataset schema (pminervini/HaluEval, 'summarization' subset):
+#       document, right_summary, hallucinated_summary
+#     """
+#     try:
+#         from datasets import load_dataset
+#         ds = load_dataset("pminervini/HaluEval", "summarization", split="data")
+#         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+#     except Exception as e:
+#         logger.warning(f"HaluEval Summarization non disponible : {e}")
+#         return None
+
+#     correct = 0
+#     for ex in tqdm(ds, desc="HaluEval-Summ", leave=False):
+#         doc       = ex.get("document", "")
+#         right_s   = ex.get("right_summary", "")
+#         hall_s    = ex.get("hallucinated_summary", "")
+
+#         # Use max_length=4096 to avoid truncating long CNN/DM documents
+#         score_right = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", right_s, max_length=4096)
+#         score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", hall_s, max_length=4096)
+
+#         if score_right > score_hall:
+#             correct += 1
+
+#     return correct / len(ds)
 
 
 def eval_memotrap(model, tokenizer, device, n, seed):

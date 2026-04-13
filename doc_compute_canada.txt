@@ -1,0 +1,3 @@
+sbatch simple_job.sh > soumettre un job 
+sq > voir les jobs en cours
+
