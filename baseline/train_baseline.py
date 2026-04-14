@@ -70,7 +70,9 @@ def train(cfg: TrainConfig):
     plots_dir = os.path.join(_exp_dir, "plots")
     os.makedirs(logs_dir,  exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
-    loss_history: dict = {"step": [], "loss": []}
+    loss_history: dict = {"step": [], "loss": [], "loss_ema": []}
+    _ema_loss = None
+    _ema_alpha = 0.05
 
     # Boucle principale
     model.train()
@@ -117,11 +119,15 @@ def train(cfg: TrainConfig):
             pbar.update(1)
             pbar.set_postfix(loss=f"{avg_loss:.4f}", tok_s=f"{tokens_per_sec:,}")
 
+            # EMA update (every optimizer step, not just log steps)
+            _ema_loss = avg_loss if _ema_loss is None else _ema_alpha * avg_loss + (1 - _ema_alpha) * _ema_loss
+
             if opt_step % cfg.log_every == 0:
                 lr_now = scheduler.get_last_lr()[0]
                 tqdm.write(
                     f"Step {opt_step:>6d}/{total_steps}"
                     f"  loss={avg_loss:.4f}"
+                    f"  ema={_ema_loss:.4f}"
                     f"  lr={lr_now:.2e}"
                     f"  tok/s={tokens_per_sec:,}"
                 )
@@ -129,6 +135,7 @@ def train(cfg: TrainConfig):
                     wandb.log(
                         {
                             "train/loss": avg_loss,
+                            "train/loss_ema": _ema_loss,
                             "train/lr": lr_now,
                             "train/step": opt_step,
                             "train/tokens": opt_step
@@ -139,6 +146,7 @@ def train(cfg: TrainConfig):
                     )
                 loss_history["step"].append(opt_step)
                 loss_history["loss"].append(avg_loss)
+                loss_history["loss_ema"].append(_ema_loss)
                 with open(os.path.join(logs_dir, "loss.json"), "w") as _f:
                     json.dump(loss_history, _f, indent=2)
 
@@ -164,7 +172,8 @@ def train(cfg: TrainConfig):
 
     # Plot des losses
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(loss_history["step"], loss_history["loss"], label="loss")
+    ax.plot(loss_history["step"], loss_history["loss"], alpha=0.3, color="steelblue", label="loss (raw)")
+    ax.plot(loss_history["step"], loss_history["loss_ema"], color="steelblue", label="loss (EMA α=0.05)")
     ax.set_xlabel("step")
     ax.set_ylabel("Loss CE")
     ax.set_title("Training loss — baseline")

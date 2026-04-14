@@ -199,7 +199,9 @@ def train_stackelberg(
     plots_dir = os.path.join(_exp_dir, "plots")
     os.makedirs(logs_dir,  exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
-    loss_history: dict = {"step": [], "ce_loss": [], "div_loss": [], "leader_ce": []}
+    loss_history: dict = {"step": [], "ce_loss": [], "ce_loss_ema": [], "div_loss": [], "leader_ce": []}
+    _ema_ce = None
+    _ema_alpha = 0.05
 
     # ── Training state ──
     model.train()
@@ -319,6 +321,9 @@ def train_stackelberg(
             leader_optimizer.zero_grad()
             follower_optimizer.zero_grad()
 
+            # EMA update (every optimizer step)
+            _ema_ce = accum_ce if _ema_ce is None else _ema_alpha * accum_ce + (1 - _ema_alpha) * _ema_ce
+
             # ==========================================================
             # Logging
             # ==========================================================
@@ -329,6 +334,7 @@ def train_stackelberg(
             pbar.update(1)
             pbar.set_postfix(
                 ce=f"{accum_ce:.4f}",
+                ema=f"{_ema_ce:.4f}",
                 div=f"{accum_div:.4f}",
                 l_ce=f"{accum_leader_ce:.4f}",
                 tok_s=f"{tokens_per_sec:,}",
@@ -340,6 +346,7 @@ def train_stackelberg(
                 tqdm.write(
                     f"Step {opt_step:>6d}/{total_steps}"
                     f"  CE={accum_ce:.4f}"
+                    f"  ema={_ema_ce:.4f}"
                     f"  div={accum_div:.4f}"
                     f"  leader_CE={accum_leader_ce:.4f}"
                     f"  lr_L={lr_l:.2e}  lr_F={lr_f:.2e}"
@@ -362,6 +369,7 @@ def train_stackelberg(
                     )
                 loss_history["step"].append(opt_step)
                 loss_history["ce_loss"].append(accum_ce)
+                loss_history["ce_loss_ema"].append(_ema_ce)
                 loss_history["div_loss"].append(accum_div)
                 loss_history["leader_ce"].append(accum_leader_ce)
                 with open(os.path.join(logs_dir, "loss.json"), "w") as _f:
@@ -394,8 +402,10 @@ def train_stackelberg(
 
     # Plot des losses
     fig, ax = plt.subplots(figsize=(10, 5))
-    for key in ("ce_loss", "div_loss", "leader_ce"):
-        ax.plot(loss_history["step"], loss_history[key], label=key)
+    ax.plot(loss_history["step"], loss_history["ce_loss"], alpha=0.3, color="steelblue", label="ce_loss (raw)")
+    ax.plot(loss_history["step"], loss_history["ce_loss_ema"], color="steelblue", label="ce_loss (EMA α=0.05)")
+    for key in ("div_loss", "leader_ce"):
+        ax.plot(loss_history["step"], loss_history[key], label=key, alpha=0.7)
     ax.set_xlabel("step")
     ax.set_ylabel("loss")
     ax.set_title("Training losses — exp1 (Stackelberg)")

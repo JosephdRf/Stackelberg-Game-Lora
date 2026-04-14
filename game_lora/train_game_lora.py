@@ -85,7 +85,9 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
     plots_dir = os.path.join(_exp_dir, "plots")
     os.makedirs(logs_dir,  exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
-    loss_history: dict = {"step": [], "loss": [], "ce_loss": [], "ldb_loss": [], "abt_loss": []}
+    loss_history: dict = {"step": [], "loss": [], "loss_ema": [], "ce_loss": [], "ldb_loss": [], "abt_loss": []}
+    _ema_loss = None
+    _ema_alpha = 0.05
 
     # --- GAME-LoRA specific components ---
     ldb_loss_fn = LogDetBarrierLoss(epsilon=0.01).to(device)
@@ -233,9 +235,14 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
             tokens_per_sec = int(cfg.seq_len * cfg.effective_batch_size / step_time)
 
             _step_start = time.perf_counter()
+
+            # EMA update (every optimizer step)
+            _ema_loss = accum_loss if _ema_loss is None else _ema_alpha * accum_loss + (1 - _ema_alpha) * _ema_loss
+
             pbar.update(1)
             pbar.set_postfix(
                 loss=f"{accum_loss:.4f}",
+                ema=f"{_ema_loss:.4f}",
                 ce=f"{accum_ce:.4f}",
                 ldb=f"{accum_ldb:.4f}",
                 abt=f"{accum_abt:.4f}",
@@ -247,6 +254,7 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
                 tqdm.write(
                     f"Step {opt_step:>6d}/{total_steps}"
                     f"  loss={accum_loss:.4f}"
+                    f"  ema={_ema_loss:.4f}"
                     f"  CE={accum_ce:.4f}"
                     f"  LDB={accum_ldb:.4f}"
                     f"  ABT={accum_abt:.4f}"
@@ -275,9 +283,11 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
                             log_dict["train/gamma_G"] = gamma.item()
                         except Exception:
                             pass
+                    log_dict["train/loss_ema"] = _ema_loss
                     wandb.log(log_dict, step=opt_step)
                 loss_history["step"].append(opt_step)
                 loss_history["loss"].append(accum_loss)
+                loss_history["loss_ema"].append(_ema_loss)
                 loss_history["ce_loss"].append(accum_ce)
                 loss_history["ldb_loss"].append(accum_ldb)
                 loss_history["abt_loss"].append(accum_abt)
@@ -312,8 +322,10 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
 
     # Plot des losses
     fig, ax = plt.subplots(figsize=(10, 5))
-    for key in ("loss", "ce_loss", "ldb_loss", "abt_loss"):
-        ax.plot(loss_history["step"], loss_history[key], label=key)
+    ax.plot(loss_history["step"], loss_history["loss"], alpha=0.3, color="steelblue", label="loss (raw)")
+    ax.plot(loss_history["step"], loss_history["loss_ema"], color="steelblue", label="loss (EMA α=0.05)")
+    for key in ("ce_loss", "ldb_loss", "abt_loss"):
+        ax.plot(loss_history["step"], loss_history[key], label=key, alpha=0.7)
     ax.set_xlabel("step")
     ax.set_ylabel("loss")
     ax.set_title("Training losses — GAME-LoRA")

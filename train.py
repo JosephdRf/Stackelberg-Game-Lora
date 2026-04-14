@@ -120,7 +120,7 @@ class PileStreamDataset(IterableDataset):
             "monology/pile-uncopyrighted",
             split="train",
             streaming=True,
-        ).shuffle(seed=self.seed, buffer_size=10_000)
+        ).shuffle(seed=self.seed, buffer_size=50_000)
 
         buffer = []
         tokens_yielded = 0

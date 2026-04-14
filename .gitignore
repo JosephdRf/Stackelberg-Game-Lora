@@ -1,2 +1,5 @@
 # Ignore Python virtual environments
 venv/
+checkpoints/
+logs/
+plots/
