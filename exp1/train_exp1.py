@@ -39,9 +39,13 @@ Usage:
 
 import os
 import sys
+import json
 import argparse
 import logging
 import time
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 # Add repo root and current dir to path for imports
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -190,6 +194,12 @@ def train_stackelberg(
     attn_capture.register(model, layer_idx=design_layer)
 
     os.makedirs(cfg.output_dir, exist_ok=True)
+    _exp_dir = os.path.dirname(os.path.abspath(cfg.output_dir))
+    logs_dir  = os.path.join(_exp_dir, "logs")
+    plots_dir = os.path.join(_exp_dir, "plots")
+    os.makedirs(logs_dir,  exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
+    loss_history: dict = {"step": [], "ce_loss": [], "div_loss": [], "leader_ce": []}
 
     # ── Training state ──
     model.train()
@@ -350,6 +360,12 @@ def train_stackelberg(
                         },
                         step=opt_step,
                     )
+                loss_history["step"].append(opt_step)
+                loss_history["ce_loss"].append(accum_ce)
+                loss_history["div_loss"].append(accum_div)
+                loss_history["leader_ce"].append(accum_leader_ce)
+                with open(os.path.join(logs_dir, "loss.json"), "w") as _f:
+                    json.dump(loss_history, _f, indent=2)
 
             accum_ce = 0.0
             accum_div = 0.0
@@ -375,6 +391,20 @@ def train_stackelberg(
     model.save_pretrained(final_path)
     tokenizer.save_pretrained(final_path)
     logger.info(f"Modèle final sauvegardé → {final_path}")
+
+    # Plot des losses
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for key in ("ce_loss", "div_loss", "leader_ce"):
+        ax.plot(loss_history["step"], loss_history[key], label=key)
+    ax.set_xlabel("step")
+    ax.set_ylabel("loss")
+    ax.set_title("Training losses — exp1 (Stackelberg)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(os.path.join(plots_dir, "loss.png"), dpi=150)
+    plt.close(fig)
+    logger.info(f"Plot sauvegardé → {os.path.join(plots_dir, 'loss.png')}")
 
     if use_wandb:
         wandb.finish()

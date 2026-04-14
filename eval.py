@@ -36,6 +36,21 @@ EVAL_PARAMS = {
     "temperature": 0.0,   # "greedy decoding (temperature=0)"
 }
 
+# Benchmarks à évaluer. Supprimer une entrée pour sauter ce benchmark
+# (la colonne correspondante dans results.csv restera vide).
+BENCHMARKS_TO_EVALUATE = [
+    "HE-Dial",
+    "HE-QA",
+    "HE-Summ",
+    #"MemoTrap",
+    #"TFQA",         # couvre TFQA-MC1 et TFQA-MC2
+    #"MMLU",
+    #"NQ",
+    #"PopQA",
+    #"Winogrande",
+    #"WikiText_BPB",
+]
+
 
 # ---------------------------------------------------------------------------
 # Utilitaires
@@ -225,13 +240,7 @@ def eval_halueval_dial(model, tokenizer, device, n, seed):
         right_resp = ex.get("right_response", "")
         hall_resp  = ex.get("hallucinated_response", "")
 
-        # CORRECTION bug 1 : pas de template artificiel, knowledge inclus proprement
-        parts = []
-        if knowledge.strip():
-            parts.append(knowledge.strip())
-        if history.strip():
-            parts.append(history.strip())
-        context = "\n".join(parts) + "\n"
+        context = history.strip() + "\n"
 
         score_right = conditional_log_likelihood(model, tokenizer, device, context, right_resp)
         score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_resp)
@@ -253,12 +262,11 @@ def eval_halueval_qa(model, tokenizer, device, n, seed):
 
     correct = 0
     for ex in tqdm(ds, desc="HaluEval-QA", leave=False):
-        knowledge = ex.get("knowledge", "")   # CORRECTION bug 2 : champ knowledge inclus
         q         = ex.get("question", "")
         right_ans = ex.get("right_answer", "")
         hall_ans  = ex.get("hallucinated_answer", "")
 
-        context = (knowledge.strip() + "\n" + q.strip() if knowledge.strip() else q.strip()) + " "
+        context = q.strip() + " "
 
         score_right = conditional_log_likelihood(model, tokenizer, device, context, right_ans)
         score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_ans)
@@ -657,70 +665,86 @@ def run_eval(model, tokenizer, device, n=1024, seed=42):
     results = {}
 
     logger.info("=== Évaluation en cours ===")
+    skipped = [b for b in [
+        "HE-Dial", "HE-QA", "HE-Summ", "MemoTrap",
+        "TFQA", "MMLU", "NQ", "PopQA", "Winogrande", "WikiText_BPB",
+    ] if b not in BENCHMARKS_TO_EVALUATE]
+    if skipped:
+        logger.info(f"  Benchmarks ignorés : {skipped}")
 
     # --- Hallucination benchmarks ---
-    logger.info("HaluEval Dialogue ...")
-    halu_dial = eval_halueval_dial(model, tokenizer, device, n, seed)
-    if halu_dial is not None:
-        results["HE-Dial"] = round(halu_dial, 4)
-        logger.info(f"  HE-Dial     = {halu_dial:.4f}")
+    if "HE-Dial" in BENCHMARKS_TO_EVALUATE:
+        logger.info("HaluEval Dialogue ...")
+        halu_dial = eval_halueval_dial(model, tokenizer, device, n, seed)
+        if halu_dial is not None:
+            results["HE-Dial"] = round(halu_dial, 4)
+            logger.info(f"  HE-Dial     = {halu_dial:.4f}")
 
-    logger.info("HaluEval QA ...")
-    halu_qa = eval_halueval_qa(model, tokenizer, device, n, seed)
-    if halu_qa is not None:
-        results["HE-QA"] = round(halu_qa, 4)
-        logger.info(f"  HE-QA       = {halu_qa:.4f}")
+    if "HE-QA" in BENCHMARKS_TO_EVALUATE:
+        logger.info("HaluEval QA ...")
+        halu_qa = eval_halueval_qa(model, tokenizer, device, n, seed)
+        if halu_qa is not None:
+            results["HE-QA"] = round(halu_qa, 4)
+            logger.info(f"  HE-QA       = {halu_qa:.4f}")
 
-    logger.info("HaluEval Summarization ...")
-    halu_summ = eval_halueval_summ(model, tokenizer, device, n, seed)
-    if halu_summ is not None:
-        results["HE-Summ"] = round(halu_summ, 4)
-        logger.info(f"  HE-Summ     = {halu_summ:.4f}")
+    if "HE-Summ" in BENCHMARKS_TO_EVALUATE:
+        logger.info("HaluEval Summarization ...")
+        halu_summ = eval_halueval_summ(model, tokenizer, device, n, seed)
+        if halu_summ is not None:
+            results["HE-Summ"] = round(halu_summ, 4)
+            logger.info(f"  HE-Summ     = {halu_summ:.4f}")
 
-    logger.info("MemoTrap ...")
-    memo = eval_memotrap(model, tokenizer, device, n, seed)
-    if memo is not None:
-        results["MemoTrap"] = round(memo, 4)
-        logger.info(f"  MemoTrap    = {memo:.4f}")
+    if "MemoTrap" in BENCHMARKS_TO_EVALUATE:
+        logger.info("MemoTrap ...")
+        memo = eval_memotrap(model, tokenizer, device, n, seed)
+        if memo is not None:
+            results["MemoTrap"] = round(memo, 4)
+            logger.info(f"  MemoTrap    = {memo:.4f}")
 
-    logger.info("TruthfulQA ...")
-    tfqa_mc1, tfqa_mc2 = eval_truthfulqa(model, tokenizer, device, n, seed)
-    if tfqa_mc1 is not None:
-        results["TFQA-MC1"] = round(tfqa_mc1, 4)
-        results["TFQA-MC2"] = round(tfqa_mc2, 4)
-        logger.info(f"  TFQA-MC1    = {tfqa_mc1:.4f}")
-        logger.info(f"  TFQA-MC2    = {tfqa_mc2:.4f}")
+    if "TFQA" in BENCHMARKS_TO_EVALUATE:
+        logger.info("TruthfulQA ...")
+        tfqa_mc1, tfqa_mc2 = eval_truthfulqa(model, tokenizer, device, n, seed)
+        if tfqa_mc1 is not None:
+            results["TFQA-MC1"] = round(tfqa_mc1, 4)
+            results["TFQA-MC2"] = round(tfqa_mc2, 4)
+            logger.info(f"  TFQA-MC1    = {tfqa_mc1:.4f}")
+            logger.info(f"  TFQA-MC2    = {tfqa_mc2:.4f}")
 
     # --- Knowledge benchmarks ---
-    logger.info("MMLU ...")
-    mmlu = eval_mmlu(model, tokenizer, device, n, seed)
-    if mmlu is not None:
-        results["MMLU"] = round(mmlu, 4)
-        logger.info(f"  MMLU        = {mmlu:.4f}")
+    if "MMLU" in BENCHMARKS_TO_EVALUATE:
+        logger.info("MMLU ...")
+        mmlu = eval_mmlu(model, tokenizer, device, n, seed)
+        if mmlu is not None:
+            results["MMLU"] = round(mmlu, 4)
+            logger.info(f"  MMLU        = {mmlu:.4f}")
 
-    logger.info("NQ ...")
-    nq = eval_nq(model, tokenizer, device, n, seed)
-    if nq is not None:
-        results["NQ"] = round(nq, 4)
-        logger.info(f"  NQ          = {nq:.4f}")
+    if "NQ" in BENCHMARKS_TO_EVALUATE:
+        logger.info("NQ ...")
+        nq = eval_nq(model, tokenizer, device, n, seed)
+        if nq is not None:
+            results["NQ"] = round(nq, 4)
+            logger.info(f"  NQ          = {nq:.4f}")
 
-    logger.info("PopQA ...")
-    popqa = eval_popqa(model, tokenizer, device, n, seed)
-    if popqa is not None:
-        results["PopQA"] = round(popqa, 4)
-        logger.info(f"  PopQA       = {popqa:.4f}")
+    if "PopQA" in BENCHMARKS_TO_EVALUATE:
+        logger.info("PopQA ...")
+        popqa = eval_popqa(model, tokenizer, device, n, seed)
+        if popqa is not None:
+            results["PopQA"] = round(popqa, 4)
+            logger.info(f"  PopQA       = {popqa:.4f}")
 
-    logger.info("WinoGrande ...")
-    wino = eval_winogrande(model, tokenizer, device, n, seed)
-    if wino is not None:
-        results["Winogrande"] = round(wino, 4)
-        logger.info(f"  Winogrande  = {wino:.4f}")
+    if "Winogrande" in BENCHMARKS_TO_EVALUATE:
+        logger.info("WinoGrande ...")
+        wino = eval_winogrande(model, tokenizer, device, n, seed)
+        if wino is not None:
+            results["Winogrande"] = round(wino, 4)
+            logger.info(f"  Winogrande  = {wino:.4f}")
 
-    logger.info("WikiText BPB ...")
-    wt_bpb = eval_wikitext_bpb(model, tokenizer, device)
-    if wt_bpb is not None:
-        results["WikiText_BPB"] = round(wt_bpb, 4)
-        logger.info(f"  WikiText BPB= {wt_bpb:.4f}")
+    if "WikiText_BPB" in BENCHMARKS_TO_EVALUATE:
+        logger.info("WikiText BPB ...")
+        wt_bpb = eval_wikitext_bpb(model, tokenizer, device)
+        if wt_bpb is not None:
+            results["WikiText_BPB"] = round(wt_bpb, 4)
+            logger.info(f"  WikiText BPB= {wt_bpb:.4f}")
 
     return results
 
@@ -838,18 +862,21 @@ if __name__ == "__main__":
         if col not in fieldnames:
             fieldnames.append(col)
 
-        # Update values
-        for metric, value in results.items():
-            if metric not in rows:
-                rows[metric] = {"metric": metric}
-            rows[metric][col] = str(value)
-
         # Canonical metric order
         METRIC_ORDER = [
             "HE-Dial", "HE-QA", "HE-Summ", "MemoTrap",
             "TFQA-MC1", "TFQA-MC2", "MMLU", "NQ", "PopQA",
             "Winogrande", "WikiText_BPB",
         ]
+
+        # Ensure every canonical metric has a row (empty string for unevaluated ones)
+        for m in METRIC_ORDER:
+            if m not in rows:
+                rows[m] = {"metric": m}
+        # Write evaluated metrics into the new column
+        for metric, value in results.items():
+            rows[metric][col] = str(value)
+
         ordered_metrics = [m for m in METRIC_ORDER if m in rows]
         ordered_metrics += [m for m in rows if m not in METRIC_ORDER]
 

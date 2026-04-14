@@ -13,9 +13,13 @@ Usage :
 
 import os
 import sys
+import json
 import argparse
 import logging
 import time
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 # Add repo root and current dir to path for imports
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -76,6 +80,12 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
     logger.info(f"Design layer : {design_layer}  |  Nash-MTL : {use_nash_mtl}")
 
     os.makedirs(cfg.output_dir, exist_ok=True)
+    _exp_dir = os.path.dirname(os.path.abspath(cfg.output_dir))
+    logs_dir  = os.path.join(_exp_dir, "logs")
+    plots_dir = os.path.join(_exp_dir, "plots")
+    os.makedirs(logs_dir,  exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
+    loss_history: dict = {"step": [], "loss": [], "ce_loss": [], "ldb_loss": [], "abt_loss": []}
 
     # --- GAME-LoRA specific components ---
     ldb_loss_fn = LogDetBarrierLoss(epsilon=0.01).to(device)
@@ -213,6 +223,7 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
                 [p for p in model.parameters() if p.requires_grad],
                 max_norm=1.0,
             )
+
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
@@ -265,6 +276,13 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
                         except Exception:
                             pass
                     wandb.log(log_dict, step=opt_step)
+                loss_history["step"].append(opt_step)
+                loss_history["loss"].append(accum_loss)
+                loss_history["ce_loss"].append(accum_ce)
+                loss_history["ldb_loss"].append(accum_ldb)
+                loss_history["abt_loss"].append(accum_abt)
+                with open(os.path.join(logs_dir, "loss.json"), "w") as _f:
+                    json.dump(loss_history, _f, indent=2)
 
             accum_loss = 0.0
             accum_ce = 0.0
@@ -291,6 +309,20 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 19, use_nash_mtl: bool
     model.save_pretrained(final_path)
     tokenizer.save_pretrained(final_path)
     logger.info(f"Modèle final sauvegardé → {final_path}")
+
+    # Plot des losses
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for key in ("loss", "ce_loss", "ldb_loss", "abt_loss"):
+        ax.plot(loss_history["step"], loss_history[key], label=key)
+    ax.set_xlabel("step")
+    ax.set_ylabel("loss")
+    ax.set_title("Training losses — GAME-LoRA")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(os.path.join(plots_dir, "loss.png"), dpi=150)
+    plt.close(fig)
+    logger.info(f"Plot sauvegardé → {os.path.join(plots_dir, 'loss.png')}")
 
     if use_wandb:
         wandb.finish()

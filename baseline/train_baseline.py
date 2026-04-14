@@ -11,9 +11,13 @@ Usage :
 
 import os
 import sys
+import json
 import argparse
 import logging
 import time
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 # Add repo root to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,6 +65,12 @@ def train(cfg: TrainConfig):
     logger.info(f"Total steps : {total_steps}  |  Warmup : {cfg.warmup_steps}")
 
     os.makedirs(cfg.output_dir, exist_ok=True)
+    _exp_dir = os.path.dirname(os.path.abspath(cfg.output_dir))
+    logs_dir  = os.path.join(_exp_dir, "logs")
+    plots_dir = os.path.join(_exp_dir, "plots")
+    os.makedirs(logs_dir,  exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
+    loss_history: dict = {"step": [], "loss": []}
 
     # Boucle principale
     model.train()
@@ -127,6 +137,10 @@ def train(cfg: TrainConfig):
                         },
                         step=opt_step,
                     )
+                loss_history["step"].append(opt_step)
+                loss_history["loss"].append(avg_loss)
+                with open(os.path.join(logs_dir, "loss.json"), "w") as _f:
+                    json.dump(loss_history, _f, indent=2)
 
             # Sauvegarde checkpoint
             if opt_step % cfg.save_every == 0:
@@ -147,6 +161,19 @@ def train(cfg: TrainConfig):
     model.save_pretrained(final_path)
     tokenizer.save_pretrained(final_path)
     logger.info(f"Modèle final sauvegardé → {final_path}")
+
+    # Plot des losses
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(loss_history["step"], loss_history["loss"], label="loss")
+    ax.set_xlabel("step")
+    ax.set_ylabel("Loss CE")
+    ax.set_title("Training loss — baseline")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(os.path.join(plots_dir, "loss.png"), dpi=150)
+    plt.close(fig)
+    logger.info(f"Plot sauvegardé → {os.path.join(plots_dir, 'loss.png')}")
 
     if use_wandb:
         wandb.finish()
