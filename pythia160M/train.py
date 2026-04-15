@@ -112,7 +112,7 @@ class TrainConfig:
 # ---------------------------------------------------------------------------
 
 
-class PileStreamDataset(IterableDataset):
+class StreamDataset(IterableDataset):
     """
     Streaming dataset sur The Pile.
     Concatène les textes et les découpe en blocs de seq_len tokens
@@ -233,8 +233,8 @@ def setup_training(cfg: TrainConfig, model, tokenizer):
     Returns: (dataloader, optimizer, scheduler, total_steps)
     """
     max_tokens = 100 * cfg.seq_len * cfg.effective_batch_size if cfg.dry_run else cfg.total_tokens
-    dataset = PileStreamDataset(tokenizer, cfg.seq_len, max_tokens, cfg.seed,
-                                dataset_name=cfg.dataset_name, dataset_config=cfg.dataset_config)
+    dataset = StreamDataset(tokenizer, cfg.seq_len, max_tokens, cfg.seed,
+                            dataset_name=cfg.dataset_name, dataset_config=cfg.dataset_config)
     dataloader = DataLoader(
         dataset,
         batch_size=cfg.batch_size_per_gpu,
