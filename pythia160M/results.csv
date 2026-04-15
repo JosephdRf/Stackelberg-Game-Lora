@@ -1,0 +1,12 @@
+metric,baseline
+HE-Dial,0.2559
+HE-QA,0.1465
+HE-Summ,0.3955
+MemoTrap,
+TFQA-MC1,
+TFQA-MC2,
+MMLU,
+NQ,
+PopQA,
+Winogrande,
+WikiText_BPB,1.6956
