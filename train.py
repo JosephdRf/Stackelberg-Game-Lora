@@ -22,6 +22,7 @@ from torch.utils.data import DataLoader, IterableDataset
 
 from transformers import (
     AutoTokenizer,
+    AutoConfig,
     AutoModelForCausalLM,
     get_cosine_schedule_with_warmup,
 )
@@ -60,7 +61,7 @@ class TrainConfig:
 
     # Données
     dataset_name: str = "EleutherAI/pile"
-    dataset_config: str = "all"  # pile complet en streaming
+    dataset_config: Optional[str] = None  # None = pas de config spécifique (ex: monology/pile-uncopyrighted)
     seq_len: int = 1024
     total_tokens: int = 20_000_000  # 20M tokens
 
@@ -92,6 +93,7 @@ class TrainConfig:
     run_name: str = "baseline_lora"
     seed: int = 42
     dry_run: bool = False  # 100 steps pour tester
+    random_init: bool = False  # si True, poids aléatoires (pas de préentraînement)
 
 
 # ---------------------------------------------------------------------------
@@ -174,11 +176,17 @@ def build_model_and_tokenizer(cfg: TrainConfig):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(
-        cfg.model_name,
-        torch_dtype=torch.bfloat16,  # bf16 pour Qwen2.5
-        trust_remote_code=True,
-    )
+    if cfg.random_init:
+        logger.info("Initialisation ALÉATOIRE des poids (pas de préentraînement)")
+        config = AutoConfig.from_pretrained(cfg.model_name, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_config(config)
+        model = model.to(torch.bfloat16)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            cfg.model_name,
+            torch_dtype=torch.bfloat16,  # bf16 pour Qwen2.5
+            trust_remote_code=True,
+        )
 
     lora_cfg = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
@@ -260,6 +268,7 @@ def add_common_args(parser):
     """Ajoute les arguments communs au parser."""
     parser.add_argument("--model_name", default="Qwen/Qwen2.5-0.5B")
     parser.add_argument("--dataset_name", default="monology/pile-uncopyrighted")
+    parser.add_argument("--dataset_config", default=None, help="Config du dataset (ex: 'all' pour EleutherAI/pile)")
     parser.add_argument("--total_tokens", type=int, default=20_000_000)
     parser.add_argument("--batch_size_per_gpu", type=int, default=2)
     parser.add_argument("--grad_accum", type=int, default=8)
@@ -269,4 +278,6 @@ def add_common_args(parser):
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--save_every", type=int, default=200)
+    parser.add_argument("--random_init", action="store_true",
+                        help="Initialiser les poids aléatoirement (pas de préentraînement)")
     return parser
