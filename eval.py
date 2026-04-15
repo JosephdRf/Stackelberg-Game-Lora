@@ -48,7 +48,7 @@ BENCHMARKS_TO_EVALUATE = [
     #"NQ",
     #"PopQA",
     #"Winogrande",
-    #"WikiText_BPB",
+    "WikiText_BPB",
 ]
 
 

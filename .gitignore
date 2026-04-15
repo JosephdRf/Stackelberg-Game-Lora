@@ -1,5 +1,7 @@
 # Ignore Python virtual environments
 venv/
+
+# Ignore PyTorch checkpoints, logs, and plots
 checkpoints/
 logs/
 plots/

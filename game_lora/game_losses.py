@@ -402,40 +402,27 @@ class HeadOutputCapture:
 
     def register(self, model, design_layer: int = 19):
         """
-        Enregistre un hook sur la couche d'attention spécifiée.
-        Compatible Qwen2.5 (model.model.layers[l].self_attn).
+        Enregistre un pré-hook sur o_proj pour capturer les sorties des têtes
+        AVANT la projection W_O (pré-mixage).
+        Compatible Qwen2.5 (model.base_model.model.model.layers[l].self_attn).
         """
         attn_module = model.base_model.model.model.layers[design_layer].self_attn
-        self._handle = attn_module.register_forward_hook(self._hook_fn)
+        self._head_dim = attn_module.head_dim
+        self._num_heads = attn_module.config.num_attention_heads
+        # Pré-hook sur o_proj : input[0] = (B, T, H*d_h) avant mixage
+        self._handle = attn_module.o_proj.register_forward_pre_hook(self._hook_fn)
         return self
 
-    def _hook_fn(self, module, input, output):
+    def _hook_fn(self, module, input):
         """
-        Hook qui capture les outputs avant la projection O.
-        Pour Qwen2.5: l'attention renvoie (attn_output, attn_weights, past_kv).
-        attn_output est déjà post-W_O.
-
-        On doit plutôt capturer après Q*K^T*V et avant W_O.
-        On intercepte au niveau de la couche et recalcule à partir de
-        l'architecture interne du module attention.
+        Pré-hook sur o_proj : capture l'entrée de la projection output,
+        i.e. la concaténation des sorties de chaque tête avant W_O.
+        input[0] shape : (B, T, num_heads * head_dim)
         """
-        # Pour capturer pre-W_O, on a besoin d'accéder aux internals.
-        # Approche: on stocke l'output de l'attention complète et on
-        # extrait la forme par tête à partir de output[0].
-        # output[0] = attn_output après W_O projection, shape (B, T, d)
-        # On reconstruit les head outputs en passant par W_O^{-1} approx
-        # Mais c'est plus propre d'utiliser un hook sur le V après attention.
-
-        # Approche pragmatique: on capture le output final (post-W_O)
-        # et on le reshape en (B, T, H, d_h) pour les losses.
-        # C'est ce que fait effectivement le papier dans le calcul de Ĉ_ij.
-        attn_output = output[0]  # (B, T, d)
-        B, T, d = attn_output.shape
-        head_dim = module.head_dim
-        num_heads = d // head_dim
-
+        x = input[0]  # (B, T, H*d_h) — pré-W_O
+        B, T, _ = x.shape
         # Reshape: (B, T, H, d_h)
-        self.head_outputs = attn_output.view(B, T, num_heads, head_dim)
+        self.head_outputs = x.view(B, T, self._num_heads, self._head_dim)
 
     def get(self) -> Optional[torch.Tensor]:
         return self.head_outputs

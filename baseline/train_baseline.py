@@ -205,6 +205,7 @@ if __name__ == "__main__":
     args = parse_args()
     cfg = TrainConfig(
         model_name=args.model_name,
+        dataset_name=args.dataset_name,
         total_tokens=args.total_tokens,
         batch_size_per_gpu=args.batch_size_per_gpu,
         grad_accum=args.grad_accum,

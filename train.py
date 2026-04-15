@@ -106,20 +106,26 @@ class PileStreamDataset(IterableDataset):
     (stratégie 'pack' classique, identique à ce que fait l'article).
     """
 
-    def __init__(self, tokenizer, seq_len: int, total_tokens: int, seed: int = 42):
+    def __init__(self, tokenizer, seq_len: int, total_tokens: int, seed: int = 42,
+                 dataset_name: str = "monology/pile-uncopyrighted", dataset_config: str = None):
         super().__init__()
         self.tokenizer = tokenizer
         self.seq_len = seq_len
         self.total_tokens = total_tokens
         self.seed = seed
+        self.dataset_name = dataset_name
+        self.dataset_config = dataset_config
 
     def __iter__(self):
         from datasets import load_dataset
 
+        load_kwargs = dict(split="train", streaming=True)
+        if self.dataset_config:
+            load_kwargs["name"] = self.dataset_config
+
         ds = load_dataset(
-            "monology/pile-uncopyrighted",
-            split="train",
-            streaming=True,
+            self.dataset_name,
+            **load_kwargs,
         ).shuffle(seed=self.seed, buffer_size=50_000)
 
         buffer = []
@@ -209,7 +215,8 @@ def setup_training(cfg: TrainConfig, model, tokenizer):
     Returns: (dataloader, optimizer, scheduler, total_steps)
     """
     max_tokens = 100 * cfg.seq_len * cfg.effective_batch_size if cfg.dry_run else cfg.total_tokens
-    dataset = PileStreamDataset(tokenizer, cfg.seq_len, max_tokens, cfg.seed)
+    dataset = PileStreamDataset(tokenizer, cfg.seq_len, max_tokens, cfg.seed,
+                                dataset_name=cfg.dataset_name, dataset_config=cfg.dataset_config)
     dataloader = DataLoader(
         dataset,
         batch_size=cfg.batch_size_per_gpu,
@@ -252,6 +259,7 @@ def log_config(cfg: TrainConfig):
 def add_common_args(parser):
     """Ajoute les arguments communs au parser."""
     parser.add_argument("--model_name", default="Qwen/Qwen2.5-0.5B")
+    parser.add_argument("--dataset_name", default="monology/pile-uncopyrighted")
     parser.add_argument("--total_tokens", type=int, default=20_000_000)
     parser.add_argument("--batch_size_per_gpu", type=int, default=2)
     parser.add_argument("--grad_accum", type=int, default=8)
