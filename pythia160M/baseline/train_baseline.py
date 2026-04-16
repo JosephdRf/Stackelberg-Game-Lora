@@ -120,7 +120,7 @@ def train(cfg: TrainConfig):
 
             _ema_loss = avg_loss if _ema_loss is None else _ema_alpha * avg_loss + (1 - _ema_alpha) * _ema_loss
 
-            if opt_step % cfg.log_every == 0:
+            if opt_step % cfg.log_every == 0 or opt_step == 1:
                 lr_now = scheduler.get_last_lr()[0]
                 tqdm.write(
                     f"Step {opt_step:>6d}/{total_steps}"

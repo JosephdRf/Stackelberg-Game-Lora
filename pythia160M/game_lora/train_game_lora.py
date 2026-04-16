@@ -244,7 +244,7 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
                 tok_s=f"{tokens_per_sec:,}",
             )
 
-            if opt_step % cfg.log_every == 0:
+            if opt_step % cfg.log_every == 0 or opt_step == 1:
                 lr_now = scheduler.get_last_lr()[0]
                 tqdm.write(
                     f"Step {opt_step:>6d}/{total_steps}"

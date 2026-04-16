@@ -1,20 +1,25 @@
 """
 Évaluation Pythia-160M — benchmarks hallucination + perplexité
-  HaluEval : HE-Dial, HE-QA, HE-Summ
-  WikiText BPB (perplexité normalisée)
+  HaluEval    : HE-Summ  (signal moyen — format contraignant)
+  MemoTrap    : résistance à la mémorisation (signal fort)
+  TruthfulQA  : MC2 uniquement (signal moyen)
+  PopQA       : open-domain QA sur entités populaires (signal moyen)
+  WikiText BPB: perplexité normalisée (signal fort)
 
-Pas de valeurs de référence papier (expériences nouvelles sur Pythia).
-Les scores Qwen/baseline du papier GAME-LoRA sont donnés en commentaire
-pour contexte comparatif.
+Benchmarks retirés (signal quasi-nul sur 160M) :
+  HE-Dial, HE-QA  → modèle trop petit pour générer du contenu nuisible discriminant
+  MMLU            → ~26% ≈ random (25%)
+  NQ              → trop difficile à 160M, variance > signal
+  Winogrande      → ~52% ≈ random (50%)
 
 Usage :
     # Modèle de base (sans fine-tuning)
     python pythia160M/eval.py --model_path EleutherAI/pythia-160m
 
     # Modèle fine-tuné LoRA
-    python pythia160M/eval.py \
-        --model_path pythia160M/baseline/checkpoints/final \
-        --base_model EleutherAI/pythia-160m \
+    python pythia160M/eval.py \\
+        --model_path pythia160M/baseline/checkpoints/final \\
+        --base_model EleutherAI/pythia-160m \\
         --csv_column baseline
 """
 
@@ -28,6 +33,7 @@ import logging
 from typing import Optional
 
 import torch
+import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -48,16 +54,11 @@ EVAL_PARAMS = {
 
 # Benchmarks actifs — commenter pour sauter un benchmark
 BENCHMARKS_TO_EVALUATE = [
-    "HE-Dial",
-    "HE-QA",
-    "HE-Summ",
-    #"MemoTrap",
-    #"TFQA",
-    #"MMLU",
-    #"NQ",
-    #"PopQA",
-    #"Winogrande",
-    "WikiText_BPB",
+    "HE-Summ",      # signal moyen (meilleur des 3 HE sur petit modèle)
+    "MemoTrap",     # signal fort  (résistance à la mémorisation)
+    "TFQA",         # signal moyen (MC2 surtout)
+    "PopQA",        # signal moyen (entités fréquentes dans pretraining)
+    "WikiText_BPB", # signal fort  (perplexité normalisée, métrique principale)
 ]
 
 
@@ -112,10 +113,24 @@ def log_likelihood(model, tokenizer, device, text: str) -> float:
     return -out.loss.item() * (input_ids.shape[1] - 1)
 
 
-def conditional_log_likelihood(model, tokenizer, device,
-                                context: str, completion: str,
-                                max_length: int = 2048) -> float:
-    """Log-vraisemblance conditionnelle p(completion | context)."""
+def conditional_log_likelihood(
+    model, tokenizer, device,
+    context: str, completion: str,
+    max_length: int = 2048,
+    length_normalize: bool = False,
+) -> float:
+    """
+    Log-vraisemblance conditionnelle p(completion | context).
+
+    HuggingFace divise la loss par le nombre de tokens completion,
+    donc out.loss est déjà une moyenne NLL/token.
+
+    length_normalize=True  : retourne la moyenne NLL/token
+                             (à utiliser quand les completions ont des longueurs
+                             très variables — ex: HaluEval)
+    length_normalize=False : retourne NLL total = moyenne × n_tokens completion
+                             (à utiliser pour MC où les longueurs sont comparables)
+    """
     ctx_ids  = tokenizer(context,              add_special_tokens=True,
                          truncation=True, max_length=max_length)["input_ids"]
     full_ids = tokenizer(context + completion, add_special_tokens=True,
@@ -123,71 +138,30 @@ def conditional_log_likelihood(model, tokenizer, device,
     n_ctx = len(ctx_ids)
     if len(full_ids) <= n_ctx:
         return float("-inf")
+    n_completion = len(full_ids) - n_ctx
     input_ids = torch.tensor([full_ids], dtype=torch.long).to(device)
     labels    = input_ids.clone()
     labels[0, :n_ctx] = -100
     with torch.no_grad():
         out = model(input_ids=input_ids, labels=labels)
-    return -out.loss.item()
+    # out.loss = mean NLL over completion tokens
+    mean_nll = out.loss.item()
+    if length_normalize:
+        return -mean_nll
+    return -mean_nll * n_completion
 
 
 # ---------------------------------------------------------------------------
-# Benchmarks hallucination — HaluEval
+# HaluEval — Summarization uniquement (signal moyen, meilleur des 3 HE)
 # ---------------------------------------------------------------------------
-
-def eval_halueval_dial(model, tokenizer, device, n, seed):
-    """HaluEval Dialogue : le modèle préfère-t-il la bonne réponse à la réponse hallucinée ?"""
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("pminervini/HaluEval", "dialogue", split="data")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"HaluEval Dialogue non disponible : {e}")
-        return None
-
-    correct = 0
-    for ex in tqdm(ds, desc="HaluEval-Dial", leave=False):
-        history    = ex.get("dialogue_history", "")
-        right_resp = ex.get("right_response", "")
-        hall_resp  = ex.get("hallucinated_response", "")
-
-        context = history.strip() + "\n"
-        score_right = conditional_log_likelihood(model, tokenizer, device, context, right_resp)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_resp)
-
-        if score_right > score_hall:
-            correct += 1
-
-    return correct / len(ds)
-
-
-def eval_halueval_qa(model, tokenizer, device, n, seed):
-    """HaluEval QA : le modèle préfère-t-il la bonne réponse à la réponse hallucinée ?"""
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("pminervini/HaluEval", "qa", split="data")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"HaluEval QA non disponible : {e}")
-        return None
-
-    correct = 0
-    for ex in tqdm(ds, desc="HaluEval-QA", leave=False):
-        q         = ex.get("question", "")
-        right_ans = ex.get("right_answer", "")
-        hall_ans  = ex.get("hallucinated_answer", "")
-
-        score_right = conditional_log_likelihood(model, tokenizer, device, q + " ", right_ans)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, q + " ", hall_ans)
-
-        if score_right > score_hall:
-            correct += 1
-
-    return correct / len(ds)
-
 
 def eval_halueval_summ(model, tokenizer, device, n, seed):
-    """HaluEval Summarization : le modèle préfère-t-il le bon résumé au résumé halluciné ?"""
+    """
+    HaluEval Summarization : le modèle préfère-t-il le bon résumé au résumé halluciné ?
+
+    Utilise length_normalize=True car les résumés (right vs hallucinated)
+    peuvent avoir des longueurs sensiblement différentes.
+    """
     try:
         from datasets import load_dataset
         ds = load_dataset("pminervini/HaluEval", "summarization", split="data")
@@ -202,8 +176,12 @@ def eval_halueval_summ(model, tokenizer, device, n, seed):
         right_s = ex.get("right_summary", "")
         hall_s  = ex.get("hallucinated_summary", "")
 
-        score_right = conditional_log_likelihood(model, tokenizer, device, doc + " ", right_s)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + " ", hall_s)
+        score_right = conditional_log_likelihood(
+            model, tokenizer, device, doc + " ", right_s, length_normalize=True
+        )
+        score_hall  = conditional_log_likelihood(
+            model, tokenizer, device, doc + " ", hall_s, length_normalize=True
+        )
 
         if score_right > score_hall:
             correct += 1
@@ -212,13 +190,25 @@ def eval_halueval_summ(model, tokenizer, device, n, seed):
 
 
 # ---------------------------------------------------------------------------
-# Benchmarks optionnels (même protocole que qwen2.5_0.5B/eval.py)
+# MemoTrap
 # ---------------------------------------------------------------------------
 
 def eval_memotrap(model, tokenizer, device, n, seed):
+    """
+    MemoTrap : résistance à la complétion automatique de phrases mémorisées.
+
+    Le modèle reçoit une instruction du type "Complete the proverb with a
+    different ending:" suivi d'une amorce connue.
+    - target_new  : la réponse attendue (non-mémorisée, suit l'instruction)
+    - target_true : la complétion mémorisée (le "piège")
+
+    Score = proportion où le modèle préfère target_new à target_true.
+
+    Note : le split disponible sur HF est "train" (pas de split "test" public).
+    """
     try:
         from datasets import load_dataset
-        ds = load_dataset("pminervini/MemoTrap", split="test")
+        ds = load_dataset("pminervini/MemoTrap", split="train")
         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
     except Exception as e:
         logger.warning(f"MemoTrap non disponible : {e}")
@@ -229,14 +219,28 @@ def eval_memotrap(model, tokenizer, device, n, seed):
         prompt      = ex.get("prompt", "")
         target_new  = ex.get("target_new", "")
         target_true = ex.get("target_true", "")
-        score_new   = conditional_log_likelihood(model, tokenizer, device, prompt, target_new)
-        score_true  = conditional_log_likelihood(model, tokenizer, device, prompt, target_true)
+        score_new   = conditional_log_likelihood(
+            model, tokenizer, device, prompt, target_new, length_normalize=True
+        )
+        score_true  = conditional_log_likelihood(
+            model, tokenizer, device, prompt, target_true, length_normalize=True
+        )
         if score_new > score_true:
             correct += 1
     return correct / len(ds)
 
 
+# ---------------------------------------------------------------------------
+# TruthfulQA — MC1 + MC2
+# ---------------------------------------------------------------------------
+
 def eval_truthfulqa(model, tokenizer, device, n, seed):
+    """
+    TruthfulQA MC.
+    MC1 : accuracy sur la meilleure réponse unique (argmax).
+    MC2 : score probabiliste sur toutes les réponses vraies (somme des probs
+          sur les bonnes réponses après softmax). Préférer MC2 pour Pythia-160M.
+    """
     try:
         from datasets import load_dataset
         ds = load_dataset("truthful_qa", "multiple_choice", split="validation")
@@ -249,6 +253,8 @@ def eval_truthfulqa(model, tokenizer, device, n, seed):
     mc2_correct = 0.0
     for ex in tqdm(ds, desc="TruthfulQA", leave=False):
         q = ex["question"]
+
+        # MC1
         mc = ex["mc1_targets"]
         choices_mc1 = mc["choices"]
         labels_mc1  = mc["labels"]
@@ -258,12 +264,12 @@ def eval_truthfulqa(model, tokenizer, device, n, seed):
         if labels_mc1[pred_mc1] == 1:
             mc1_correct += 1
 
+        # MC2
         mc2 = ex["mc2_targets"]
         choices_mc2 = mc2["choices"]
         labels_mc2  = mc2["labels"]
         scores2 = [conditional_log_likelihood(model, tokenizer, device, q + " ", c)
                    for c in choices_mc2]
-        import torch.nn.functional as F
         probs2 = F.softmax(torch.tensor(scores2, dtype=torch.float32), dim=0)
         mask2  = torch.tensor([bool(l) for l in labels_mc2])
         mc2_correct += probs2[mask2].sum().item()
@@ -271,31 +277,9 @@ def eval_truthfulqa(model, tokenizer, device, n, seed):
     return mc1_correct / len(ds), mc2_correct / len(ds)
 
 
-def eval_mmlu(model, tokenizer, device, n, seed):
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("cais/mmlu", "all", split="test")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"MMLU non disponible : {e}")
-        return None
-
-    correct = 0
-    for ex in tqdm(ds, desc="MMLU", leave=False):
-        q = ex["question"]
-        choices = ex["choices"]
-        answer_idx = ex["answer"]
-        prompt = (
-            f"{q}\n"
-            f"A. {choices[0]}\nB. {choices[1]}\nC. {choices[2]}\nD. {choices[3]}\n"
-            f"Answer:"
-        )
-        scores = [conditional_log_likelihood(model, tokenizer, device, prompt, f" {l}")
-                  for l in ["A", "B", "C", "D"]]
-        if int(np.argmax(scores)) == answer_idx:
-            correct += 1
-    return correct / len(ds)
-
+# ---------------------------------------------------------------------------
+# PopQA — open-domain QA (entités populaires Wikipedia)
+# ---------------------------------------------------------------------------
 
 def generate_greedy(model, tokenizer, device, prompt: str, max_new_tokens: int = 32) -> str:
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=450).to(device)
@@ -322,32 +306,12 @@ def exact_match_any(prediction: str, gold_answers: list) -> bool:
     return False
 
 
-def eval_nq(model, tokenizer, device, n, seed):
-    NQ_FEWSHOT = (
-        "Q: when was the last time anyone was on the moon\nA: December 1972\n\n"
-        "Q: who wrote he ain't heavy he's my brother lyrics\nA: Bobby Scott\n\n"
-        "Q: who is the founder of virgin group\nA: Richard Branson\n\n"
-        "Q: who played the lead in grease the movie\nA: John Travolta\n\n"
-        "Q: where was the battle of vimy ridge fought\nA: France\n\n"
-    )
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("google-research-datasets/nq_open", split="validation")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"NQ non disponible : {e}")
-        return None
-
-    correct = 0
-    for ex in tqdm(ds, desc="NQ", leave=False):
-        prompt = NQ_FEWSHOT + f"Q: {ex['question']}\nA:"
-        pred   = generate_greedy(model, tokenizer, device, prompt)
-        if exact_match_any(pred, ex["answer"]):
-            correct += 1
-    return correct / len(ds)
-
-
 def eval_popqa(model, tokenizer, device, n, seed):
+    """
+    PopQA : questions factuelles sur entités populaires Wikipedia.
+    Génération greedy + exact match (ou inclusion) contre les réponses acceptables.
+    Plus adapté que NQ pour Pythia-160M (entités très fréquentes dans le pretraining).
+    """
     POPQA_FEWSHOT = (
         "Q: What is George Rankin's occupation?\nA: politician\n\n"
         "Q: What is John Mayne's occupation?\nA: journalist\n\n"
@@ -376,31 +340,20 @@ def eval_popqa(model, tokenizer, device, n, seed):
     return correct / len(ds)
 
 
-def eval_winogrande(model, tokenizer, device, n, seed):
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("winogrande", "winogrande_xl", split="validation")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"WinoGrande non disponible : {e}")
-        return None
-
-    correct = 0
-    for ex in tqdm(ds, desc="WinoGrande", leave=False):
-        sentence = ex["sentence"]
-        opt1, opt2 = ex["option1"], ex["option2"]
-        blank_idx = sentence.index("_")
-        prefix = sentence[:blank_idx]
-        suffix = sentence[blank_idx + 1:]
-        s1 = conditional_log_likelihood(model, tokenizer, device, prefix, opt1 + suffix)
-        s2 = conditional_log_likelihood(model, tokenizer, device, prefix, opt2 + suffix)
-        if ("1" if s1 > s2 else "2") == ex["answer"]:
-            correct += 1
-    return correct / len(ds)
-
+# ---------------------------------------------------------------------------
+# WikiText BPB — métrique principale
+# ---------------------------------------------------------------------------
 
 def eval_wikitext_bpb(model, tokenizer, device):
-    """WikiText BPB (bits per byte) — métrique de perplexité normalisée."""
+    """
+    WikiText BPB (bits per byte) — métrique de perplexité normalisée.
+
+    Formule : BPB = avg_NLL_nats / ln(2) / bytes_per_token
+    Plus bas = meilleur. Métrique continue, très sensible aux changements
+    de λ, lr_sim, design_layer dans les expériences Stackelberg.
+
+    Utilise wikitext-2-raw-v1 (suffisant pour Pythia-160M, plus rapide que 103).
+    """
     try:
         from datasets import load_dataset
         ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
@@ -445,26 +398,12 @@ def run_eval(model, tokenizer, device, n=1024, seed=42):
     results = {}
     logger.info("=== Évaluation en cours (Pythia-160M) ===")
 
-    skipped = [b for b in [
-        "HE-Dial", "HE-QA", "HE-Summ", "MemoTrap",
-        "TFQA", "MMLU", "NQ", "PopQA", "Winogrande", "WikiText_BPB",
-    ] if b not in BENCHMARKS_TO_EVALUATE]
+    all_benchmarks = [
+        "HE-Summ", "MemoTrap", "TFQA", "PopQA", "WikiText_BPB",
+    ]
+    skipped = [b for b in all_benchmarks if b not in BENCHMARKS_TO_EVALUATE]
     if skipped:
         logger.info(f"  Benchmarks ignorés : {skipped}")
-
-    if "HE-Dial" in BENCHMARKS_TO_EVALUATE:
-        logger.info("HaluEval Dialogue ...")
-        v = eval_halueval_dial(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["HE-Dial"] = round(v, 4)
-            logger.info(f"  HE-Dial     = {v:.4f}")
-
-    if "HE-QA" in BENCHMARKS_TO_EVALUATE:
-        logger.info("HaluEval QA ...")
-        v = eval_halueval_qa(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["HE-QA"] = round(v, 4)
-            logger.info(f"  HE-QA       = {v:.4f}")
 
     if "HE-Summ" in BENCHMARKS_TO_EVALUATE:
         logger.info("HaluEval Summarization ...")
@@ -489,33 +428,12 @@ def run_eval(model, tokenizer, device, n=1024, seed=42):
             logger.info(f"  TFQA-MC1    = {mc1:.4f}")
             logger.info(f"  TFQA-MC2    = {mc2:.4f}")
 
-    if "MMLU" in BENCHMARKS_TO_EVALUATE:
-        logger.info("MMLU ...")
-        v = eval_mmlu(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["MMLU"] = round(v, 4)
-            logger.info(f"  MMLU        = {v:.4f}")
-
-    if "NQ" in BENCHMARKS_TO_EVALUATE:
-        logger.info("NQ ...")
-        v = eval_nq(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["NQ"] = round(v, 4)
-            logger.info(f"  NQ          = {v:.4f}")
-
     if "PopQA" in BENCHMARKS_TO_EVALUATE:
         logger.info("PopQA ...")
         v = eval_popqa(model, tokenizer, device, n, seed)
         if v is not None:
             results["PopQA"] = round(v, 4)
             logger.info(f"  PopQA       = {v:.4f}")
-
-    if "Winogrande" in BENCHMARKS_TO_EVALUATE:
-        logger.info("WinoGrande ...")
-        v = eval_winogrande(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["Winogrande"] = round(v, 4)
-            logger.info(f"  Winogrande  = {v:.4f}")
 
     if "WikiText_BPB" in BENCHMARKS_TO_EVALUATE:
         logger.info("WikiText BPB ...")
@@ -573,9 +491,9 @@ if __name__ == "__main__":
             fieldnames.append(col)
 
         METRIC_ORDER = [
-            "HE-Dial", "HE-QA", "HE-Summ", "MemoTrap",
-            "TFQA-MC1", "TFQA-MC2", "MMLU", "NQ", "PopQA",
-            "Winogrande", "WikiText_BPB",
+            "HE-Summ", "MemoTrap",
+            "TFQA-MC1", "TFQA-MC2",
+            "PopQA", "WikiText_BPB",
         ]
         for m in METRIC_ORDER:
             if m not in rows:
