@@ -9,7 +9,11 @@
 #SBATCH --error=logs/baseline_%j.err
 
 # Charger les modules requis
-module load gcc arrow/21.0.0
+module load python/3.10
+module load cuda/11.8
+module load intel/2023.2.1
+module load StdEnv/2023
+
 
 # Activer le virtualenv
 source "$SLURM_SUBMIT_DIR/venv/bin/activate"
@@ -18,8 +22,8 @@ source "$SLURM_SUBMIT_DIR/venv/bin/activate"
 cd "$SLURM_SUBMIT_DIR"
 
 # Lancer l'entraînement
-python train_baseline.py \
+python qwen2.5_0.5B/baseline/train_baseline.py \
     --batch_size_per_gpu 4 \
     --grad_accum 4 \
-    --output_dir ./checkpoints/baseline \
+    --lr 3e-4 \
     "$@"

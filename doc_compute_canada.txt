@@ -1,3 +1,8 @@
 sbatch simple_job.sh > soumettre un job 
-sq > voir les jobs en cours
+squeue -u $USER (joseph63) > voir mes jobs en cours
+
+scancel 59999999 
+scontrol show job 59999999 > voir détails avancés d'un job
+
+(squeue > voir tous les jobs)
 
