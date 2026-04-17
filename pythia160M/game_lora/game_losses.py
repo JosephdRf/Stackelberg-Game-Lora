@@ -293,8 +293,8 @@ class GAMELossScheduler:
     """
     Schedule des λ en 3 phases :
       1. Linear warmup : 0 → 2%
-      2. Constant      : 2% → 87.9%  à λ_ABT=0.179, λ_LDB=0.352
-      3. Cooldown      : 87.9% → 100% avec λ → 0
+      2. Constant      : 2% → 95%  à λ_ABT=0.179, λ_LDB=0.352
+      3. Cooldown      : 95% → 100% avec λ → 0
     """
 
     def __init__(
@@ -303,7 +303,7 @@ class GAMELossScheduler:
         lambda_abt: float = 0.179,
         lambda_ldb: float = 0.352,
         warmup_frac: float = 0.02,
-        cooldown_start_frac: float = 0.879,
+        cooldown_start_frac: float = 0.95,
     ):
         self.total_steps = total_steps
         self.lambda_abt = lambda_abt

@@ -79,7 +79,7 @@ def load_model(model_path: str, base_model: Optional[str] = None):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    if base_model is not None:
+    if base_model is not None and model_path != base_model:
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
             torch_dtype=torch.bfloat16,
@@ -195,39 +195,65 @@ def eval_halueval_summ(model, tokenizer, device, n, seed):
 
 def eval_memotrap(model, tokenizer, device, n, seed):
     """
-    MemoTrap : résistance à la complétion automatique de phrases mémorisées.
-
-    Le modèle reçoit une instruction du type "Complete the proverb with a
-    different ending:" suivi d'une amorce connue.
-    - target_new  : la réponse attendue (non-mémorisée, suit l'instruction)
-    - target_true : la complétion mémorisée (le "piège")
-
-    Score = proportion où le modèle préfère target_new à target_true.
-
-    Note : le split disponible sur HF est "train" (pas de split "test" public).
+    MemoTrap (liujch1998/memo-trap, Inverse Scaling Prize).
+    Charge les 4 CSV depuis GitHub et évalue par log-likelihood.
+    
+    Format : prompt, classes (string de liste), answer_index
+    Score = proportion où le modèle préfère la completion correcte
+            (celle qui suit l'instruction) à la completion mémorisée.
+    
+    Petits modèles ≈ meilleurs scores (inverse scaling) — attendu.
     """
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("pminervini/MemoTrap", split="train")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"MemoTrap non disponible : {e}")
+    import ast, csv, io
+    import urllib.request
+
+    BASE_URL = "https://raw.githubusercontent.com/liujch1998/memo-trap/master/data/"
+    FILES = [
+        "1-proverb-ending.csv",
+        "2-proverb-translation.csv",
+        "3-hate-speech-ending.csv",
+        "4-history-of-science-qa.csv",
+    ]
+
+    all_examples = []
+    for fname in FILES:
+        url = BASE_URL + fname
+        try:
+            with urllib.request.urlopen(url, timeout=30) as resp:
+                content = resp.read().decode("utf-8")
+            reader = csv.DictReader(io.StringIO(content))
+            for row in reader:
+                all_examples.append({
+                    "prompt":       row["prompt"],
+                    "classes":      ast.literal_eval(row["classes"]),
+                    "answer_index": int(row["answer_index"]),
+                })
+        except Exception as e:
+            logger.warning(f"MemoTrap — impossible de charger {fname} : {e}")
+
+    if not all_examples:
+        logger.warning("MemoTrap : aucun exemple chargé.")
         return None
 
+    rng = np.random.default_rng(seed)
+    idxs = rng.permutation(len(all_examples))[:min(n, len(all_examples))]
+    examples = [all_examples[i] for i in idxs]
+
     correct = 0
-    for ex in tqdm(ds, desc="MemoTrap", leave=False):
-        prompt      = ex.get("prompt", "")
-        target_new  = ex.get("target_new", "")
-        target_true = ex.get("target_true", "")
-        score_new   = conditional_log_likelihood(
-            model, tokenizer, device, prompt, target_new, length_normalize=True
-        )
-        score_true  = conditional_log_likelihood(
-            model, tokenizer, device, prompt, target_true, length_normalize=True
-        )
-        if score_new > score_true:
+    for ex in tqdm(examples, desc="MemoTrap", leave=False):
+        prompt   = ex["prompt"]
+        classes  = ex["classes"]   # [completion_correcte, completion_memorisee] ou inverse
+        ans_idx  = ex["answer_index"]
+        scores   = [
+            conditional_log_likelihood(
+                model, tokenizer, device, prompt, c, length_normalize=True
+            )
+            for c in classes
+        ]
+        if int(np.argmax(scores)) == ans_idx:
             correct += 1
-    return correct / len(ds)
+
+    return correct / len(examples)
 
 
 # ---------------------------------------------------------------------------

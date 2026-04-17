@@ -399,33 +399,69 @@ def eval_halueval_summ(model, tokenizer, device, n, seed):
 #     return correct / len(ds)
 
 
+
 def eval_memotrap(model, tokenizer, device, n, seed):
     """
-    MemoTrap — fraction where the model follows the instruction over the memorized completion.
-    Dataset: pminervini/MemoTrap (may be gated; requires HF login).
-    Schema: prompt, target_new (instruction-following), target_true (memorized).
+    MemoTrap (liujch1998/memo-trap, Inverse Scaling Prize).
+    Charge les 4 CSV depuis GitHub et évalue par log-likelihood.
+    
+    Format : prompt, classes (string de liste), answer_index
+    Score = proportion où le modèle préfère la completion correcte
+            (celle qui suit l'instruction) à la completion mémorisée.
+    
+    Petits modèles ≈ meilleurs scores (inverse scaling) — attendu.
     """
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("pminervini/MemoTrap", split="test")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"MemoTrap non disponible (dataset peut être privé/gated) : {e}")
+    import ast, csv, io
+    import urllib.request
+
+    BASE_URL = "https://raw.githubusercontent.com/liujch1998/memo-trap/main/data/"
+    FILES = [
+        "1-proverb-ending.csv",
+        "2-proverb-translation.csv",
+        "3-prompt-continuation.csv",
+        "4-instruction-following.csv",
+    ]
+
+    all_examples = []
+    for fname in FILES:
+        url = BASE_URL + fname
+        try:
+            with urllib.request.urlopen(url, timeout=30) as resp:
+                content = resp.read().decode("utf-8")
+            reader = csv.DictReader(io.StringIO(content))
+            for row in reader:
+                all_examples.append({
+                    "prompt":       row["prompt"],
+                    "classes":      ast.literal_eval(row["classes"]),
+                    "answer_index": int(row["answer_index"]),
+                })
+        except Exception as e:
+            logger.warning(f"MemoTrap — impossible de charger {fname} : {e}")
+
+    if not all_examples:
+        logger.warning("MemoTrap : aucun exemple chargé.")
         return None
 
+    rng = np.random.default_rng(seed)
+    idxs = rng.permutation(len(all_examples))[:min(n, len(all_examples))]
+    examples = [all_examples[i] for i in idxs]
+
     correct = 0
-    for ex in tqdm(ds, desc="MemoTrap", leave=False):
-        prompt      = ex.get("prompt", "")
-        target_new  = ex.get("target_new", "")   # instruction-following completion
-        target_true = ex.get("target_true", "")  # memorized/common completion
-
-        score_new  = conditional_log_likelihood(model, tokenizer, device, prompt, target_new)
-        score_true = conditional_log_likelihood(model, tokenizer, device, prompt, target_true)
-
-        if score_new > score_true:
+    for ex in tqdm(examples, desc="MemoTrap", leave=False):
+        prompt   = ex["prompt"]
+        classes  = ex["classes"]   # [completion_correcte, completion_memorisee] ou inverse
+        ans_idx  = ex["answer_index"]
+        scores   = [
+            conditional_log_likelihood(
+                model, tokenizer, device, prompt, c, length_normalize=True
+            )
+            for c in classes
+        ]
+        if int(np.argmax(scores)) == ans_idx:
             correct += 1
 
-    return correct / len(ds)
+    return correct / len(examples)
+
 
 
 def eval_nq(model, tokenizer, device, n, seed):

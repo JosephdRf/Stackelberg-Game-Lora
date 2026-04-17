@@ -67,9 +67,8 @@ class TrainConfig:
         default_factory=lambda: ["query_key_value", "dense"]
     )
 
-    # Données — OpenWebText : domaine unique (web), loss stable
-    # The Pile est trop hétérogène (22 sous-datasets) pour batch_eff=16
-    dataset_name: str = "Skylion007/openwebtext"
+    # Données — The Pile : multi-domaine, même distribution que le pré-entraînement de Pythia
+    dataset_name: str = "monology/pile-uncopyrighted"
     dataset_config: Optional[str] = None
     seq_len: int = 1024          # Pythia context max = 2048 ; 1024 pour comparaison équitable
     total_tokens: int = 20_000_000  # 20M tokens (identique à Qwen pour comparaison)
@@ -120,7 +119,7 @@ class StreamDataset(IterableDataset):
     """
 
     def __init__(self, tokenizer, seq_len: int, total_tokens: int, seed: int = 42,
-                 dataset_name: str = "Skylion007/openwebtext", dataset_config: str = None):
+                 dataset_name: str = "monology/pile-uncopyrighted", dataset_config: str = None):
         super().__init__()
         self.tokenizer = tokenizer
         self.seq_len = seq_len
@@ -278,7 +277,7 @@ def log_config(cfg: TrainConfig):
 def add_common_args(parser):
     """Ajoute les arguments communs au parser."""
     parser.add_argument("--model_name", default="EleutherAI/pythia-160m")
-    parser.add_argument("--dataset_name", default="Skylion007/openwebtext")
+    parser.add_argument("--dataset_name", default="monology/pile-uncopyrighted")
     parser.add_argument("--dataset_config", default=None)
     parser.add_argument("--total_tokens", type=int, default=20_000_000)
     parser.add_argument("--batch_size_per_gpu", type=int, default=8)
