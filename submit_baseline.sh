@@ -22,8 +22,8 @@ source "$SLURM_SUBMIT_DIR/venv/bin/activate"
 cd "$SLURM_SUBMIT_DIR"
 
 # Lancer l'entraînement
-python qwen2.5_0.5B/baseline/train_baseline.py \
-    --batch_size_per_gpu 4 \
-    --grad_accum 4 \
-    --lr 3e-4 \
-    "$@"
+# python qwen2.5_0.5B/baseline/train_baseline.py \
+#     --batch_size_per_gpu 4 \
+#     --grad_accum 4 \
+#     --lr 3e-4 \
+#     "$@"
