@@ -19,13 +19,9 @@ Usage :
 
 import os
 import sys
-import json
 import argparse
 import logging
 import time
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 _HERE  = os.path.dirname(os.path.abspath(__file__))   # pythia160M/game_lora/
 _MODEL = os.path.dirname(_HERE)                        # pythia160M/
@@ -82,17 +78,6 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
     logger.info(f"Total steps : {total_steps}  |  Warmup : {cfg.warmup_steps}")
     logger.info(f"Design layer : {design_layer}  |  Nash-MTL : {use_nash_mtl}")
 
-    os.makedirs(cfg.output_dir, exist_ok=True)
-    _exp_dir  = os.path.dirname(os.path.abspath(cfg.output_dir))
-    logs_dir  = os.path.join(_exp_dir, "logs")
-    plots_dir = os.path.join(_exp_dir, "plots")
-    os.makedirs(logs_dir,  exist_ok=True)
-    os.makedirs(plots_dir, exist_ok=True)
-
-    loss_history: dict = {
-        "step": [], "loss": [], "loss_ema": [],
-        "ce_loss": [], "ldb_loss": [], "abt_loss": [],
-    }
     _ema_loss  = None
     _ema_alpha = 0.05
 
@@ -280,25 +265,10 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
                             pass
                     wandb.log(log_dict, step=opt_step)
 
-                loss_history["step"].append(opt_step)
-                loss_history["loss"].append(accum_loss)
-                loss_history["loss_ema"].append(_ema_loss)
-                loss_history["ce_loss"].append(accum_ce)
-                loss_history["ldb_loss"].append(accum_ldb)
-                loss_history["abt_loss"].append(accum_abt)
-                with open(os.path.join(logs_dir, "loss.json"), "w") as _f:
-                    json.dump(loss_history, _f, indent=2)
-
             accum_loss = 0.0
             accum_ce   = 0.0
             accum_ldb  = 0.0
             accum_abt  = 0.0
-
-            if opt_step % cfg.save_every == 0:
-                ckpt_path = os.path.join(cfg.output_dir, f"step_{opt_step}")
-                model.save_pretrained(ckpt_path)
-                tokenizer.save_pretrained(ckpt_path)
-                logger.info(f"Checkpoint sauvegardé → {ckpt_path}")
 
             if opt_step >= total_steps:
                 break
@@ -307,26 +277,6 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
 
     pbar.close()
     head_capture.remove()
-
-    final_path = os.path.join(cfg.output_dir, "final")
-    model.save_pretrained(final_path)
-    tokenizer.save_pretrained(final_path)
-    logger.info(f"Modèle final sauvegardé → {final_path}")
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(loss_history["step"], loss_history["loss"],     alpha=0.3, color="darkorange", label="loss (raw)")
-    ax.plot(loss_history["step"], loss_history["loss_ema"],            color="darkorange", label="loss (EMA α=0.05)")
-    for key, color in [("ce_loss", "steelblue"), ("ldb_loss", "green"), ("abt_loss", "red")]:
-        ax.plot(loss_history["step"], loss_history[key], label=key, color=color, alpha=0.7)
-    ax.set_xlabel("step")
-    ax.set_ylabel("loss")
-    ax.set_title("Training losses — GAME-LoRA (Pythia-160M)")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(os.path.join(plots_dir, "loss.png"), dpi=150)
-    plt.close(fig)
-    logger.info(f"Plot sauvegardé → {os.path.join(plots_dir, 'loss.png')}")
 
     if use_wandb:
         wandb.finish()
@@ -340,7 +290,6 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
 def parse_args():
     parser = argparse.ArgumentParser(description="GAME-LoRA training — Pythia-160M")
     parser = add_common_args(parser)
-    parser.add_argument("--output_dir", default=os.path.join(_HERE, "checkpoints"))
     parser.add_argument("--run_name",   default="game_lora_pythia")
     parser.add_argument(
         "--design_layer", type=int, default=9,
@@ -363,13 +312,11 @@ if __name__ == "__main__":
         batch_size_per_gpu = args.batch_size_per_gpu,
         grad_accum         = args.grad_accum,
         lr                 = args.lr,
-        output_dir         = args.output_dir,
         wandb_project      = args.wandb_project,
         run_name           = args.run_name,
         seed               = args.seed,
         dry_run            = args.dry_run,
         log_every          = args.log_every,
-        save_every         = args.save_every,
     )
 
     log_config(cfg)

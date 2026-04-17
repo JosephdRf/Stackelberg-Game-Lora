@@ -95,10 +95,8 @@ class TrainConfig:
     def warmup_steps(self) -> int:
         return math.ceil(self.warmup_ratio * self.total_steps)
 
-    # Logging / sauvegarde
-    output_dir: str = "./checkpoints/baseline"
+    # Logging
     log_every: int = 20
-    save_every: int = 200
     wandb_project: Optional[str] = None
     run_name: str = "baseline_lora_pythia"
     seed: int = 42
@@ -287,7 +285,6 @@ def add_common_args(parser):
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--log_every", type=int, default=20)
-    parser.add_argument("--save_every", type=int, default=200)
     parser.add_argument("--random_init", action="store_true",
                         help="Initialiser les poids aléatoirement (pas de préentraînement)")
     return parser
