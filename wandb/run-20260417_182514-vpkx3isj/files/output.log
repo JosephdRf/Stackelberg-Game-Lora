@@ -1,0 +1,88 @@
+18:25:17 | INFO | Chargement du modèle depuis EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+18:25:20 | INFO |
+=== Seed 42 ===
+18:25:20 | INFO | === Évaluation Pythia-160M ===
+18:25:20 | INFO | WikiText-103 (in-domain, cible du FT) ...
+18:25:36 | INFO |   WT103 PPL   = 48.837   BPB = 1.2522                                                                                                                                                                    
+18:25:36 | INFO | WikiText-2 (OOD léger) ...
+18:25:48 | INFO |   WT2   BPB   = 1.2522                                                                                                                                                                                   
+18:25:48 | INFO | LAMBADA ...
+Generating test split: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5153/5153 [00:00<00:00, 242143.54 examples/s]
+18:26:08 | INFO |   LAMBADA acc = 0.1175   ppl = 30.444                                                                                                                                                                    
+18:26:08 | INFO | HellaSwag ...
+Generating train split: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 39905/39905 [00:00<00:00, 98640.91 examples/s]
+Generating test split: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 10003/10003 [00:00<00:00, 92103.08 examples/s]
+Generating validation split: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 10042/10042 [00:00<00:00, 94293.06 examples/s]
+18:27:05 | INFO |   HellaSwag   = 0.2800                                                                                                                                                                                   
+18:27:05 | INFO | PIQA ...
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+18:27:05 | ERROR | `trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+18:27:06 | WARNING | PIQA non disponible : Dataset scripts are no longer supported, but found piqa.py
+18:27:06 | INFO | ARC-Easy ...
+Generating train split: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 2251/2251 [00:00<00:00, 204944.39 examples/s]
+Generating test split: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 2376/2376 [00:00<00:00, 62574.43 examples/s]
+Generating validation split: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 570/570 [00:00<00:00, 36471.10 examples/s]
+18:27:51 | INFO |   ARC-Easy    = 0.2980                                                                                                                                                                                   
+18:27:51 | INFO | MemoTrap ...
+18:28:17 | INFO |   MemoTrap    = 0.6155                                                                                                                                                                                   
+18:28:17 | INFO |
+=== Seed 43 ===
+18:28:17 | INFO | === Évaluation Pythia-160M ===
+18:28:17 | INFO | WikiText-103 (in-domain, cible du FT) ...
+18:28:29 | INFO |   WT103 PPL   = 48.837   BPB = 1.2522                                                                                                                                                                    
+18:28:29 | INFO | WikiText-2 (OOD léger) ...
+18:28:42 | INFO |   WT2   BPB   = 1.2522                                                                                                                                                                                   
+18:28:42 | INFO | LAMBADA ...
+18:28:55 | INFO |   LAMBADA acc = 0.1195   ppl = 30.558                                                                                                                                                                    
+18:28:55 | INFO | HellaSwag ...
+18:29:54 | INFO |   HellaSwag   = 0.2990                                                                                                                                                                                   
+18:29:54 | INFO | PIQA ...
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+18:29:54 | ERROR | `trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+18:29:54 | WARNING | PIQA non disponible : Dataset scripts are no longer supported, but found piqa.py
+18:29:54 | INFO | ARC-Easy ...
+18:30:43 | INFO |   ARC-Easy    = 0.3040                                                                                                                                                                                   
+18:30:43 | INFO | MemoTrap ...
+18:31:13 | INFO |   MemoTrap    = 0.6060                                                                                                                                                                                   
+18:31:13 | INFO |
+=== Seed 44 ===
+18:31:13 | INFO | === Évaluation Pythia-160M ===
+18:31:13 | INFO | WikiText-103 (in-domain, cible du FT) ...
+18:31:26 | INFO |   WT103 PPL   = 48.837   BPB = 1.2522                                                                                                                                                                    
+18:31:26 | INFO | WikiText-2 (OOD léger) ...
+18:31:38 | INFO |   WT2   BPB   = 1.2522                                                                                                                                                                                   
+18:31:38 | INFO | LAMBADA ...
+18:31:57 | INFO |   LAMBADA acc = 0.1170   ppl = 31.891                                                                                                                                                                    
+18:31:57 | INFO | HellaSwag ...
+18:32:55 | INFO |   HellaSwag   = 0.3065                                                                                                                                                                                   
+18:32:55 | INFO | PIQA ...
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+18:32:55 | ERROR | `trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+18:32:55 | WARNING | PIQA non disponible : Dataset scripts are no longer supported, but found piqa.py
+18:32:55 | INFO | ARC-Easy ...
+18:33:39 | INFO |   ARC-Easy    = 0.3050                                                                                                                                                                                   
+18:33:39 | INFO | MemoTrap ...
+18:34:06 | INFO |   MemoTrap    = 0.6085                                                                                                                                                                                   
+18:34:06 | INFO |
+=== Résultats finaux (moyenne sur seeds [42, 43, 44]) ===
+18:34:06 | INFO |   LAMBADA_acc          = 0.1180 ± 0.0011
+18:34:06 | INFO |   ARC-Easy             = 0.3023 ± 0.0031
+18:34:06 | INFO |   MemoTrap             = 0.6100 ± 0.0040
+18:34:06 | INFO |   WikiText103_BPB      = 1.2522 ± 0.0000
+18:34:06 | INFO |   WikiText103_PPL      = 48.8368 ± 0.0000
+18:34:06 | INFO |   HellaSwag            = 0.2952 ± 0.0112
+18:34:06 | INFO |   LAMBADA_ppl          = 30.9642 ± 0.6567
+18:34:06 | INFO |   WikiText2_BPB        = 1.2522 ± 0.0000

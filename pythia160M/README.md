@@ -1,18 +1,24 @@
 # Pythia-160M — Stackelberg Game LoRA
 
-Full fine-tuning de Pythia-160M sur WikiText-103, avec comparaison baseline vs GAME-LoRA / Stackelberg.
+Full fine-tuning de Pythia-160M sur WikiText-103.
+Les métriques sont stockées sur WandB (projet `Stackelberg`), visibles dans le tableau des runs.
 
-## Usage
-
-### 1. Eval du modèle de base (référence)
+## 1. Eval du modèle de base (référence)
 
 ```bash
-python pythia160M/eval.py --model_path EleutherAI/pythia-160m --csv_column base
+python pythia160M/eval.py \
+    --model_path EleutherAI/pythia-160m \
+    --wandb_project Stackelberg --wandb_group baseline --wandb_run_name eval_base
 ```
 
-### 2. Baseline full FT
+## 2. Baseline full FT
 
 ```bash
-python pythia160M/baseline/train_baseline.py --wandb_project stackelberg --run_
-python pythia160M/eval.py --model_path pythia160M/baseline/checkpoints/final --csv_column baseline_fullft
+python pythia160M/baseline/train_baseline.py \
+    --output_dir /Data/joseph.de-roffignac/checkpoints/baseline \
+    --wandb_project Stackelberg --wandb_group baseline --run_name seed_42
+
+python pythia160M/eval.py \
+    --model_path /Data/joseph.de-roffignac/checkpoints/baseline/final \
+    --wandb_project Stackelberg --wandb_group baseline --wandb_run_name eval_baseline
 ```

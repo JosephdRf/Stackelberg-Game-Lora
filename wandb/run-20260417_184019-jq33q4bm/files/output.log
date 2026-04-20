@@ -1,0 +1,53 @@
+18:40:20 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+18:40:22 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+18:45:18 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+18:45:21 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+18:45:21 | INFO | Total steps : 6104  |  Warmup : 184
+18:45:21 | INFO | Eval initiale (modèle pré-entraîné, avant fine-tuning) ...
+18:45:28 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+Training (Pythia-160M full FT):   8%|█████████▎                                                                                                        | 500/6104 [1:17:01<1:10:56,  1.32step/s, loss=3.9825, tok_s=22,431]Traceback (most recent call last):
+[train] step      1/6104  loss=4.4068  ema=4.4068  lr=1.63e-07  tok/s=9,523
+[train] step     20/6104  loss=4.2835  ema=4.3248  lr=3.26e-06  tok/s=11,947
+[train] step     40/6104  loss=4.0974  ema=4.1475  lr=6.52e-06  tok/s=12,804
+[train] step     60/6104  loss=3.7688  ema=3.9818  lr=9.78e-06  tok/s=12,683
+[train] step     80/6104  loss=3.7829  ema=3.8830  lr=1.30e-05  tok/s=12,724
+[train] step    100/6104  loss=3.7320  ema=3.8449  lr=1.63e-05  tok/s=12,168
+[val]   step    100  val_loss=3.8329  val_ppl=46.197
+[train] step    120/6104  loss=3.8794  ema=3.8503  lr=1.96e-05  tok/s=16,705
+[train] step    140/6104  loss=3.8876  ema=3.8570  lr=2.28e-05  tok/s=12,217
+[train] step    160/6104  loss=4.0045  ema=3.9225  lr=2.61e-05  tok/s=12,588
+[train] step    180/6104  loss=3.9432  ema=3.9556  lr=2.93e-05  tok/s=12,383
+[train] step    200/6104  loss=4.2290  ema=4.0209  lr=3.00e-05  tok/s=12,208
+[val]   step    200  val_loss=3.9915  val_ppl=54.138
+[train] step    220/6104  loss=3.8648  ema=3.9911  lr=3.00e-05  tok/s=12,544
+[train] step    240/6104  loss=4.1550  ema=3.9926  lr=3.00e-05  tok/s=12,156
+[train] step    260/6104  loss=4.0882  ema=4.0633  lr=3.00e-05  tok/s=21,926
+[train] step    280/6104  loss=4.1872  ema=4.0640  lr=3.00e-05  tok/s=20,986
+[train] step    300/6104  loss=4.0507  ema=4.0221  lr=3.00e-05  tok/s=20,885
+[val]   step    300  val_loss=3.9881  val_ppl=53.955
+[train] step    320/6104  loss=3.7852  ema=4.0033  lr=3.00e-05  tok/s=21,395
+[train] step    340/6104  loss=3.9058  ema=3.9712  lr=2.99e-05  tok/s=22,661
+[train] step    360/6104  loss=3.9216  ema=3.9966  lr=2.99e-05  tok/s=21,149
+[train] step    380/6104  loss=4.0255  ema=4.0183  lr=2.99e-05  tok/s=21,233
+[train] step    400/6104  loss=3.9151  ema=4.0189  lr=2.99e-05  tok/s=21,756
+[val]   step    400  val_loss=3.9495  val_ppl=51.912
+[train] step    420/6104  loss=3.9184  ema=3.9805  lr=2.99e-05  tok/s=21,440
+[train] step    440/6104  loss=3.9095  ema=3.9369  lr=2.99e-05  tok/s=21,050
+[train] step    460/6104  loss=3.7231  ema=3.9199  lr=2.98e-05  tok/s=20,707
+[train] step    480/6104  loss=4.0152  ema=3.9231  lr=2.98e-05  tok/s=20,821
+[train] step    500/6104  loss=3.9825  ema=3.8975  lr=2.98e-05  tok/s=22,431
+[val]   step    500  val_loss=3.8567  val_ppl=47.309
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 308, in <module>
+    train(cfg)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 196, in train
+    tokenizer.save_pretrained(ckpt_path)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/tokenization_utils_base.py", line 2743, in save_pretrained
+    save_files = self._save_pretrained(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/tokenization_utils_fast.py", line 739, in _save_pretrained
+    self.backend_tokenizer.save(tokenizer_file)
+Exception: Disk quota exceeded (os error 122)
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 308, in <module>
+    train(cfg)
+  File "/users/eleves-a/2

@@ -27,7 +27,8 @@ import random
 import logging
 
 _DATASETS_CACHE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset"
+    os.environ.get("SCRATCH", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "dataset"
 )
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -110,7 +111,8 @@ class TrainConfig:
     log_every: int = 20
     save_every: int = 500
     wandb_project: Optional[str] = None
-    run_name: str = "baseline_fullft_pythia"
+    wandb_group: Optional[str] = None
+    run_name: Optional[str] = None
     seed: int = 42
     dry_run: bool = False
     random_init: bool = False
@@ -147,8 +149,7 @@ class WikiTextDataset(Dataset):
         super().__init__()
         from datasets import load_dataset
 
-        ds = load_dataset(dataset_name, dataset_config, split=split,
-                          cache_dir=_DATASETS_CACHE)
+        ds = load_dataset(dataset_name, dataset_config, split=split, streaming=True)
         # On concatène tous les textes non vides, sans ré-introduire de BOS/EOS
         # explicite (WikiText est un corpus continu ; le tokenizer GPT-NeoX n'a
         # pas de BOS par défaut). On ajoute un EOS entre les articles.
@@ -365,6 +366,8 @@ def add_common_args(parser):
     parser.add_argument("--grad_accum", type=int, default=2)
     parser.add_argument("--lr", type=float, default=3e-5)
     parser.add_argument("--wandb_project", default=None)
+    parser.add_argument("--wandb_group",   default=None,
+                        help="Groupe W&B (ex: 'baseline', 'game_lora', 'exp1')")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--log_every", type=int, default=20)

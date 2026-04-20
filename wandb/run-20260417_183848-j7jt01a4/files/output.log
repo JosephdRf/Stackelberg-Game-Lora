@@ -1,0 +1,103 @@
+18:38:50 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+18:38:53 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+Generating test split: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4358/4358 [00:00<00:00, 260140.57 examples/s]
+Generating train split:  92%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▍           | 1648675/1801350 [00:04<00:00, 381880.40 examples/s]
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1873, in _prepare_split_single
+    num_examples, num_bytes = writer.finalize()
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/arrow_writer.py", line 692, in finalize
+    self.stream.close()
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/fsspec/implementations/local.py", line 487, in close
+    return self.f.close()
+OSError: [Errno 122] Disk quota exceeded
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1908, in _prepare_split_single
+    num_examples, num_bytes = writer.finalize()
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/arrow_writer.py", line 687, in finalize
+    self._build_writer(self.schema)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/arrow_writer.py", line 517, in _build_writer
+    self.pa_writer = pa.RecordBatchStreamWriter(self.stream, self._schema)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/pyarrow/ipc.py", line 90, in __init__
+    self._open(sink, schema, options=options)
+  File "pyarrow/ipc.pxi", line 615, in pyarrow.lib._RecordBatchStreamWriter._open
+  File "pyarrow/io.pxi", line 2209, in pyarrow.lib.get_writer
+  File "pyarrow/io.pxi", line 231, in pyarrow.lib.NativeFile.get_output_stream
+  File "pyarrow/io.pxi", line 245, in pyarrow.lib.NativeFile._assert_writable
+  File "pyarrow/io.pxi", line 236, in pyarrow.lib.NativeFile._assert_open
+ValueError: I/O operation on closed file
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 308, in <module>
+    train(cfg)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 63, in train
+    train_loader, val_loader, optimizer, scheduler, total_steps = setup_training(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/train.py", line 244, in setup_training
+    train_ds = WikiTextDataset(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/train.py", line 152, in __init__
+    ds = load_dataset(dataset_name, dataset_config, split=split,
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/load.py", line 1508, in load_dataset
+    builder_instance.download_and_prepare(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 884, in download_and_prepare
+    self._download_and_prepare(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 947, in _download_and_prepare
+    self._prepare_split(split_generator, **prepare_split_kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1736, in _prepare_split
+    for job_id, done, content in self._prepare_split_single(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1919, in _prepare_split_single
+    raise DatasetGenerationError("An error occurred while generating the dataset") from e
+datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1873, in _prepare_split_single
+    num_examples, num_bytes = writer.finalize()
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/arrow_writer.py", line 692, in finalize
+    self.stream.close()
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/fsspec/implementations/local.py", line 487, in close
+    return self.f.close()
+OSError: [Errno 122] Disk quota exceeded
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1908, in _prepare_split_single
+    num_examples, num_bytes = writer.finalize()
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/arrow_writer.py", line 687, in finalize
+    self._build_writer(self.schema)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/arrow_writer.py", line 517, in _build_writer
+    self.pa_writer = pa.RecordBatchStreamWriter(self.stream, self._schema)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/pyarrow/ipc.py", line 90, in __init__
+    self._open(sink, schema, options=options)
+  File "pyarrow/ipc.pxi", line 615, in pyarrow.lib._RecordBatchStreamWriter._open
+  File "pyarrow/io.pxi", line 2209, in pyarrow.lib.get_writer
+  File "pyarrow/io.pxi", line 231, in pyarrow.lib.NativeFile.get_output_stream
+  File "pyarrow/io.pxi", line 245, in pyarrow.lib.NativeFile._assert_writable
+  File "pyarrow/io.pxi", line 236, in pyarrow.lib.NativeFile._assert_open
+ValueError: I/O operation on closed file
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 308, in <module>
+    train(cfg)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 63, in train
+    train_loader, val_loader, optimizer, scheduler, total_steps = setup_training(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/train.py", line 244, in setup_training
+    train_ds = WikiTextDataset(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/train.py", line 152, in __init__
+    ds = load_dataset(dataset_name, dataset_config, split=split,
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/load.py", line 1508, in load_dataset
+    builder_instance.download_and_prepare(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 884, in download_and_prepare
+    self._download_and_prepare(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 947, in _download_and_prepare
+    self._prepare_split(split_generator, **prepare_split_kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1736, in _prepare_split
+    for job_id, done, content in self._prepare_split_single(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/datasets/builder.py", line 1919, in _prepare_split_single
+    raise DatasetGenerationError("An error occurred while generating the dataset") from e
+datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset

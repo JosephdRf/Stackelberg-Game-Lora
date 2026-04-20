@@ -510,24 +510,19 @@ if __name__ == "__main__":
     parser.add_argument("--n_samples", type=int, default=EVAL_PARAMS["n_samples"])
     parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43, 44],
                         help="Seeds à moyenner (défaut: 42 43 44)")
-    parser.add_argument("--csv",       default=os.path.join(
-                            os.path.dirname(os.path.abspath(__file__)), "results.csv"),
-                        help="Fichier CSV de résultats")
-    parser.add_argument("--csv_column", default=None,
-                        help="Colonne à mettre à jour (ex: 'base', 'baseline_fullft', 'stackelberg_v1')")
     parser.add_argument("--wandb_project", default="Stackelberg",
                         help="Projet W&B (défaut: Stackelberg). Passer '' pour désactiver.")
-    parser.add_argument("--wandb_run_name", default=None,
-                        help="Nom du run W&B (défaut: csv_column ou model_path)")
+    parser.add_argument("--wandb_run_name", required=True,
+                        help="Nom du run W&B")
+    parser.add_argument("--wandb_group", default=None,
+                        help="Groupe W&B (ex: 'baseline', 'game_lora')")
     args = parser.parse_args()
 
-    use_wandb = bool(args.wandb_project)
-    if use_wandb:
-        import wandb
-        run_name = args.wandb_run_name or args.csv_column or os.path.basename(args.model_path)
-        wandb.init(project=args.wandb_project, name=run_name,
-                   config={"model_path": args.model_path, "seeds": args.seeds,
-                           "n_samples": args.n_samples})
+    import wandb
+    wandb.init(project=args.wandb_project, name=args.wandb_run_name,
+               group=args.wandb_group, job_type="eval",
+               config={"model_path": args.model_path, "seeds": args.seeds,
+                       "n_samples": args.n_samples})
 
     model, tokenizer, device = load_model(args.model_path)
 
@@ -545,52 +540,18 @@ if __name__ == "__main__":
         for k in all_keys
     }
 
+    METRIC_ORDER = [
+        "WikiText103_PPL", "WikiText103_BPB", "WikiText2_BPB",
+        "LAMBADA_acc", "LAMBADA_ppl",
+        "HellaSwag", "PIQA", "ARC-Easy", "MemoTrap",
+    ]
+    ordered_keys = [k for k in METRIC_ORDER if k in agg]
+
     logger.info(f"\n=== Résultats finaux (moyenne sur seeds {args.seeds}) ===")
-    for k, v in agg.items():
+    for k in ordered_keys:
+        v = agg[k]
         logger.info(f"  {k:<20} = {v['mean']:.4f} ± {v['std']:.4f}")
 
-    results = {k: v["mean"] for k, v in agg.items()}
-
-    if use_wandb:
-        wandb.log({k: v["mean"] for k, v in agg.items()}
-                  | {f"{k}_std": v["std"] for k, v in agg.items()})
-        wandb.finish()
-
-    if args.csv_column:
-        import csv
-        csv_path = args.csv
-        rows = {}
-        if os.path.exists(csv_path):
-            with open(csv_path, "r") as f:
-                reader = csv.DictReader(f)
-                fieldnames = list(reader.fieldnames) if reader.fieldnames else ["metric"]
-                for row in reader:
-                    rows[row["metric"]] = row
-        else:
-            fieldnames = ["metric"]
-
-        col = args.csv_column
-        if col not in fieldnames:
-            fieldnames.append(col)
-
-        METRIC_ORDER = [
-            "WikiText103_PPL", "WikiText103_BPB", "WikiText2_BPB",
-            "LAMBADA_acc", "LAMBADA_ppl",
-            "HellaSwag", "PIQA", "ARC-Easy", "MemoTrap",
-        ]
-        for m in METRIC_ORDER:
-            if m not in rows:
-                rows[m] = {"metric": m}
-        for metric, value in results.items():
-            rows[metric][col] = str(value)
-
-        ordered  = [m for m in METRIC_ORDER if m in rows]
-        ordered += [m for m in rows if m not in METRIC_ORDER]
-
-        with open(csv_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for m in ordered:
-                writer.writerow(rows[m])
-
-        logger.info(f"Colonne '{col}' mise à jour dans {csv_path}")
+    for k in ordered_keys:
+        wandb.run.summary[k] = agg[k]["mean"]
+    wandb.finish()
