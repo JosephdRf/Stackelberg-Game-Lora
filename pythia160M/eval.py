@@ -9,44 +9,41 @@ DEUX catégories de métriques :
 
   (B) Métriques pour discriminer différentes méthodes de FT
       (baseline vs Stackelberg, variantes de λ, etc.) :
-        - WikiText-2 BPB         : OOD léger (généralisation LM)
-        - LAMBADA   (acc, ppl)   : complétion long-contexte, très sensible
-        - HellaSwag (acc_norm)   : sens commun, standard
-        - PIQA      (acc)        : raisonnement physique
-        - ARC-Easy  (acc_norm)   : QA facile
-        - MemoTrap  (acc)        : résistance à la mémorisation — pertinent
-                                   pour un mécanisme visant la diversité
-                                   des têtes (Stackelberg)
+        - PTB_BPB           : OOD (Penn Treebank, généralisation LM)
+        - LAMBADA (acc/ppl) : complétion long-contexte, très sensible
+        - HellaSwag         : sens commun, standard
+        - PIQA              : raisonnement physique
+        - ARC-Easy          : QA facile
+        - MemoTrap          : résistance à la mémorisation — pertinent
+                              pour un mécanisme visant la diversité
+                              des têtes (Stackelberg)
 
-Benchmarks retirés vs version précédente :
-  HE-Summ, TFQA, PopQA  → orientés "hallucination", peu discriminants
-                           pour comparer des variantes de FT sur WikiText
-  WinoGrande            → ~52% ≈ random à 160M, variance > signal
-  MMLU, ARC-Challenge   → ~26% ≈ random à 160M
+Changements par rapport à la version précédente :
+  - WikiText-2 retiré : son test split est identique à celui de WikiText-103
+    (mêmes 60 articles) → BPB strictement identique. Remplacé par PTB.
+  - LAMBADA : alignement de tokenisation fixé (vérification que ctx_ids
+    est bien un préfixe de full_ids, sinon skip).
+  - ARC-Easy / HellaSwag / PIQA : format de prompt fixé (espace sur la
+    completion et non après le contexte) → compatible avec les merges BPE.
+  - Streaming retiré (les fichiers WikiText test font quelques MB).
+  - n_samples = set complet par défaut (variance d'eval négligeable).
+  - Plusieurs seeds ne changent QUE l'ordre de sampling. Pour mesurer la
+    vraie variance d'une méthode, lancer plusieurs FT avec des seeds
+    différents et évaluer chacun séparément.
 
 Usage :
-    # Modèle de base
-    python pythia160M/eval.py --model_path EleutherAI/pythia-160m --csv_column base
+    python pythia160M/eval.py --model_path EleutherAI/pythia-160m \\
+        --wandb_run_name eval_base --wandb_group base
 
-    # Modèle full-finetuné (moyenne sur 3 seeds)
-    python pythia160M/eval.py \\
-        --model_path pythia160M/baseline/checkpoints/final \\
-        --csv_column baseline_fullft
-
-    # Seeds personnalisés
-    python pythia160M/eval.py \\
-        --model_path pythia160M/baseline/checkpoints/final \\
-        --csv_column baseline_fullft --seeds 42 43 44
+    python pythia160M/eval.py --model_path pythia160M/baseline/checkpoints/final \\
+        --wandb_run_name eval_baseline_seed42 --wandb_group baseline
 """
 
 import os
 import re
 import math
-import string
-import json
 import argparse
 import logging
-from typing import Optional
 
 _DATASETS_CACHE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset"
@@ -66,14 +63,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 EVAL_PARAMS = {
-    "n_samples": 2000,   # plus large qu'avant car benchmarks moins coûteux
+    "n_samples": None,   # None = set complet (recommandé)
     "seed":      42,
 }
 
-# Benchmarks actifs — commenter pour sauter
 BENCHMARKS_TO_EVALUATE = [
-    "WikiText103_PPL",   # (A) métrique cible : doit s'améliorer après FT
-    "WikiText2_BPB",     # (B) OOD léger
+    "WikiText103_PPL",   # (A) métrique cible
+    "PTB_BPB",           # (B) OOD léger
     "LAMBADA",           # (B) complétion, sensible
     "HellaSwag",         # (B) sens commun
     "PIQA",              # (B) raisonnement physique
@@ -107,7 +103,7 @@ def load_model(model_path: str):
 
 
 # ---------------------------------------------------------------------------
-# Utilitaires log-vraisemblance
+# Utilitaires log-vraisemblance (prompts QCM)
 # ---------------------------------------------------------------------------
 
 
@@ -117,14 +113,32 @@ def conditional_log_likelihood(
     max_length: int = 2048,
     length_normalize: bool = False,
 ) -> float:
+    """
+    Log-vraisemblance de `completion` étant donné `context`.
+
+    IMPORTANT : l'espace séparant contexte et completion doit appartenir à
+    `completion` (ex: completion=" answer"). Cela préserve les merges BPE
+    du tokenizer GPT-NeoX et aligne correctement les frontières de tokens.
+    """
     ctx_ids  = tokenizer(context,              add_special_tokens=True,
                          truncation=True, max_length=max_length)["input_ids"]
     full_ids = tokenizer(context + completion, add_special_tokens=True,
                          truncation=True, max_length=max_length)["input_ids"]
-    n_ctx = len(ctx_ids)
+
+    # Vérifier que ctx_ids est bien un préfixe de full_ids. Si la BPE
+    # re-fusionne à la frontière, on tombe sur le plus grand préfixe commun.
+    if full_ids[:len(ctx_ids)] != ctx_ids:
+        k = 0
+        while k < min(len(ctx_ids), len(full_ids)) and ctx_ids[k] == full_ids[k]:
+            k += 1
+        n_ctx = k
+    else:
+        n_ctx = len(ctx_ids)
+
     if len(full_ids) <= n_ctx:
         return float("-inf")
     n_completion = len(full_ids) - n_ctx
+
     input_ids = torch.tensor([full_ids], dtype=torch.long).to(device)
     labels    = input_ids.clone()
     labels[0, :n_ctx] = -100
@@ -137,24 +151,13 @@ def conditional_log_likelihood(
 
 
 # ---------------------------------------------------------------------------
-# Perplexité / BPB sur WikiText (sliding window)
+# Perplexité / BPB sur corpus LM (sliding window)
 # ---------------------------------------------------------------------------
 
 
-def _eval_wikitext_generic(model, tokenizer, device,
-                           config_name: str, seq_len: int = 512,
-                           stride: int = 256):
-    """
-    Calcule NLL moyen (nats/token), perplexité et BPB sur WikiText (test split).
-    """
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("Salesforce/wikitext", config_name, split="test", streaming=True)
-    except Exception as e:
-        logger.warning(f"WikiText ({config_name}) non disponible : {e}")
-        return None
-
-    full_text  = "\n\n".join([ex["text"] for ex in ds if ex["text"].strip()])
+def _eval_lm_sliding(model, tokenizer, device, full_text: str,
+                     seq_len: int = 512, stride: int = 256, desc: str = "LM"):
+    """NLL moyen (nats/token), perplexité et BPB avec fenêtre glissante."""
     encodings  = tokenizer(full_text, return_tensors="pt", truncation=False)
     input_ids  = encodings["input_ids"]
     num_bytes  = len(full_text.encode("utf-8"))
@@ -163,8 +166,7 @@ def _eval_wikitext_generic(model, tokenizer, device,
 
     nlls     = []
     prev_end = 0
-    for begin in tqdm(range(0, n_tok - 1, stride),
-                      desc=f"WikiText ({config_name})", leave=False):
+    for begin in tqdm(range(0, n_tok - 1, stride), desc=desc, leave=False):
         end        = min(begin + seq_len, n_tok)
         target_len = end - prev_end
         chunk      = input_ids[:, begin:end].to(device)
@@ -180,79 +182,118 @@ def _eval_wikitext_generic(model, tokenizer, device,
     avg_nll = sum(nlls) / (n_tok - 1)
     ppl     = math.exp(min(avg_nll, 20))
     bpb     = avg_nll / math.log(2) / bytes_per_token
+    logger.debug(f"  [{desc}] n_tok={n_tok}  bytes={num_bytes}  "
+                 f"bytes/tok={bytes_per_token:.3f}")
     return {"nll": avg_nll, "ppl": ppl, "bpb": bpb}
 
 
 def eval_wikitext103_ppl(model, tokenizer, device):
-    """Métrique cible du FT : doit s'améliorer après fine-tuning sur WikiText-103."""
-    return _eval_wikitext_generic(model, tokenizer, device, "wikitext-103-raw-v1")
+    """Métrique cible du FT — doit s'améliorer après FT sur WikiText-103."""
+    try:
+        from datasets import load_dataset
+        ds = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1",
+                          split="test", cache_dir=_DATASETS_CACHE)
+    except Exception as e:
+        logger.warning(f"WikiText-103 non disponible : {e}")
+        return None
+
+    full_text = "\n\n".join([ex["text"] for ex in ds if ex["text"].strip()])
+    return _eval_lm_sliding(model, tokenizer, device, full_text,
+                            desc="WikiText-103")
 
 
-def eval_wikitext2_bpb(model, tokenizer, device):
-    """OOD léger (plus petit, plus rapide)."""
-    return _eval_wikitext_generic(model, tokenizer, device, "wikitext-2-raw-v1")
+def eval_ptb_bpb(model, tokenizer, device):
+    """
+    Penn Treebank (test split). Corpus Wall Street Journal,
+    vraiment OOD par rapport à WikiText-103.
+    """
+    try:
+        from datasets import load_dataset
+        ds = load_dataset("ptb_text_only", split="test",
+                          cache_dir=_DATASETS_CACHE, trust_remote_code=True)
+    except Exception as e:
+        logger.warning(f"PTB non disponible : {e}")
+        return None
+
+    full_text = "\n".join([ex["sentence"] for ex in ds if ex["sentence"].strip()])
+    return _eval_lm_sliding(model, tokenizer, device, full_text, desc="PTB")
 
 
 # ---------------------------------------------------------------------------
-# LAMBADA — complétion du dernier mot
+# LAMBADA — complétion du dernier mot (alignement de tokenisation sécurisé)
 # ---------------------------------------------------------------------------
 
 
 def eval_lambada(model, tokenizer, device, n, seed):
     """
-    LAMBADA : accuracy = le modèle prédit-il le dernier mot (greedy argmax) ?
-    Calcule aussi la perplexité conditionnelle sur le dernier mot.
+    LAMBADA : accuracy greedy sur le dernier mot + ppl conditionnelle.
+
+    Protocole standard (lm-eval-harness) :
+      - context = tout sauf le dernier mot
+      - target  = " " + dernier_mot   (espace dans le target, pas avant)
+      - skip si la tokenisation jointe n'a pas ctx_ids comme préfixe exact
     """
     try:
         from datasets import load_dataset
         ds = load_dataset("EleutherAI/lambada_openai", "en", split="test",
                           cache_dir=_DATASETS_CACHE)
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
     except Exception as e:
         logger.warning(f"LAMBADA non disponible : {e}")
         return None
 
-    correct = 0
-    nll_sum = 0.0
-    n_tok_sum = 0
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+
+    correct    = 0
+    nll_sum    = 0.0
+    n_tok_sum  = 0
+    n_used     = 0
+    n_skipped  = 0
 
     for ex in tqdm(ds, desc="LAMBADA", leave=False):
-        text = ex["text"].strip()
-        # Découpage : tout sauf le dernier mot = contexte, dernier mot = cible
-        last_space = text.rfind(" ")
-        if last_space == -1:
+        text = ex["text"]
+        parts = text.rsplit(" ", 1)
+        if len(parts) != 2:
+            n_skipped += 1
             continue
-        context = text[:last_space]
-        target  = text[last_space:]  # commence par un espace, ex: " word"
+        context = parts[0]
+        target  = " " + parts[1]
 
-        ctx_ids    = tokenizer(context,         add_special_tokens=True)["input_ids"]
-        full_ids   = tokenizer(context + target, add_special_tokens=True)["input_ids"]
+        ctx_ids  = tokenizer(context,          add_special_tokens=True)["input_ids"]
+        full_ids = tokenizer(context + target, add_special_tokens=True)["input_ids"]
+
+        if full_ids[:len(ctx_ids)] != ctx_ids or len(full_ids) <= len(ctx_ids):
+            n_skipped += 1
+            continue
+
         n_ctx      = len(ctx_ids)
         target_ids = full_ids[n_ctx:]
-        if len(target_ids) == 0:
-            continue
+        n_tgt      = len(target_ids)
 
         input_ids = torch.tensor([full_ids], dtype=torch.long).to(device)
         with torch.no_grad():
             out = model(input_ids=input_ids)
         logits = out.logits[0]  # (T, V)
 
-        # Accuracy : on prédit token par token en greedy sur la cible
-        # La position qui prédit target_ids[i] est n_ctx - 1 + i
-        pred_ids = logits[n_ctx - 1 : n_ctx - 1 + len(target_ids)].argmax(dim=-1)
+        # Teacher-forced : argmax par position sur le target
+        pred_ids = logits[n_ctx - 1 : n_ctx - 1 + n_tgt].argmax(dim=-1)
         gold_ids = torch.tensor(target_ids, device=device)
         if torch.equal(pred_ids, gold_ids):
             correct += 1
 
-        # NLL du target
         log_probs = F.log_softmax(
-            logits[n_ctx - 1 : n_ctx - 1 + len(target_ids)].float(), dim=-1
+            logits[n_ctx - 1 : n_ctx - 1 + n_tgt].float(), dim=-1
         )
         nll = -log_probs.gather(1, gold_ids.unsqueeze(1)).sum().item()
         nll_sum   += nll
-        n_tok_sum += len(target_ids)
+        n_tok_sum += n_tgt
+        n_used    += 1
 
-    acc = correct / len(ds)
+    if n_skipped > 0:
+        logger.info(f"  LAMBADA : {n_skipped} exemples skipped (alignement), "
+                    f"{n_used} utilisés")
+
+    acc = correct / max(1, n_used)
     ppl = math.exp(min(nll_sum / max(1, n_tok_sum), 20))
     return {"acc": acc, "ppl": ppl}
 
@@ -264,17 +305,23 @@ def eval_lambada(model, tokenizer, device, n, seed):
 
 def eval_hellaswag(model, tokenizer, device, n, seed):
     """
-    HellaSwag : parmi 4 completions, choisir la bonne.
-    Score = acc_norm (log-likelihood normalisée par longueur, standard).
+    HellaSwag : parmi 4 completions, choisir la plus plausible.
+    acc_norm = argmax de (log p(end | ctx) / n_tokens_end).
+
+    Prompt format (lm-eval-harness style) :
+      context    = "{activity_label}: {ctx_a} {ctx_b.capitalize()}"
+      completion = " " + ending
     """
     try:
         from datasets import load_dataset
         ds = load_dataset("Rowan/hellaswag", split="validation",
                           cache_dir=_DATASETS_CACHE)
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
     except Exception as e:
         logger.warning(f"HellaSwag non disponible : {e}")
         return None
+
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
     def preprocess(text):
         text = text.strip()
@@ -285,13 +332,15 @@ def eval_hellaswag(model, tokenizer, device, n, seed):
 
     correct = 0
     for ex in tqdm(ds, desc="HellaSwag", leave=False):
-        ctx = preprocess(ex["activity_label"] + ": " + ex["ctx_a"] + " " + ex["ctx_b"].capitalize())
+        ctx = preprocess(ex["activity_label"] + ": "
+                         + ex["ctx_a"] + " "
+                         + ex["ctx_b"].capitalize())
         endings = [preprocess(e) for e in ex["endings"]]
         gold    = int(ex["label"])
 
         scores = [
             conditional_log_likelihood(model, tokenizer, device,
-                                       ctx + " ", e, length_normalize=True)
+                                       ctx, " " + e, length_normalize=True)
             for e in endings
         ]
         if int(np.argmax(scores)) == gold:
@@ -305,15 +354,20 @@ def eval_hellaswag(model, tokenizer, device, n, seed):
 
 
 def eval_piqa(model, tokenizer, device, n, seed):
-    """PIQA : choix binaire entre 2 solutions à un problème physique."""
+    """
+    PIQA : choix binaire entre 2 solutions.
+    Prompt : "Question: {goal}\\nAnswer:" + " " + sol
+    """
     try:
         from datasets import load_dataset
-        ds = load_dataset("ybisk/piqa", split="validation", trust_remote_code=True,
-                          cache_dir=_DATASETS_CACHE)
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        ds = load_dataset("ybisk/piqa", split="validation",
+                          trust_remote_code=True, cache_dir=_DATASETS_CACHE)
     except Exception as e:
         logger.warning(f"PIQA non disponible : {e}")
         return None
+
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
     correct = 0
     for ex in tqdm(ds, desc="PIQA", leave=False):
@@ -322,7 +376,7 @@ def eval_piqa(model, tokenizer, device, n, seed):
         gold = int(ex["label"])
         scores = [
             conditional_log_likelihood(model, tokenizer, device,
-                                       ctx + " ", s, length_normalize=True)
+                                       ctx, " " + s, length_normalize=True)
             for s in sols
         ]
         if int(np.argmax(scores)) == gold:
@@ -336,15 +390,20 @@ def eval_piqa(model, tokenizer, device, n, seed):
 
 
 def eval_arc_easy(model, tokenizer, device, n, seed):
-    """ARC-Easy : QA scientifique élémentaire, 4 choix (parfois 3 ou 5)."""
+    """
+    ARC-Easy : QA scientifique élémentaire, 3-5 choix.
+    Prompt : "Question: {q}\\nAnswer:" + " " + choice
+    """
     try:
         from datasets import load_dataset
         ds = load_dataset("allenai/ai2_arc", "ARC-Easy", split="test",
                           cache_dir=_DATASETS_CACHE)
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
     except Exception as e:
         logger.warning(f"ARC-Easy non disponible : {e}")
         return None
+
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
     correct = 0
     total   = 0
@@ -359,7 +418,7 @@ def eval_arc_easy(model, tokenizer, device, n, seed):
         ctx = "Question: " + q + "\nAnswer:"
         scores = [
             conditional_log_likelihood(model, tokenizer, device,
-                                       ctx + " ", c, length_normalize=True)
+                                       ctx, " " + c, length_normalize=True)
             for c in choices
         ]
         pred = labels[int(np.argmax(scores))]
@@ -370,15 +429,15 @@ def eval_arc_easy(model, tokenizer, device, n, seed):
 
 
 # ---------------------------------------------------------------------------
-# MemoTrap (pertinent pour évaluer la diversité des têtes / Stackelberg)
+# MemoTrap
 # ---------------------------------------------------------------------------
 
 
 def eval_memotrap(model, tokenizer, device, n, seed):
     """
-    MemoTrap (Inverse Scaling Prize) : le modèle doit suivre une instruction
-    qui contredit un pattern mémorisé. Particulièrement pertinent pour évaluer
-    un mécanisme qui favorise la diversité des têtes d'attention.
+    MemoTrap (Inverse Scaling Prize) : suivre une instruction contre un
+    pattern mémorisé. Les prompts contiennent déjà leur propre formatage,
+    on ne rajoute PAS d'espace devant les classes.
     """
     import ast, csv, io
     import urllib.request
@@ -410,9 +469,12 @@ def eval_memotrap(model, tokenizer, device, n, seed):
     if not all_examples:
         return None
 
-    rng  = np.random.default_rng(seed)
-    idxs = rng.permutation(len(all_examples))[:min(n, len(all_examples))]
-    examples = [all_examples[i] for i in idxs]
+    if n is not None:
+        rng  = np.random.default_rng(seed)
+        idxs = rng.permutation(len(all_examples))[:min(n, len(all_examples))]
+        examples = [all_examples[i] for i in idxs]
+    else:
+        examples = all_examples
 
     correct = 0
     for ex in tqdm(examples, desc="MemoTrap", leave=False):
@@ -431,18 +493,17 @@ def eval_memotrap(model, tokenizer, device, n, seed):
 # ---------------------------------------------------------------------------
 
 
-def run_eval(model, tokenizer, device, n=2000, seed=42):
+def run_eval(model, tokenizer, device, n=None, seed=42):
     results = {}
     logger.info("=== Évaluation Pythia-160M ===")
 
     skipped = [b for b in [
-        "WikiText103_PPL", "WikiText2_BPB", "LAMBADA",
+        "WikiText103_PPL", "PTB_BPB", "LAMBADA",
         "HellaSwag", "PIQA", "ARC-Easy", "MemoTrap",
     ] if b not in BENCHMARKS_TO_EVALUATE]
     if skipped:
         logger.info(f"  Ignorés : {skipped}")
 
-    # (A) Métrique cible du FT
     if "WikiText103_PPL" in BENCHMARKS_TO_EVALUATE:
         logger.info("WikiText-103 (in-domain, cible du FT) ...")
         r = eval_wikitext103_ppl(model, tokenizer, device)
@@ -451,13 +512,13 @@ def run_eval(model, tokenizer, device, n=2000, seed=42):
             results["WikiText103_BPB"] = round(r["bpb"], 4)
             logger.info(f"  WT103 PPL   = {r['ppl']:.3f}   BPB = {r['bpb']:.4f}")
 
-    # (B) Métriques discriminantes
-    if "WikiText2_BPB" in BENCHMARKS_TO_EVALUATE:
-        logger.info("WikiText-2 (OOD léger) ...")
-        r = eval_wikitext2_bpb(model, tokenizer, device)
+    if "PTB_BPB" in BENCHMARKS_TO_EVALUATE:
+        logger.info("PTB (OOD) ...")
+        r = eval_ptb_bpb(model, tokenizer, device)
         if r is not None:
-            results["WikiText2_BPB"] = round(r["bpb"], 4)
-            logger.info(f"  WT2   BPB   = {r['bpb']:.4f}")
+            results["PTB_BPB"] = round(r["bpb"], 4)
+            results["PTB_PPL"] = round(r["ppl"], 4)
+            logger.info(f"  PTB   BPB   = {r['bpb']:.4f}   PPL = {r['ppl']:.3f}")
 
     if "LAMBADA" in BENCHMARKS_TO_EVALUATE:
         logger.info("LAMBADA ...")
@@ -507,51 +568,54 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Évaluation Pythia-160M (WikiText-103 FT)")
     parser.add_argument("--model_path", required=True,
                         help="Chemin vers le modèle fine-tuné ou 'EleutherAI/pythia-160m'")
-    parser.add_argument("--n_samples", type=int, default=EVAL_PARAMS["n_samples"])
-    parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43, 44],
-                        help="Seeds à moyenner (défaut: 42 43 44)")
+    parser.add_argument("--n_samples", type=int, default=None,
+                        help="Taille max par benchmark (défaut: set complet). "
+                             "Ne pas descendre sous 1000 sans raison.")
+    parser.add_argument("--seed", type=int, default=EVAL_PARAMS["seed"],
+                        help="Seed pour le sous-échantillonnage (si n_samples < full)")
     parser.add_argument("--wandb_project", default="Stackelberg",
-                        help="Projet W&B (défaut: Stackelberg). Passer '' pour désactiver.")
+                        help="Projet W&B (passer '' pour désactiver)")
     parser.add_argument("--wandb_run_name", required=True,
                         help="Nom du run W&B")
     parser.add_argument("--wandb_group", default=None,
-                        help="Groupe W&B (ex: 'baseline', 'game_lora')")
+                        help="Groupe W&B (ex: 'baseline', 'stackelberg_v1')")
+    parser.add_argument("--wandb_tags", nargs="*", default=[],
+                        help="Tags W&B (ex: 'seed=42 fullft')")
     args = parser.parse_args()
 
-    import wandb
-    wandb.init(project=args.wandb_project, name=args.wandb_run_name,
-               group=args.wandb_group, job_type="eval",
-               config={"model_path": args.model_path, "seeds": args.seeds,
-                       "n_samples": args.n_samples})
+    use_wandb = bool(args.wandb_project)
+    if use_wandb:
+        import wandb
+        wandb.init(
+            project=args.wandb_project,
+            name=args.wandb_run_name,
+            group=args.wandb_group,
+            tags=args.wandb_tags,
+            job_type="eval",
+            config={
+                "model_path": args.model_path,
+                "seed":       args.seed,
+                "n_samples":  args.n_samples,
+            },
+        )
 
     model, tokenizer, device = load_model(args.model_path)
-
-    all_results = []
-    for seed in args.seeds:
-        logger.info(f"\n=== Seed {seed} ===")
-        all_results.append(run_eval(model, tokenizer, device, args.n_samples, seed))
-
-    all_keys = {k for r in all_results for k in r}
-    agg = {
-        k: {
-            "mean": round(float(np.mean([r[k] for r in all_results if k in r])), 4),
-            "std":  round(float(np.std( [r[k] for r in all_results if k in r])), 4),
-        }
-        for k in all_keys
-    }
+    results = run_eval(model, tokenizer, device, args.n_samples, args.seed)
 
     METRIC_ORDER = [
-        "WikiText103_PPL", "WikiText103_BPB", "WikiText2_BPB",
+        "WikiText103_PPL", "WikiText103_BPB",
+        "PTB_BPB", "PTB_PPL",
         "LAMBADA_acc", "LAMBADA_ppl",
         "HellaSwag", "PIQA", "ARC-Easy", "MemoTrap",
     ]
-    ordered_keys = [k for k in METRIC_ORDER if k in agg]
+    ordered = [k for k in METRIC_ORDER if k in results]
+    ordered += [k for k in results if k not in METRIC_ORDER]
 
-    logger.info(f"\n=== Résultats finaux (moyenne sur seeds {args.seeds}) ===")
-    for k in ordered_keys:
-        v = agg[k]
-        logger.info(f"  {k:<20} = {v['mean']:.4f} ± {v['std']:.4f}")
+    logger.info("\n=== Résultats finaux ===")
+    for k in ordered:
+        logger.info(f"  {k:<20} = {results[k]}")
 
-    for k in ordered_keys:
-        wandb.run.summary[k] = agg[k]["mean"]
-    wandb.finish()
+    if use_wandb:
+        for k in ordered:
+            wandb.run.summary[f"eval/{k}"] = results[k]
+        wandb.finish()
