@@ -1,0 +1,392 @@
+04:46:48 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+04:46:52 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+04:50:04 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+04:50:06 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+04:50:06 | INFO | Total steps : 6104  |  Warmup : 184
+04:50:06 | INFO | Eval initiale (modèle pré-entraîné, avant fine-tuning) ...
+04:50:09 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+Training (Pythia-160M full FT):   8%|███████▏                                                                                | 500/6104 [04:25<47:34,  1.96step/s, loss=4.0265, tok_s=32,133]04:54:36 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_500
+[train] step      1/6104  loss=4.4068  ema=4.4068  lr=1.63e-07  tok/s=20,095
+[train] step     20/6104  loss=4.2848  ema=4.3215  lr=3.26e-06  tok/s=32,939
+[train] step     40/6104  loss=4.1249  ema=4.1526  lr=6.52e-06  tok/s=32,780
+[train] step     60/6104  loss=3.7810  ema=4.0055  lr=9.78e-06  tok/s=32,732
+[train] step     80/6104  loss=3.8213  ema=3.9194  lr=1.30e-05  tok/s=32,543
+[train] step    100/6104  loss=3.7402  ema=3.8765  lr=1.63e-05  tok/s=32,500
+[val]   step    100  val_loss=3.8223  val_ppl=45.710
+[train] step    120/6104  loss=3.9077  ema=3.8686  lr=1.96e-05  tok/s=32,448
+[train] step    140/6104  loss=3.9487  ema=3.9085  lr=2.28e-05  tok/s=32,437
+[train] step    160/6104  loss=3.9449  ema=3.9397  lr=2.61e-05  tok/s=32,409
+[train] step    180/6104  loss=3.9066  ema=3.9628  lr=2.93e-05  tok/s=32,333
+[train] step    200/6104  loss=4.1326  ema=3.9603  lr=3.00e-05  tok/s=32,237
+[val]   step    200  val_loss=3.9292  val_ppl=50.867
+[train] step    220/6104  loss=3.9154  ema=3.9796  lr=3.00e-05  tok/s=32,250
+[train] step    240/6104  loss=4.3857  ema=4.0923  lr=3.00e-05  tok/s=32,244
+[train] step    260/6104  loss=4.0708  ema=4.1389  lr=3.00e-05  tok/s=32,249
+[train] step    280/6104  loss=4.0839  ema=4.0516  lr=3.00e-05  tok/s=32,157
+[train] step    300/6104  loss=4.0405  ema=4.0168  lr=3.00e-05  tok/s=32,240
+[val]   step    300  val_loss=3.9706  val_ppl=53.015
+[train] step    320/6104  loss=3.7128  ema=3.9740  lr=3.00e-05  tok/s=32,207
+[train] step    340/6104  loss=3.9112  ema=3.9645  lr=2.99e-05  tok/s=32,162
+[train] step    360/6104  loss=3.8567  ema=3.9468  lr=2.99e-05  tok/s=32,156
+[train] step    380/6104  loss=3.8819  ema=3.9177  lr=2.99e-05  tok/s=32,275
+[train] step    400/6104  loss=3.8278  ema=3.8939  lr=2.99e-05  tok/s=32,200
+[val]   step    400  val_loss=3.8679  val_ppl=47.843
+[train] step    420/6104  loss=3.9413  ema=3.9130  lr=2.99e-05  tok/s=32,149
+[train] step    440/6104  loss=3.8741  ema=3.9053  lr=2.99e-05  tok/s=32,225
+[train] step    460/6104  loss=3.7439  ema=3.9080  lr=2.98e-05  tok/s=32,180
+[train] step    480/6104  loss=3.9628  ema=3.9089  lr=2.98e-05  tok/s=32,180
+[train] step    500/6104  loss=4.0265  ema=3.8872  lr=2.98e-05  tok/s=32,133
+[val]   step    500  val_loss=3.8622  val_ppl=47.568
+Training (Pythia-160M full FT):  16%|██████████████▎                                                                        | 1000/6104 [08:53<43:19,  1.96step/s, loss=3.8383, tok_s=32,155]04:59:03 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_1000
+[train] step    520/6104  loss=3.9425  ema=3.8986  lr=2.98e-05  tok/s=32,160
+[train] step    540/6104  loss=3.9535  ema=3.9403  lr=2.97e-05  tok/s=32,115
+[train] step    560/6104  loss=4.0425  ema=3.9976  lr=2.97e-05  tok/s=32,139
+[train] step    580/6104  loss=4.1152  ema=4.0269  lr=2.97e-05  tok/s=32,166
+[train] step    600/6104  loss=4.0549  ema=4.0538  lr=2.96e-05  tok/s=32,211
+[val]   step    600  val_loss=4.0113  val_ppl=55.216
+[train] step    620/6104  loss=3.9739  ema=4.0232  lr=2.96e-05  tok/s=32,186
+[train] step    640/6104  loss=4.1834  ema=4.0128  lr=2.96e-05  tok/s=32,153
+[train] step    660/6104  loss=3.9144  ema=3.9992  lr=2.95e-05  tok/s=32,161
+[train] step    680/6104  loss=3.8563  ema=3.9691  lr=2.95e-05  tok/s=32,196
+[train] step    700/6104  loss=3.8722  ema=3.9499  lr=2.94e-05  tok/s=32,166
+[val]   step    700  val_loss=3.9281  val_ppl=50.808
+[train] step    720/6104  loss=3.9062  ema=3.9485  lr=2.94e-05  tok/s=32,176
+[train] step    740/6104  loss=3.9576  ema=3.9439  lr=2.94e-05  tok/s=32,190
+[train] step    760/6104  loss=4.0120  ema=3.9236  lr=2.93e-05  tok/s=32,128
+[train] step    780/6104  loss=3.7452  ema=3.9139  lr=2.93e-05  tok/s=32,144
+[train] step    800/6104  loss=3.8493  ema=3.9037  lr=2.92e-05  tok/s=32,188
+[val]   step    800  val_loss=3.8852  val_ppl=48.676
+[train] step    820/6104  loss=4.0618  ema=3.9107  lr=2.92e-05  tok/s=32,157
+[train] step    840/6104  loss=3.9008  ema=3.9115  lr=2.91e-05  tok/s=32,136
+[train] step    860/6104  loss=3.8920  ema=3.9109  lr=2.90e-05  tok/s=32,172
+[train] step    880/6104  loss=4.0077  ema=3.9636  lr=2.90e-05  tok/s=32,215
+[train] step    900/6104  loss=3.9789  ema=3.9879  lr=2.89e-05  tok/s=32,110
+[val]   step    900  val_loss=3.9611  val_ppl=52.514
+[train] step    920/6104  loss=4.1016  ema=3.9703  lr=2.89e-05  tok/s=32,228
+[train] step    940/6104  loss=3.9469  ema=3.9932  lr=2.88e-05  tok/s=32,173
+[train] step    960/6104  loss=4.1936  ema=4.0102  lr=2.87e-05  tok/s=32,151
+[train] step    980/6104  loss=3.9258  ema=4.0092  lr=2.87e-05  tok/s=32,147
+[train] step   1000/6104  loss=3.8383  ema=3.9812  lr=2.86e-05  tok/s=32,155
+[val]   step   1000  val_loss=3.9437  val_ppl=51.611
+Training (Pythia-160M full FT):  25%|█████████████████████▍                                                                 | 1500/6104 [13:20<39:04,  1.96step/s, loss=4.0299, tok_s=32,185]05:03:30 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_1500
+[train] step   1020/6104  loss=3.8483  ema=3.9582  lr=2.85e-05  tok/s=32,140
+[train] step   1040/6104  loss=3.8938  ema=3.9302  lr=2.85e-05  tok/s=32,209
+[train] step   1060/6104  loss=3.8121  ema=3.9140  lr=2.84e-05  tok/s=32,168
+[train] step   1080/6104  loss=4.0353  ema=3.9351  lr=2.83e-05  tok/s=32,163
+[train] step   1100/6104  loss=4.0253  ema=3.9086  lr=2.83e-05  tok/s=32,178
+[val]   step   1100  val_loss=3.8676  val_ppl=47.827
+[train] step   1120/6104  loss=3.9433  ema=3.9057  lr=2.82e-05  tok/s=32,153
+[train] step   1140/6104  loss=3.9294  ema=3.8951  lr=2.81e-05  tok/s=32,195
+[train] step   1160/6104  loss=3.8703  ema=3.9075  lr=2.80e-05  tok/s=32,203
+[train] step   1180/6104  loss=4.0270  ema=3.9294  lr=2.80e-05  tok/s=32,160
+[train] step   1200/6104  loss=3.9340  ema=3.9508  lr=2.79e-05  tok/s=32,136
+[val]   step   1200  val_loss=3.8745  val_ppl=48.159
+[train] step   1220/6104  loss=3.8703  ema=3.9207  lr=2.78e-05  tok/s=32,151
+[train] step   1240/6104  loss=4.0078  ema=3.9398  lr=2.77e-05  tok/s=32,138
+[train] step   1260/6104  loss=3.9665  ema=3.9162  lr=2.76e-05  tok/s=32,158
+[train] step   1280/6104  loss=3.9025  ema=3.9188  lr=2.75e-05  tok/s=32,181
+[train] step   1300/6104  loss=3.8840  ema=3.9018  lr=2.74e-05  tok/s=32,200
+[val]   step   1300  val_loss=3.8817  val_ppl=48.506
+[train] step   1320/6104  loss=3.9886  ema=3.9104  lr=2.74e-05  tok/s=32,194
+[train] step   1340/6104  loss=3.8985  ema=3.8993  lr=2.73e-05  tok/s=32,193
+[train] step   1360/6104  loss=3.9392  ema=3.9020  lr=2.72e-05  tok/s=32,204
+[train] step   1380/6104  loss=3.9261  ema=3.9137  lr=2.71e-05  tok/s=32,249
+[train] step   1400/6104  loss=3.8345  ema=3.9098  lr=2.70e-05  tok/s=32,140
+[val]   step   1400  val_loss=3.8497  val_ppl=46.981
+[train] step   1420/6104  loss=3.8311  ema=3.8757  lr=2.69e-05  tok/s=32,213
+[train] step   1440/6104  loss=3.9595  ema=3.8765  lr=2.68e-05  tok/s=32,144
+[train] step   1460/6104  loss=3.7107  ema=3.8547  lr=2.67e-05  tok/s=32,182
+[train] step   1480/6104  loss=4.0271  ema=3.8822  lr=2.66e-05  tok/s=32,190
+[train] step   1500/6104  loss=4.0299  ema=3.8899  lr=2.65e-05  tok/s=32,185
+[val]   step   1500  val_loss=3.8639  val_ppl=47.652
+Training (Pythia-160M full FT):  33%|████████████████████████████▌                                                          | 2000/6104 [17:47<34:51,  1.96step/s, loss=3.7607, tok_s=32,136]05:07:57 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_2000
+[train] step   1520/6104  loss=3.8576  ema=3.8757  lr=2.64e-05  tok/s=32,201
+[train] step   1540/6104  loss=3.8253  ema=3.8844  lr=2.63e-05  tok/s=32,190
+[train] step   1560/6104  loss=3.7240  ema=3.8794  lr=2.62e-05  tok/s=32,185
+[train] step   1580/6104  loss=3.9383  ema=3.8789  lr=2.61e-05  tok/s=32,183
+[train] step   1600/6104  loss=3.8352  ema=3.8838  lr=2.60e-05  tok/s=32,179
+[val]   step   1600  val_loss=3.8757  val_ppl=48.214
+[train] step   1620/6104  loss=4.0234  ema=3.9057  lr=2.59e-05  tok/s=32,172
+[train] step   1640/6104  loss=3.8885  ema=3.9041  lr=2.57e-05  tok/s=32,174
+[train] step   1660/6104  loss=3.9175  ema=3.8926  lr=2.56e-05  tok/s=32,135
+[train] step   1680/6104  loss=3.8843  ema=3.8925  lr=2.55e-05  tok/s=32,187
+[train] step   1700/6104  loss=3.9134  ema=3.8905  lr=2.54e-05  tok/s=32,193
+[val]   step   1700  val_loss=3.8867  val_ppl=48.749
+[train] step   1720/6104  loss=3.9115  ema=3.8854  lr=2.53e-05  tok/s=32,161
+[train] step   1740/6104  loss=3.8590  ema=3.8801  lr=2.52e-05  tok/s=32,212
+[train] step   1760/6104  loss=3.9304  ema=3.8821  lr=2.51e-05  tok/s=32,198
+[train] step   1780/6104  loss=3.8324  ema=3.8674  lr=2.49e-05  tok/s=32,225
+[train] step   1800/6104  loss=3.8796  ema=3.8715  lr=2.48e-05  tok/s=32,146
+[val]   step   1800  val_loss=3.8634  val_ppl=47.627
+[train] step   1820/6104  loss=3.9074  ema=3.9130  lr=2.47e-05  tok/s=32,163
+[train] step   1840/6104  loss=3.8948  ema=3.8708  lr=2.46e-05  tok/s=32,204
+[train] step   1860/6104  loss=3.7013  ema=3.8482  lr=2.44e-05  tok/s=32,152
+[train] step   1880/6104  loss=3.7732  ema=3.8541  lr=2.43e-05  tok/s=32,157
+[train] step   1900/6104  loss=3.9042  ema=3.8371  lr=2.42e-05  tok/s=32,193
+[val]   step   1900  val_loss=3.7955  val_ppl=44.499
+[train] step   1920/6104  loss=3.5235  ema=3.7969  lr=2.41e-05  tok/s=32,154
+[train] step   1940/6104  loss=3.7542  ema=3.8064  lr=2.39e-05  tok/s=32,161
+[train] step   1960/6104  loss=3.9858  ema=3.8133  lr=2.38e-05  tok/s=32,153
+[train] step   1980/6104  loss=3.8515  ema=3.8086  lr=2.37e-05  tok/s=32,195
+[train] step   2000/6104  loss=3.7607  ema=3.8206  lr=2.36e-05  tok/s=32,136
+[val]   step   2000  val_loss=3.7788  val_ppl=43.761
+Training (Pythia-160M full FT):  41%|███████████████████████████████████▋                                                   | 2500/6104 [22:14<30:36,  1.96step/s, loss=3.6444, tok_s=32,122]05:12:24 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_2500
+[train] step   2020/6104  loss=3.7292  ema=3.8041  lr=2.34e-05  tok/s=32,185
+[train] step   2040/6104  loss=3.6860  ema=3.8283  lr=2.33e-05  tok/s=32,193
+[train] step   2060/6104  loss=3.9008  ema=3.8332  lr=2.32e-05  tok/s=32,158
+[train] step   2080/6104  loss=3.8000  ema=3.8070  lr=2.30e-05  tok/s=32,169
+[train] step   2100/6104  loss=3.8175  ema=3.8099  lr=2.29e-05  tok/s=32,180
+[val]   step   2100  val_loss=3.7983  val_ppl=44.627
+[train] step   2120/6104  loss=3.7686  ema=3.8304  lr=2.28e-05  tok/s=32,190
+[train] step   2140/6104  loss=3.8235  ema=3.7974  lr=2.26e-05  tok/s=32,217
+[train] step   2160/6104  loss=3.7531  ema=3.8157  lr=2.25e-05  tok/s=32,196
+[train] step   2180/6104  loss=3.7966  ema=3.7978  lr=2.23e-05  tok/s=32,174
+[train] step   2200/6104  loss=3.9855  ema=3.8129  lr=2.22e-05  tok/s=32,157
+[val]   step   2200  val_loss=3.7933  val_ppl=44.401
+[train] step   2220/6104  loss=3.6925  ema=3.8197  lr=2.21e-05  tok/s=32,174
+[train] step   2240/6104  loss=3.8636  ema=3.8093  lr=2.19e-05  tok/s=32,181
+[train] step   2260/6104  loss=3.8018  ema=3.8299  lr=2.18e-05  tok/s=32,193
+[train] step   2280/6104  loss=3.8897  ema=3.7986  lr=2.16e-05  tok/s=32,175
+[train] step   2300/6104  loss=3.7287  ema=3.7853  lr=2.15e-05  tok/s=32,160
+[val]   step   2300  val_loss=3.7679  val_ppl=43.288
+[train] step   2320/6104  loss=3.8006  ema=3.7969  lr=2.14e-05  tok/s=32,196
+[train] step   2340/6104  loss=3.7657  ema=3.7882  lr=2.12e-05  tok/s=32,215
+[train] step   2360/6104  loss=3.7794  ema=3.7672  lr=2.11e-05  tok/s=32,183
+[train] step   2380/6104  loss=3.8113  ema=3.7819  lr=2.09e-05  tok/s=32,128
+[train] step   2400/6104  loss=3.7687  ema=3.7549  lr=2.08e-05  tok/s=32,165
+[val]   step   2400  val_loss=3.7503  val_ppl=42.533
+[train] step   2420/6104  loss=3.7331  ema=3.7665  lr=2.06e-05  tok/s=32,158
+[train] step   2440/6104  loss=3.7107  ema=3.7745  lr=2.05e-05  tok/s=32,161
+[train] step   2460/6104  loss=3.6930  ema=3.7674  lr=2.03e-05  tok/s=32,231
+[train] step   2480/6104  loss=3.8630  ema=3.7650  lr=2.02e-05  tok/s=32,206
+[train] step   2500/6104  loss=3.6444  ema=3.7590  lr=2.00e-05  tok/s=32,122
+[val]   step   2500  val_loss=3.7729  val_ppl=43.506
+Training (Pythia-160M full FT):  49%|██████████████████████████████████████████▊                                            | 3000/6104 [26:42<26:21,  1.96step/s, loss=3.7959, tok_s=32,161]05:16:52 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_3000
+[train] step   2520/6104  loss=3.9329  ema=3.7947  lr=1.99e-05  tok/s=32,166
+[train] step   2540/6104  loss=3.9454  ema=3.7858  lr=1.97e-05  tok/s=32,135
+[train] step   2560/6104  loss=4.0076  ema=3.7822  lr=1.96e-05  tok/s=32,115
+[train] step   2580/6104  loss=3.7939  ema=3.7623  lr=1.94e-05  tok/s=32,160
+[train] step   2600/6104  loss=3.8709  ema=3.7777  lr=1.93e-05  tok/s=32,161
+[val]   step   2600  val_loss=3.7493  val_ppl=42.492
+[train] step   2620/6104  loss=3.8716  ema=3.7847  lr=1.91e-05  tok/s=32,151
+[train] step   2640/6104  loss=3.7732  ema=3.7726  lr=1.90e-05  tok/s=32,134
+[train] step   2660/6104  loss=3.7238  ema=3.7627  lr=1.88e-05  tok/s=32,182
+[train] step   2680/6104  loss=3.6207  ema=3.7648  lr=1.87e-05  tok/s=32,139
+[train] step   2700/6104  loss=3.8920  ema=3.7856  lr=1.85e-05  tok/s=32,171
+[val]   step   2700  val_loss=3.7770  val_ppl=43.683
+[train] step   2720/6104  loss=3.7854  ema=3.7623  lr=1.83e-05  tok/s=32,163
+[train] step   2740/6104  loss=3.7350  ema=3.7818  lr=1.82e-05  tok/s=32,177
+[train] step   2760/6104  loss=3.8847  ema=3.7813  lr=1.80e-05  tok/s=32,167
+[train] step   2780/6104  loss=3.7365  ema=3.7883  lr=1.79e-05  tok/s=32,100
+[train] step   2800/6104  loss=3.7388  ema=3.7979  lr=1.77e-05  tok/s=32,172
+[val]   step   2800  val_loss=3.7634  val_ppl=43.096
+[train] step   2820/6104  loss=3.8528  ema=3.7880  lr=1.76e-05  tok/s=32,138
+[train] step   2840/6104  loss=3.8557  ema=3.7784  lr=1.74e-05  tok/s=32,122
+[train] step   2860/6104  loss=3.6036  ema=3.7608  lr=1.73e-05  tok/s=32,183
+[train] step   2880/6104  loss=3.6755  ema=3.7597  lr=1.71e-05  tok/s=32,213
+[train] step   2900/6104  loss=3.8283  ema=3.7621  lr=1.69e-05  tok/s=32,194
+[val]   step   2900  val_loss=3.7262  val_ppl=41.523
+[train] step   2920/6104  loss=3.5943  ema=3.7491  lr=1.68e-05  tok/s=32,144
+[train] step   2940/6104  loss=3.7491  ema=3.7326  lr=1.66e-05  tok/s=32,174
+[train] step   2960/6104  loss=3.6853  ema=3.7549  lr=1.65e-05  tok/s=32,161
+[train] step   2980/6104  loss=3.7330  ema=3.7353  lr=1.63e-05  tok/s=32,160
+[train] step   3000/6104  loss=3.7959  ema=3.7249  lr=1.61e-05  tok/s=32,161
+[val]   step   3000  val_loss=3.6966  val_ppl=40.311
+Training (Pythia-160M full FT):  57%|█████████████████████████████████████████████████▉                                     | 3500/6104 [31:09<22:06,  1.96step/s, loss=3.7454, tok_s=32,140]05:21:19 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_3500
+[train] step   3020/6104  loss=3.7450  ema=3.7518  lr=1.60e-05  tok/s=32,135
+[train] step   3040/6104  loss=3.8558  ema=3.7462  lr=1.58e-05  tok/s=32,117
+[train] step   3060/6104  loss=3.6913  ema=3.7137  lr=1.57e-05  tok/s=32,141
+[train] step   3080/6104  loss=3.6582  ema=3.6975  lr=1.55e-05  tok/s=32,191
+[train] step   3100/6104  loss=3.7904  ema=3.7371  lr=1.54e-05  tok/s=32,164
+[val]   step   3100  val_loss=3.7004  val_ppl=40.464
+[train] step   3120/6104  loss=3.7325  ema=3.7368  lr=1.52e-05  tok/s=32,141
+[train] step   3140/6104  loss=3.6181  ema=3.7064  lr=1.50e-05  tok/s=32,139
+[train] step   3160/6104  loss=3.4877  ema=3.6964  lr=1.49e-05  tok/s=32,165
+[train] step   3180/6104  loss=3.7352  ema=3.6989  lr=1.47e-05  tok/s=32,136
+[train] step   3200/6104  loss=3.7818  ema=3.6945  lr=1.46e-05  tok/s=32,125
+[val]   step   3200  val_loss=3.6717  val_ppl=39.320
+[train] step   3220/6104  loss=3.5675  ema=3.7104  lr=1.44e-05  tok/s=32,191
+[train] step   3240/6104  loss=3.7855  ema=3.6996  lr=1.42e-05  tok/s=32,151
+[train] step   3260/6104  loss=3.6650  ema=3.6840  lr=1.41e-05  tok/s=32,113
+[train] step   3280/6104  loss=3.6458  ema=3.6719  lr=1.39e-05  tok/s=32,139
+[train] step   3300/6104  loss=3.7258  ema=3.6997  lr=1.38e-05  tok/s=32,176
+[val]   step   3300  val_loss=3.6821  val_ppl=39.731
+[train] step   3320/6104  loss=3.5709  ema=3.7180  lr=1.36e-05  tok/s=32,122
+[train] step   3340/6104  loss=3.6749  ema=3.6876  lr=1.34e-05  tok/s=32,171
+[train] step   3360/6104  loss=3.6092  ema=3.7047  lr=1.33e-05  tok/s=32,152
+[train] step   3380/6104  loss=3.5872  ema=3.6874  lr=1.31e-05  tok/s=32,161
+[train] step   3400/6104  loss=3.5989  ema=3.6675  lr=1.30e-05  tok/s=32,120
+[val]   step   3400  val_loss=3.6555  val_ppl=38.686
+[train] step   3420/6104  loss=3.6928  ema=3.6674  lr=1.28e-05  tok/s=32,160
+[train] step   3440/6104  loss=3.6534  ema=3.6822  lr=1.27e-05  tok/s=32,114
+[train] step   3460/6104  loss=3.7134  ema=3.6844  lr=1.25e-05  tok/s=32,140
+[train] step   3480/6104  loss=3.7159  ema=3.7045  lr=1.23e-05  tok/s=32,145
+[train] step   3500/6104  loss=3.7454  ema=3.6657  lr=1.22e-05  tok/s=32,140
+[val]   step   3500  val_loss=3.6532  val_ppl=38.598
+Training (Pythia-160M full FT):  66%|█████████████████████████████████████████████████████████                              | 4000/6104 [35:36<17:51,  1.96step/s, loss=3.7364, tok_s=32,195]05:25:46 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_4000
+[train] step   3520/6104  loss=3.5163  ema=3.6639  lr=1.20e-05  tok/s=32,184
+[train] step   3540/6104  loss=3.7504  ema=3.6859  lr=1.19e-05  tok/s=32,153
+[train] step   3560/6104  loss=3.8399  ema=3.6874  lr=1.17e-05  tok/s=32,125
+[train] step   3580/6104  loss=3.4635  ema=3.7087  lr=1.16e-05  tok/s=32,152
+[train] step   3600/6104  loss=3.8607  ema=3.6898  lr=1.14e-05  tok/s=32,138
+[val]   step   3600  val_loss=3.6620  val_ppl=38.940
+[train] step   3620/6104  loss=3.6358  ema=3.6752  lr=1.13e-05  tok/s=32,160
+[train] step   3640/6104  loss=3.6633  ema=3.6787  lr=1.11e-05  tok/s=32,130
+[train] step   3660/6104  loss=3.6802  ema=3.6866  lr=1.09e-05  tok/s=32,116
+[train] step   3680/6104  loss=3.7770  ema=3.6877  lr=1.08e-05  tok/s=32,165
+[train] step   3700/6104  loss=3.7539  ema=3.6866  lr=1.06e-05  tok/s=32,172
+[val]   step   3700  val_loss=3.6633  val_ppl=38.991
+[train] step   3720/6104  loss=3.7452  ema=3.6910  lr=1.05e-05  tok/s=32,137
+[train] step   3740/6104  loss=3.6920  ema=3.6796  lr=1.03e-05  tok/s=32,132
+[train] step   3760/6104  loss=3.7897  ema=3.6720  lr=1.02e-05  tok/s=32,157
+[train] step   3780/6104  loss=3.6140  ema=3.6954  lr=1.00e-05  tok/s=32,126
+[train] step   3800/6104  loss=3.6430  ema=3.6841  lr=9.88e-06  tok/s=32,127
+[val]   step   3800  val_loss=3.6627  val_ppl=38.966
+[train] step   3820/6104  loss=3.6574  ema=3.6822  lr=9.73e-06  tok/s=32,203
+[train] step   3840/6104  loss=3.5702  ema=3.6782  lr=9.58e-06  tok/s=32,106
+[train] step   3860/6104  loss=3.6610  ema=3.6599  lr=9.44e-06  tok/s=32,187
+[train] step   3880/6104  loss=3.6714  ema=3.6796  lr=9.29e-06  tok/s=32,196
+[train] step   3900/6104  loss=3.6165  ema=3.6757  lr=9.14e-06  tok/s=32,187
+[val]   step   3900  val_loss=3.6488  val_ppl=38.429
+[train] step   3920/6104  loss=3.6018  ema=3.6745  lr=9.00e-06  tok/s=32,143
+[train] step   3940/6104  loss=3.6611  ema=3.6649  lr=8.85e-06  tok/s=32,132
+[train] step   3960/6104  loss=3.7420  ema=3.6734  lr=8.71e-06  tok/s=32,192
+[train] step   3980/6104  loss=3.6057  ema=3.6858  lr=8.56e-06  tok/s=32,234
+[train] step   4000/6104  loss=3.7364  ema=3.6884  lr=8.42e-06  tok/s=32,195
+[val]   step   4000  val_loss=3.6592  val_ppl=38.831
+Training (Pythia-160M full FT):  74%|████████████████████████████████████████████████████████████████▏                      | 4500/6104 [40:04<13:37,  1.96step/s, loss=3.6808, tok_s=32,147]05:30:14 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_4500
+[train] step   4020/6104  loss=3.6685  ema=3.6623  lr=8.28e-06  tok/s=32,180
+[train] step   4040/6104  loss=3.4802  ema=3.6595  lr=8.13e-06  tok/s=32,159
+[train] step   4060/6104  loss=3.7808  ema=3.6826  lr=7.99e-06  tok/s=32,169
+[train] step   4080/6104  loss=3.6940  ema=3.6806  lr=7.85e-06  tok/s=32,173
+[train] step   4100/6104  loss=3.7887  ema=3.6671  lr=7.71e-06  tok/s=32,187
+[val]   step   4100  val_loss=3.6539  val_ppl=38.624
+[train] step   4120/6104  loss=3.7275  ema=3.6829  lr=7.57e-06  tok/s=32,136
+[train] step   4140/6104  loss=3.6985  ema=3.6676  lr=7.44e-06  tok/s=32,170
+[train] step   4160/6104  loss=3.5429  ema=3.6297  lr=7.30e-06  tok/s=32,144
+[train] step   4180/6104  loss=3.5831  ema=3.6461  lr=7.16e-06  tok/s=32,142
+[train] step   4200/6104  loss=3.5825  ema=3.6524  lr=7.03e-06  tok/s=32,126
+[val]   step   4200  val_loss=3.6385  val_ppl=38.036
+[train] step   4220/6104  loss=3.6515  ema=3.6642  lr=6.89e-06  tok/s=32,192
+[train] step   4240/6104  loss=3.7185  ema=3.6515  lr=6.76e-06  tok/s=32,180
+[train] step   4260/6104  loss=3.5768  ema=3.6396  lr=6.63e-06  tok/s=32,134
+[train] step   4280/6104  loss=3.5887  ema=3.6259  lr=6.50e-06  tok/s=32,113
+[train] step   4300/6104  loss=3.7880  ema=3.6380  lr=6.36e-06  tok/s=32,145
+[val]   step   4300  val_loss=3.6193  val_ppl=37.313
+[train] step   4320/6104  loss=3.7610  ema=3.6468  lr=6.23e-06  tok/s=32,137
+[train] step   4340/6104  loss=3.6493  ema=3.6291  lr=6.11e-06  tok/s=32,153
+[train] step   4360/6104  loss=3.5723  ema=3.6468  lr=5.98e-06  tok/s=32,225
+[train] step   4380/6104  loss=3.5098  ema=3.6340  lr=5.85e-06  tok/s=32,189
+[train] step   4400/6104  loss=3.6799  ema=3.6428  lr=5.73e-06  tok/s=32,180
+[val]   step   4400  val_loss=3.6111  val_ppl=37.008
+[train] step   4420/6104  loss=3.5463  ema=3.6435  lr=5.60e-06  tok/s=32,162
+[train] step   4440/6104  loss=3.6666  ema=3.6269  lr=5.48e-06  tok/s=32,124
+[train] step   4460/6104  loss=3.5479  ema=3.6426  lr=5.36e-06  tok/s=32,119
+[train] step   4480/6104  loss=3.5998  ema=3.6268  lr=5.23e-06  tok/s=32,150
+[train] step   4500/6104  loss=3.6808  ema=3.6321  lr=5.11e-06  tok/s=32,147
+[val]   step   4500  val_loss=3.6122  val_ppl=37.046
+Training (Pythia-160M full FT):  82%|███████████████████████████████████████████████████████████████████████▎               | 5000/6104 [44:31<09:22,  1.96step/s, loss=3.5486, tok_s=32,154]05:34:41 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_5000
+[train] step   4520/6104  loss=3.6040  ema=3.6645  lr=4.99e-06  tok/s=32,141
+[train] step   4540/6104  loss=3.5811  ema=3.6480  lr=4.88e-06  tok/s=32,192
+[train] step   4560/6104  loss=3.5560  ema=3.6358  lr=4.76e-06  tok/s=32,210
+[train] step   4580/6104  loss=3.7009  ema=3.6205  lr=4.64e-06  tok/s=32,157
+[train] step   4600/6104  loss=3.6706  ema=3.6415  lr=4.53e-06  tok/s=32,122
+[val]   step   4600  val_loss=3.6030  val_ppl=36.706
+[train] step   4620/6104  loss=3.5803  ema=3.6115  lr=4.42e-06  tok/s=32,175
+[train] step   4640/6104  loss=3.7001  ema=3.6292  lr=4.30e-06  tok/s=32,127
+[train] step   4660/6104  loss=3.6991  ema=3.6194  lr=4.19e-06  tok/s=32,109
+[train] step   4680/6104  loss=3.6652  ema=3.6308  lr=4.08e-06  tok/s=32,168
+[train] step   4700/6104  loss=3.6196  ema=3.6299  lr=3.97e-06  tok/s=32,181
+[val]   step   4700  val_loss=3.5980  val_ppl=36.526
+[train] step   4720/6104  loss=3.6600  ema=3.6196  lr=3.87e-06  tok/s=32,128
+[train] step   4740/6104  loss=3.6909  ema=3.6139  lr=3.76e-06  tok/s=32,153
+[train] step   4760/6104  loss=3.6956  ema=3.6292  lr=3.66e-06  tok/s=32,190
+[train] step   4780/6104  loss=3.5393  ema=3.6189  lr=3.55e-06  tok/s=32,197
+[train] step   4800/6104  loss=3.6533  ema=3.6160  lr=3.45e-06  tok/s=32,132
+[val]   step   4800  val_loss=3.5996  val_ppl=36.585
+[train] step   4820/6104  loss=3.7281  ema=3.6168  lr=3.35e-06  tok/s=32,165
+[train] step   4840/6104  loss=3.6750  ema=3.6230  lr=3.25e-06  tok/s=32,154
+[train] step   4860/6104  loss=3.7447  ema=3.6340  lr=3.15e-06  tok/s=32,131
+[train] step   4880/6104  loss=3.5451  ema=3.6275  lr=3.05e-06  tok/s=32,146
+[train] step   4900/6104  loss=3.5661  ema=3.6199  lr=2.96e-06  tok/s=32,181
+[val]   step   4900  val_loss=3.5957  val_ppl=36.441
+[train] step   4920/6104  loss=3.6792  ema=3.6212  lr=2.86e-06  tok/s=32,149
+[train] step   4940/6104  loss=3.6212  ema=3.6258  lr=2.77e-06  tok/s=32,139
+[train] step   4960/6104  loss=3.5950  ema=3.6118  lr=2.68e-06  tok/s=32,194
+[train] step   4980/6104  loss=3.6619  ema=3.6261  lr=2.59e-06  tok/s=32,173
+[train] step   5000/6104  loss=3.5486  ema=3.6285  lr=2.50e-06  tok/s=32,154
+[val]   step   5000  val_loss=3.5910  val_ppl=36.270
+Training (Pythia-160M full FT):  90%|██████████████████████████████████████████████████████████████████████████████▍        | 5500/6104 [48:58<05:07,  1.96step/s, loss=3.5771, tok_s=32,137]05:39:08 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_5500
+[train] step   5020/6104  loss=3.6087  ema=3.6384  lr=2.41e-06  tok/s=32,168
+[train] step   5040/6104  loss=3.6105  ema=3.6306  lr=2.33e-06  tok/s=32,162
+[train] step   5060/6104  loss=3.5694  ema=3.6057  lr=2.24e-06  tok/s=32,162
+[train] step   5080/6104  loss=3.6573  ema=3.6203  lr=2.16e-06  tok/s=32,111
+[train] step   5100/6104  loss=3.6265  ema=3.6150  lr=2.08e-06  tok/s=32,131
+[val]   step   5100  val_loss=3.5868  val_ppl=36.117
+[train] step   5120/6104  loss=3.7648  ema=3.6056  lr=2.00e-06  tok/s=32,156
+[train] step   5140/6104  loss=3.5826  ema=3.6257  lr=1.92e-06  tok/s=32,151
+[train] step   5160/6104  loss=3.5424  ema=3.6038  lr=1.84e-06  tok/s=32,126
+[train] step   5180/6104  loss=3.4524  ema=3.5970  lr=1.77e-06  tok/s=32,128
+[train] step   5200/6104  loss=3.6690  ema=3.6230  lr=1.69e-06  tok/s=32,124
+[val]   step   5200  val_loss=3.5813  val_ppl=35.919
+[train] step   5220/6104  loss=3.7616  ema=3.6112  lr=1.62e-06  tok/s=32,154
+[train] step   5240/6104  loss=3.5214  ema=3.6038  lr=1.55e-06  tok/s=32,176
+[train] step   5260/6104  loss=3.5258  ema=3.6299  lr=1.48e-06  tok/s=32,138
+[train] step   5280/6104  loss=3.5593  ema=3.6083  lr=1.41e-06  tok/s=32,133
+[train] step   5300/6104  loss=3.6194  ema=3.6227  lr=1.34e-06  tok/s=32,127
+[val]   step   5300  val_loss=3.5857  val_ppl=36.079
+[train] step   5320/6104  loss=3.6309  ema=3.6069  lr=1.28e-06  tok/s=32,184
+[train] step   5340/6104  loss=3.6151  ema=3.6030  lr=1.22e-06  tok/s=32,116
+[train] step   5360/6104  loss=3.5685  ema=3.5910  lr=1.15e-06  tok/s=32,133
+[train] step   5380/6104  loss=3.5565  ema=3.5903  lr=1.09e-06  tok/s=32,150
+[train] step   5400/6104  loss=3.6554  ema=3.5892  lr=1.03e-06  tok/s=32,173
+[val]   step   5400  val_loss=3.5825  val_ppl=35.965
+[train] step   5420/6104  loss=3.5745  ema=3.5783  lr=9.77e-07  tok/s=32,118
+[train] step   5440/6104  loss=3.6064  ema=3.6197  lr=9.22e-07  tok/s=32,143
+[train] step   5460/6104  loss=3.5724  ema=3.6034  lr=8.67e-07  tok/s=32,206
+[train] step   5480/6104  loss=3.6391  ema=3.6042  lr=8.15e-07  tok/s=32,144
+[train] step   5500/6104  loss=3.5771  ema=3.6190  lr=7.64e-07  tok/s=32,137
+[val]   step   5500  val_loss=3.5822  val_ppl=35.952
+Training (Pythia-160M full FT):  98%|█████████████████████████████████████████████████████████████████████████████████████▌ | 6000/6104 [53:26<00:52,  1.96step/s, loss=3.6318, tok_s=32,184]05:43:36 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_6000
+[train] step   5520/6104  loss=3.6710  ema=3.5911  lr=7.15e-07  tok/s=32,175
+[train] step   5540/6104  loss=3.5094  ema=3.5770  lr=6.67e-07  tok/s=32,157
+[train] step   5560/6104  loss=3.7275  ema=3.5970  lr=6.21e-07  tok/s=32,106
+[train] step   5580/6104  loss=3.6619  ema=3.5772  lr=5.76e-07  tok/s=32,180
+[train] step   5600/6104  loss=3.5663  ema=3.5674  lr=5.33e-07  tok/s=32,135
+[val]   step   5600  val_loss=3.5798  val_ppl=35.866
+[train] step   5620/6104  loss=3.5792  ema=3.5785  lr=4.92e-07  tok/s=32,155
+[train] step   5640/6104  loss=3.6033  ema=3.6041  lr=4.52e-07  tok/s=32,169
+[train] step   5660/6104  loss=3.6700  ema=3.5899  lr=4.14e-07  tok/s=32,193
+[train] step   5680/6104  loss=3.6880  ema=3.6089  lr=3.78e-07  tok/s=32,158
+[train] step   5700/6104  loss=3.5121  ema=3.5942  lr=3.43e-07  tok/s=32,152
+[val]   step   5700  val_loss=3.5785  val_ppl=35.818
+[train] step   5720/6104  loss=3.7526  ema=3.6008  lr=3.10e-07  tok/s=32,154
+[train] step   5740/6104  loss=3.5754  ema=3.6016  lr=2.79e-07  tok/s=32,145
+[train] step   5760/6104  loss=3.5173  ema=3.5764  lr=2.49e-07  tok/s=32,169
+[train] step   5780/6104  loss=3.7252  ema=3.6139  lr=2.21e-07  tok/s=32,163
+[train] step   5800/6104  loss=3.6361  ema=3.6063  lr=1.95e-07  tok/s=32,168
+[val]   step   5800  val_loss=3.5772  val_ppl=35.772
+[train] step   5820/6104  loss=3.5602  ema=3.5833  lr=1.70e-07  tok/s=32,166
+[train] step   5840/6104  loss=3.6740  ema=3.5830  lr=1.47e-07  tok/s=32,193
+[train] step   5860/6104  loss=3.5351  ema=3.5558  lr=1.26e-07  tok/s=32,165
+[train] step   5880/6104  loss=3.5326  ema=3.6025  lr=1.06e-07  tok/s=32,175
+[train] step   5900/6104  loss=3.6366  ema=3.6140  lr=8.78e-08  tok/s=32,188
+[val]   step   5900  val_loss=3.5788  val_ppl=35.830
+[train] step   5920/6104  loss=3.5483  ema=3.6180  lr=7.15e-08  tok/s=32,186
+[train] step   5940/6104  loss=3.6255  ema=3.6074  lr=5.68e-08  tok/s=32,110
+[train] step   5960/6104  loss=3.5897  ema=3.5802  lr=4.38e-08  tok/s=32,127
+[train] step   5980/6104  loss=3.6643  ema=3.5859  lr=3.25e-08  tok/s=32,128
+[train] step   6000/6104  loss=3.6318  ema=3.5994  lr=2.28e-08  tok/s=32,184
+[val]   step   6000  val_loss=3.5745  val_ppl=35.678
+Training (Pythia-160M full FT): 100%|███████████████████████████████████████████████████████████████████████████████████████| 6104/6104 [54:21<00:00,  1.87step/s, loss=3.5501, tok_s=32,140]
+[train] step   6020/6104  loss=3.5286  ema=3.6055  lr=1.49e-08  tok/s=32,166
+[train] step   6040/6104  loss=3.4997  ema=3.6206  lr=8.65e-09  tok/s=32,159
+[train] step   6060/6104  loss=3.5697  ema=3.6019  lr=4.09e-09  tok/s=32,172
+[train] step   6080/6104  loss=3.5924  ema=3.6050  lr=1.22e-09  tok/s=32,154
+[train] step   6100/6104  loss=3.6464  ema=3.6201  lr=3.38e-11  tok/s=32,165
+[val]   step   6100  val_loss=3.5783  val_ppl=35.812
+05:44:31 | INFO | Eval finale ...
+05:44:34 | INFO |   [final] val_loss=3.5788  val_ppl=35.830
+05:44:34 | INFO | Modèle final sauvegardé → /Data/joseph.de-roffignac/checkpoints/baseline/final
+05:44:34 | INFO | Plots → /Data/joseph.de-roffignac/checkpoints/plots
