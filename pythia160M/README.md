@@ -22,3 +22,15 @@ python pythia160M/eval.py \
     --model_path /Data/joseph.de-roffignac/checkpoints/baseline/final \
     --wandb_project Stackelberg --wandb_group baseline --wandb_run_name eval_baseline
 ```
+
+## 3. GAME-LoRA
+
+```bash
+python pythia160M/game_lora/train_game_lora.py \
+    --output_dir /Data/joseph.de-roffignac/checkpoints/game_lora \
+    --wandb_project Stackelberg --wandb_group Game_Lora --run_name seed_42
+
+python pythia160M/eval.py \
+    --model_path /Data/joseph.de-roffignac/checkpoints/game_lora/final \
+    --wandb_project Stackelberg --wandb_group Game_Lora --wandb_run_name eval_game_lora
+```
