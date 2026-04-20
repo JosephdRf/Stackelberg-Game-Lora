@@ -1,0 +1,29 @@
+06:40:04 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+06:40:05 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+06:43:11 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+06:43:13 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+06:43:13 | INFO | Total steps : 6104  |  Warmup : 184
+06:43:13 | INFO | Design layer : 9  |  Nash-MTL : True
+06:43:13 | INFO | Eval initiale ...
+06:43:16 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+GAME-LoRA Training (Pythia-160M):   0%|                                                  | 0/6104 [00:00<?, ?step/s]Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 443, in <module>
+    train_game_lora(cfg, design_layer=args.design_layer, use_nash_mtl=not args.no_nash_mtl)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 157, in train_game_lora
+    W_O   = get_output_projection_weights(model, design_layer).to(device)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/game_losses.py", line 396, in get_output_projection_weights
+    W_O_full = dense.base_layer.weight + dense.get_delta_weight("default")
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1962, in __getattr__
+    raise AttributeError(
+AttributeError: 'Linear' object has no attribute 'base_layer'
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 443, in <module>
+    train_game_lora(cfg, design_layer=args.design_layer, use_nash_mtl=not args.no_nash_mtl)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 157, in train_game_lora
+    W_O   = get_output_projection_weights(model, design_layer).to(device)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/game_losses.py", line 396, in get_output_projection_weights
+    W_O_full = dense.base_layer.weight + dense.get_delta_weight("default")
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1962, in __getattr__
+    raise AttributeError(
+AttributeError: 'Linear' object has no attribute 'base_layer'

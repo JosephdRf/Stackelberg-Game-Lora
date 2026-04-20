@@ -1,0 +1,23 @@
+06:56:49 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+06:56:51 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+06:59:55 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+06:59:57 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+06:59:57 | INFO | Total steps : 6104  |  Warmup : 184
+06:59:57 | INFO | Design layer : 9  |  Nash-MTL : True
+06:59:57 | INFO | Eval initiale ...
+06:59:59 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+GAME-LoRA Training (Pythia-160M):   0%| | 1/6104 [00:01<1:49:12,  1.07s/step, abt=28.2936, ce=4.4068, ema=2.1363, ld07:00:00 | INFO | [train] step      1/6104  loss=2.1363  ema=2.1363  CE=4.4068  LDB=-0.0597  ABT=28.2936  λ_ABT=0.0015  λ_LDB=0.0029  lr=1.63e-07  tok/s=15,253
+GAME-LoRA Training (Pythia-160M):   0%| | 20/6104 [00:24<2:05:36,  1.24s/step, abt=20.1448, ce=4.3615, ema=1.4988, l07:00:24 | INFO | [train] step     20/6104  loss=1.0154  ema=1.4988  CE=4.3615  LDB=-0.1193  ABT=20.1448  λ_ABT=0.0293  λ_LDB=0.0577  lr=3.26e-06  tok/s=13,221
+GAME-LoRA Training (Pythia-160M):   1%| | 40/6104 [00:49<2:05:58,  1.25s/step, abt=19.9899, ce=4.1993, ema=1.4653, l07:00:49 | INFO | [train] step     40/6104  loss=3.2799  ema=1.4653  CE=4.1993  LDB=-0.1194  ABT=19.9899  λ_ABT=0.0587  λ_LDB=0.1154  lr=6.52e-06  tok/s=13,039
+GAME-LoRA Training (Pythia-160M):   1%| | 60/6104 [01:14<2:05:59,  1.25s/step, abt=19.7471, ce=3.8719, ema=1.4528, l07:01:14 | INFO | [train] step     60/6104  loss=-0.0205  ema=1.4528  CE=3.8719  LDB=-0.1194  ABT=19.7471  λ_ABT=0.0880  λ_LDB=0.1731  lr=9.78e-06  tok/s=13,218
+GAME-LoRA Training (Pythia-160M):   1%| | 80/6104 [01:39<2:06:02,  1.26s/step, abt=19.8286, ce=3.8726, ema=1.6935, l07:01:39 | INFO | [train] step     80/6104  loss=1.5990  ema=1.6935  CE=3.8726  LDB=-0.1193  ABT=19.8286  λ_ABT=0.1174  λ_LDB=0.2308  lr=1.30e-05  tok/s=13,098
+GAME-LoRA Training (Pythia-160M):   2%| | 100/6104 [02:05<2:06:29,  1.26s/step, abt=20.0956, ce=3.8037, ema=2.1094, 07:02:04 | INFO | [train] step    100/6104  loss=2.3733  ema=2.1094  CE=3.8037  LDB=-0.1174  ABT=20.0956  λ_ABT=0.1467  λ_LDB=0.2885  lr=1.63e-05  tok/s=12,948
+07:02:07 | INFO | [val]   step    100  val_loss=3.8775  val_ppl=48.301
+GAME-LoRA Training (Pythia-160M):   2%| | 120/6104 [02:32<2:06:17,  1.27s/step, abt=19.9731, ce=3.8771, ema=2.2508, 07:02:32 | INFO | [train] step    120/6104  loss=2.4105  ema=2.2508  CE=3.8771  LDB=-0.1194  ABT=19.9731  λ_ABT=0.1761  λ_LDB=0.3462  lr=1.96e-05  tok/s=12,940
+GAME-LoRA Training (Pythia-160M):   2%| | 140/6104 [02:58<2:05:45,  1.27s/step, abt=19.9212, ce=3.8933, ema=2.3281, 07:02:57 | INFO | [train] step    140/6104  loss=2.2375  ema=2.3281  CE=3.8933  LDB=-0.1194  ABT=19.9212  λ_ABT=0.1790  λ_LDB=0.3520  lr=2.28e-05  tok/s=12,915
+GAME-LoRA Training (Pythia-160M):   3%| | 160/6104 [03:23<2:05:30,  1.27s/step, abt=20.0038, ce=4.0475, ema=2.4053, 07:03:23 | INFO | [train] step    160/6104  loss=2.4150  ema=2.4053  CE=4.0475  LDB=-0.1193  ABT=20.0038  λ_ABT=0.1790  λ_LDB=0.3520  lr=2.61e-05  tok/s=12,936
+GAME-LoRA Training (Pythia-160M):   3%| | 180/6104 [03:48<2:05:00,  1.27s/step, abt=19.9929, ce=4.0202, ema=2.5311, 07:03:48 | INFO | [train] step    180/6104  loss=1.9920  ema=2.5311  CE=4.0202  LDB=-0.1193  ABT=19.9929  λ_ABT=0.1790  λ_LDB=0.3520  lr=2.93e-05  tok/s=12,935
+GAME-LoRA Training (Pythia-160M):   3%| | 200/6104 [04:14<2:04:19,  1.26s/step, abt=19.9899, ce=4.3107, ema=2.6763, 07:04:13 | INFO | [train] step    200/6104  loss=3.6544  ema=2.6763  CE=4.3107  LDB=-0.1194  ABT=19.9899  λ_ABT=0.1790  λ_LDB=0.3520  lr=3.00e-05  tok/s=13,012
+07:04:16 | INFO | [val]   step    200  val_loss=4.0797  val_ppl=59.125
+GAME-LoRA Training (Pythia-160M):   4%| | 215/6104 [04:35<2:04:47,  1.27s/step, abt=19.9706, ce=4.2449, ema=2.5989, 

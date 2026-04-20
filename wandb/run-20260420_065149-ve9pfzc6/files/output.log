@@ -1,0 +1,26 @@
+06:51:50 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+06:51:51 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+06:54:57 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+06:54:59 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+06:54:59 | INFO | Total steps : 6104  |  Warmup : 184
+06:54:59 | INFO | Design layer : 9  |  Nash-MTL : True
+06:54:59 | INFO | Eval initiale ...
+06:55:01 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+GAME-LoRA Training (Pythia-160M):   0%| | 1/6104 [00:01<1:43:30,  1.02s/step, abt=28.2936, ce=4.4068, ema=2.1363, ld06:55:02 | INFO | [train] step      1/6104  loss=2.1363  ema=2.1363  CE=4.4068  LDB=-0.0597  ABT=28.2936  λ_ABT=0.0015  λ_LDB=0.0029  lr=1.63e-07  tok/s=16,094
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 443, in <module>
+    train_game_lora(cfg, design_layer=args.design_layer, use_nash_mtl=not args.no_nash_mtl)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 159, in train_game_lora
+    rho   = HeadInteractionMatrix.compute_gradient_coupling(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/game_losses.py", line 82, in compute_gradient_coupling
+    one_hot = one_hot * mask.unsqueeze(-1)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.54 GiB. GPU 0 has a total capacity of 19.53 GiB of which 1.29 GiB is free. Including non-PyTorch memory, this process has 18.09 GiB memory in use. Of the allocated memory 15.10 GiB is allocated by PyTorch, and 2.75 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 443, in <module>
+    train_game_lora(cfg, design_layer=args.design_layer, use_nash_mtl=not args.no_nash_mtl)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 159, in train_game_lora
+    rho   = HeadInteractionMatrix.compute_gradient_coupling(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/game_losses.py", line 82, in compute_gradient_coupling
+    one_hot = one_hot * mask.unsqueeze(-1)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.54 GiB. GPU 0 has a total capacity of 19.53 GiB of which 1.29 GiB is free. Including non-PyTorch memory, this process has 18.09 GiB memory in use. Of the allocated memory 15.10 GiB is allocated by PyTorch, and 2.75 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

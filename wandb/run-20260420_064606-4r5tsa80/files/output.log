@@ -1,0 +1,36 @@
+06:46:07 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+06:46:08 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+06:49:11 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+06:49:13 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+06:49:13 | INFO | Total steps : 6104  |  Warmup : 184
+06:49:13 | INFO | Design layer : 9  |  Nash-MTL : True
+06:49:13 | INFO | Eval initiale ...
+06:49:16 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+GAME-LoRA Training (Pythia-160M):   0%| | 1/6104 [00:01<2:39:42,  1.57s/step, abt=28.2935, ce=4.4068, ema=2.1779, ld06:49:17 | INFO | [train] step      1/6104  loss=2.1779  ema=2.1779  CE=4.4068  LDB=-0.0597  ABT=28.2935  λ_ABT=0.0015  λ_LDB=0.0029  lr=1.63e-07  tok/s=10,431
+GAME-LoRA Training (Pythia-160M):   0%| | 20/6104 [00:25<2:09:09,  1.27s/step, abt=20.0201, ce=4.4133, ema=1.3648, l06:49:41 | INFO | [train] step     20/6104  loss=-0.0067  ema=1.3648  CE=4.4133  LDB=-0.1193  ABT=20.0201  λ_ABT=0.0293  λ_LDB=0.0577  lr=3.26e-06  tok/s=12,951
+GAME-LoRA Training (Pythia-160M):   1%| | 40/6104 [00:51<2:10:27,  1.29s/step, abt=20.0870, ce=4.2424, ema=1.4408, l06:50:07 | INFO | [train] step     40/6104  loss=1.8645  ema=1.4408  CE=4.2424  LDB=-0.1174  ABT=20.0870  λ_ABT=0.0587  λ_LDB=0.1154  lr=6.52e-06  tok/s=12,677
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 443, in <module>
+    train_game_lora(cfg, design_layer=args.design_layer, use_nash_mtl=not args.no_nash_mtl)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 159, in train_game_lora
+    rho   = HeadInteractionMatrix.compute_gradient_coupling(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/game_losses.py", line 81, in compute_gradient_coupling
+    eta = torch.autograd.grad(ce_loss, logits, retain_graph=True)[0]  # (B, T, V)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/autograd/__init__.py", line 503, in grad
+    result = _engine_run_backward(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 786.00 MiB. GPU 0 has a total capacity of 19.53 GiB of which 532.00 MiB is free. Including non-PyTorch memory, this process has 18.87 GiB memory in use. Of the allocated memory 15.12 GiB is allocated by PyTorch, and 3.51 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 443, in <module>
+    train_game_lora(cfg, design_layer=args.design_layer, use_nash_mtl=not args.no_nash_mtl)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/train_game_lora.py", line 159, in train_game_lora
+    rho   = HeadInteractionMatrix.compute_gradient_coupling(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/game_lora/game_losses.py", line 81, in compute_gradient_coupling
+    eta = torch.autograd.grad(ce_loss, logits, retain_graph=True)[0]  # (B, T, V)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/autograd/__init__.py", line 503, in grad
+    result = _engine_run_backward(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 786.00 MiB. GPU 0 has a total capacity of 19.53 GiB of which 532.00 MiB is free. Including non-PyTorch memory, this process has 18.87 GiB memory in use. Of the allocated memory 15.12 GiB is allocated by PyTorch, and 3.51 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

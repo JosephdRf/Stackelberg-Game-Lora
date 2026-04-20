@@ -3,7 +3,7 @@ GAME-LoRA losses — adapté pour Pythia-160M (GPT-NeoX)
 "Multi-Head Attention is a Multi-Player Game" (Chakrabarti & Balachundar, 2026)
 
 Différences vs qwen2.5_0.5B/game_lora/game_losses.py :
-  - Module d'attention : model.base_model.model.gpt_neox.layers[l].attention
+  - Module d'attention : model.gpt_neox.layers[l].attention
   - Projection output  : attention.dense  (vs self_attn.o_proj chez Qwen)
   - LM head            : embed_out        (vs lm_head chez Qwen)
   - num_heads / head_dim extraits depuis attn_module.config
@@ -70,16 +70,23 @@ class HeadInteractionMatrix:
         Returns:
             rho: (H, H)
         """
-        shift_logits = logits[..., :-1, :].contiguous()
+        shift_logits = logits[..., :-1, :].contiguous().detach().float()
         shift_labels = labels[..., 1:].contiguous()
-        loss_fct = nn.CrossEntropyLoss()
-        ce_loss = loss_fct(
-            shift_logits.view(-1, shift_logits.size(-1)),
-            shift_labels.view(-1),
-        )
+        mask = (shift_labels != -100)
+        n_valid = mask.sum().clamp(min=1)
+        V = shift_logits.shape[-1]
 
-        eta = torch.autograd.grad(ce_loss, logits, retain_graph=True)[0]  # (B, T, V)
-        eta_mean = eta.mean(dim=(0, 1))  # (V,)
+        # Gradient analytique : eta = softmax(logits) - one_hot(labels)
+        # Calcul item par item pour éviter le tenseur (B, T-1, V) ~3 Go en mémoire
+        probs_sum = torch.zeros(V, device=shift_logits.device)
+        for b in range(shift_logits.shape[0]):
+            p = torch.softmax(shift_logits[b], dim=-1)          # (T-1, V)
+            probs_sum += (p * mask[b].unsqueeze(-1)).sum(0)
+            del p
+
+        valid_labels = shift_labels[mask].clamp(min=0)
+        label_counts = torch.bincount(valid_labels, minlength=V).float()  # (V,)
+        eta_mean = (probs_sum - label_counts) / n_valid          # (V,)
 
         # Cherche la LM head — Pythia utilise embed_out (GPT-NeoX)
         lm_head_weight = None
@@ -336,7 +343,7 @@ class HeadOutputCapture:
     AVANT la projection W_O.
 
     Architecture GPT-NeoX (Pythia) :
-      model.base_model.model.gpt_neox.layers[l].attention.dense
+      model.gpt_neox.layers[l].attention.dense
       Input shape : (B, T, num_heads * head_size)
 
     Usage :
@@ -356,7 +363,7 @@ class HeadOutputCapture:
         Enregistre le hook sur attention.dense de la couche spécifiée.
         Compatible Pythia / GPT-NeoX avec PEFT.
         """
-        attn_module = model.base_model.model.gpt_neox.layers[design_layer].attention
+        attn_module = model.gpt_neox.layers[design_layer].attention
         cfg = attn_module.config
         self._num_heads = cfg.num_attention_heads
         self._head_dim = cfg.hidden_size // cfg.num_attention_heads
@@ -384,16 +391,16 @@ def get_output_projection_weights(model, design_layer: int = 9) -> torch.Tensor:
     reshapés par tête. Différentiable par rapport aux paramètres LoRA.
 
     Architecture Pythia :
-      model.base_model.model.gpt_neox.layers[l].attention.dense
+      model.gpt_neox.layers[l].attention.dense
       W_O shape : (hidden_size, hidden_size) = (768, 768)
 
     Returns:
         W_O: (H, d, d_h) — poids de projection output par tête
     """
-    attn = model.base_model.model.gpt_neox.layers[design_layer].attention
-    dense = attn.dense  # module LoRA wrappé
+    attn = model.gpt_neox.layers[design_layer].attention
+    dense = attn.dense  # nn.Linear en full FT
 
-    W_O_full = dense.base_layer.weight + dense.get_delta_weight("default")
+    W_O_full = dense.weight  # (hidden_size, hidden_size)
     # W_O_full : (hidden_size, hidden_size) = (768, 768)
 
     cfg = attn.config
