@@ -180,11 +180,11 @@ def build_model_and_tokenizer(cfg: TrainConfig):
         logger.info("Initialisation ALÉATOIRE des poids (pas de préentraînement)")
         config = AutoConfig.from_pretrained(cfg.model_name, trust_remote_code=True)
         model = AutoModelForCausalLM.from_config(config)
-        model = model.to(torch.bfloat16)
+        model = model.to(torch.float32)
     else:
         model = AutoModelForCausalLM.from_pretrained(
             cfg.model_name,
-            torch_dtype=torch.bfloat16,  # bf16 pour Qwen2.5
+            torch_dtype=torch.float32,
             trust_remote_code=True,
         )
 

@@ -75,7 +75,7 @@ def load_model(model_path: str, base_model: Optional[str] = None):
         # Charger base + adaptateurs LoRA
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
-            torch_dtype=torch.bfloat16,
+            torch_dtype=torch.float32,  # LoRA fine-tuning done in float32 for better stability
             trust_remote_code=True,
         )
         model = PeftModel.from_pretrained(model, model_path)
@@ -83,7 +83,7 @@ def load_model(model_path: str, base_model: Optional[str] = None):
     else:
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            torch_dtype=torch.bfloat16,
+            torch_dtype=torch.float32,  # inference en float32 pour stabilité (pas de LoRA fine-tuning)
             trust_remote_code=True,
         )
 
