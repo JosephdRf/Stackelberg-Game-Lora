@@ -1,0 +1,29 @@
+17:54:29 | INFO | Chargement du modèle depuis /Data/joseph.de-roffignac/checkpoints/game_lora/final ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+17:54:30 | INFO | === Évaluation Pythia-160M ===
+17:54:30 | INFO | WikiText-103 (in-domain, cible du FT) ...
+17:54:30 | INFO | PyTorch version 2.8.0 available.
+17:54:48 | INFO |   WT103 PPL   = 67.328   BPB = 1.3556                                                                                                                                                                                                                                      
+17:54:48 | INFO | PTB (OOD) ...
+17:54:55 | INFO |   PTB   BPB   = 1.9775   PPL = 379.709                                                                                                                                                                                                                                     
+17:54:55 | INFO | LAMBADA ...
+17:55:55 | INFO |   LAMBADA acc = 0.0429   ppl = 325.290                                                                                                                                                                                                                                     
+17:55:55 | INFO | HellaSwag ...
+17:55:56 | WARNING | HellaSwag non disponible : Feature type 'List' not found. Available feature types: ['Value', 'ClassLabel', 'Translation', 'TranslationVariableLanguages', 'LargeList', 'Sequence', 'Array2D', 'Array3D', 'Array4D', 'Array5D', 'Audio', 'Image', 'Video', 'Pdf']
+17:55:56 | INFO | PIQA ...
+17:56:39 | INFO |   PIQA        acc=0.5522  acc_norm=0.5321                                                                                                                                                                                                                                  
+17:56:39 | INFO | ARC-Easy ...
+17:56:40 | WARNING | ARC-Easy non disponible : Feature type 'List' not found. Available feature types: ['Value', 'ClassLabel', 'Translation', 'TranslationVariableLanguages', 'LargeList', 'Sequence', 'Array2D', 'Array3D', 'Array4D', 'Array5D', 'Audio', 'Image', 'Video', 'Pdf']
+17:56:40 | INFO | MemoTrap ...
+17:57:38 | INFO |   MemoTrap    = 0.6329                                                                                                                                                                                                                                                     
+17:57:38 | INFO |
+=== Résultats finaux ===
+17:57:38 | INFO |   WikiText103_PPL      = 67.3277
+17:57:38 | INFO |   WikiText103_BPB      = 1.3556
+17:57:38 | INFO |   PTB_BPB              = 1.9775
+17:57:38 | INFO |   PTB_PPL              = 379.7089
+17:57:38 | INFO |   LAMBADA_acc          = 0.0429
+17:57:38 | INFO |   LAMBADA_ppl          = 325.2901
+17:57:38 | INFO |   PIQA_acc             = 0.5522
+17:57:38 | INFO |   PIQA_acc_norm        = 0.5321
+17:57:38 | INFO |   MemoTrap             = 0.6329

@@ -1,0 +1,43 @@
+21:52:06 | INFO | Chargement du modèle depuis EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+21:52:11 | INFO | === Évaluation Pythia-160M ===
+21:52:11 | INFO | WikiText-103 (in-domain, cible du FT) ...
+Generating test split: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4358/4358 [00:00<00:00, 55273.99 examples/s]
+Generating train split: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1801350/1801350 [00:07<00:00, 249521.11 examples/s]
+Generating validation split: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3760/3760 [00:00<00:00, 182870.66 examples/s]
+21:52:28 | INFO |   WT103 PPL   = 48.837   BPB = 1.2522                                                                                                                                                                    
+21:52:28 | INFO | PTB (OOD) ...
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ptb_text_only' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+21:52:28 | ERROR | `trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ptb_text_only' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+README.md: 4.21kB [00:00, 37.3MB/s]
+ptb_text_only.py: 6.50kB [00:00, 56.2MB/s]
+21:52:28 | WARNING | PTB non disponible : Dataset scripts are no longer supported, but found ptb_text_only.py
+21:52:28 | INFO | LAMBADA ...
+21:52:46 | INFO |   LAMBADA acc = 0.1199   ppl = 30.128                                                                                                                                                                    
+21:52:46 | INFO | HellaSwag ...
+21:55:03 | INFO |   HellaSwag   = 0.2988                                                                                                                                                                                   
+21:55:03 | INFO | PIQA ...
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+21:55:03 | ERROR | `trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+21:55:03 | WARNING | PIQA non disponible : Dataset scripts are no longer supported, but found piqa.py
+21:55:03 | INFO | ARC-Easy ...
+21:55:44 | INFO |   ARC-Easy    = 0.3350                                                                                                                                                                                   
+21:55:44 | INFO | MemoTrap ...
+21:56:00 | INFO |   MemoTrap    = 0.6050                                                                                                                                                                                   
+21:56:00 | INFO |
+=== Résultats finaux ===
+21:56:00 | INFO |   WikiText103_PPL      = 48.8368
+21:56:00 | INFO |   WikiText103_BPB      = 1.2522
+21:56:00 | INFO |   LAMBADA_acc          = 0.1199
+21:56:00 | INFO |   LAMBADA_ppl          = 30.1276
+21:56:00 | INFO |   HellaSwag            = 0.2988
+21:56:00 | INFO |   ARC-Easy             = 0.335
+21:56:00 | INFO |   MemoTrap             = 0.605

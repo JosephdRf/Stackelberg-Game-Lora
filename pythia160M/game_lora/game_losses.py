@@ -137,6 +137,9 @@ class LogDetBarrierLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, G: torch.Tensor) -> torch.Tensor:
+        # G shape : (H, H)
+        assert G.shape[0] == G.shape[1], "G doit être carré"
+        
         H = G.shape[0]
         G_reg = G.float() + self.epsilon * torch.eye(H, device=G.device, dtype=torch.float32)
         eigenvalues = torch.linalg.eigvalsh(G_reg)

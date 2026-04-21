@@ -90,9 +90,11 @@ def load_model(model_path: str):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    # float32 par défaut comme lm-eval-harness : bfloat16 cause des
+    # imprécisions d'argmax qui dégradent fortement LAMBADA (~0.12 vs ~0.33).
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=torch.float32,
         trust_remote_code=True,
     )
 
@@ -111,43 +113,48 @@ def conditional_log_likelihood(
     model, tokenizer, device,
     context: str, completion: str,
     max_length: int = 2048,
-    length_normalize: bool = False,
-) -> float:
+):
     """
-    Log-vraisemblance de `completion` étant donné `context`.
+    Reproduit exactement la procédure lm-eval-harness (loglikelihood request).
 
-    IMPORTANT : l'espace séparant contexte et completion doit appartenir à
-    `completion` (ex: completion=" answer"). Cela préserve les merges BPE
-    du tokenizer GPT-NeoX et aligne correctement les frontières de tokens.
+    Returns:
+        ll         : somme des log-probs des tokens du target (≈ `acc` lm-eval)
+        is_greedy  : True si argmax de chaque position du target = gold
+        n_tokens   : nombre de tokens du target
+        n_bytes    : longueur UTF-8 du completion (pour `acc_norm` byte-normalized)
     """
-    ctx_ids  = tokenizer(context,              add_special_tokens=True,
+    # add_special_tokens=False pour matcher _encode_pair de lm-eval-harness
+    ctx_ids  = tokenizer(context,              add_special_tokens=False,
                          truncation=True, max_length=max_length)["input_ids"]
-    full_ids = tokenizer(context + completion, add_special_tokens=True,
+    full_ids = tokenizer(context + completion, add_special_tokens=False,
                          truncation=True, max_length=max_length)["input_ids"]
 
-    # Vérifier que ctx_ids est bien un préfixe de full_ids. Si la BPE
-    # re-fusionne à la frontière, on tombe sur le plus grand préfixe commun.
-    if full_ids[:len(ctx_ids)] != ctx_ids:
-        k = 0
-        while k < min(len(ctx_ids), len(full_ids)) and ctx_ids[k] == full_ids[k]:
-            k += 1
-        n_ctx = k
-    else:
-        n_ctx = len(ctx_ids)
+    # lm-eval-harness ne skip pas en cas de re-merge BPE : il utilise
+    # whole_enc[len(context_enc):] comme continuation même si l'alignement
+    # n'est pas parfait. On fait pareil.
+    n_ctx = len(ctx_ids)
+    n_bytes = len(completion.encode("utf-8"))
 
     if len(full_ids) <= n_ctx:
-        return float("-inf")
+        return float("-inf"), False, 0, n_bytes
     n_completion = len(full_ids) - n_ctx
 
     input_ids = torch.tensor([full_ids], dtype=torch.long).to(device)
-    labels    = input_ids.clone()
-    labels[0, :n_ctx] = -100
     with torch.no_grad():
-        out = model(input_ids=input_ids, labels=labels)
-    mean_nll = out.loss.item()
-    if length_normalize:
-        return -mean_nll
-    return -mean_nll * n_completion
+        out = model(input_ids=input_ids)
+    logits = out.logits[0]  # (T, V)
+
+    # Position i prédit full_ids[i+1], donc positions [n_ctx-1 ; n_ctx-1+n_completion[
+    # prédisent les tokens du completion.
+    target_logits = logits[n_ctx - 1 : n_ctx - 1 + n_completion]  # (n_cont, V)
+    log_probs = F.log_softmax(target_logits.float(), dim=-1)
+    cont_ids  = torch.tensor(full_ids[n_ctx:], dtype=torch.long, device=device)
+    ll = log_probs.gather(1, cont_ids.unsqueeze(1)).sum().item()
+
+    pred_ids  = target_logits.argmax(dim=-1)
+    is_greedy = bool(torch.equal(pred_ids, cont_ids))
+
+    return ll, is_greedy, n_completion, n_bytes
 
 
 # ---------------------------------------------------------------------------
@@ -226,12 +233,11 @@ def eval_ptb_bpb(model, tokenizer, device):
 
 def eval_lambada(model, tokenizer, device, n, seed):
     """
-    LAMBADA : accuracy greedy sur le dernier mot + ppl conditionnelle.
-
-    Protocole standard (lm-eval-harness) :
+    LAMBADA (protocole lm-eval-harness `lambada_openai`) :
       - context = tout sauf le dernier mot
-      - target  = " " + dernier_mot   (espace dans le target, pas avant)
-      - skip si la tokenisation jointe n'a pas ctx_ids comme préfixe exact
+      - target  = " " + dernier_mot
+      - acc = fraction d'exemples où argmax = gold sur TOUS les tokens du target
+      - ppl = exp(moyenne NLL par token du target)
     """
     try:
         from datasets import load_dataset
@@ -244,54 +250,30 @@ def eval_lambada(model, tokenizer, device, n, seed):
     if n is not None:
         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
-    correct    = 0
-    nll_sum    = 0.0
-    n_tok_sum  = 0
-    n_used     = 0
-    n_skipped  = 0
+    correct   = 0
+    nll_sum   = 0.0
+    n_tok_sum = 0
+    n_used    = 0
 
     for ex in tqdm(ds, desc="LAMBADA", leave=False):
         text = ex["text"]
         parts = text.rsplit(" ", 1)
         if len(parts) != 2:
-            n_skipped += 1
             continue
         context = parts[0]
         target  = " " + parts[1]
 
-        ctx_ids  = tokenizer(context,          add_special_tokens=True)["input_ids"]
-        full_ids = tokenizer(context + target, add_special_tokens=True)["input_ids"]
-
-        if full_ids[:len(ctx_ids)] != ctx_ids or len(full_ids) <= len(ctx_ids):
-            n_skipped += 1
+        ll, is_greedy, n_tgt, _ = conditional_log_likelihood(
+            model, tokenizer, device, context, target
+        )
+        if n_tgt == 0:
             continue
 
-        n_ctx      = len(ctx_ids)
-        target_ids = full_ids[n_ctx:]
-        n_tgt      = len(target_ids)
-
-        input_ids = torch.tensor([full_ids], dtype=torch.long).to(device)
-        with torch.no_grad():
-            out = model(input_ids=input_ids)
-        logits = out.logits[0]  # (T, V)
-
-        # Teacher-forced : argmax par position sur le target
-        pred_ids = logits[n_ctx - 1 : n_ctx - 1 + n_tgt].argmax(dim=-1)
-        gold_ids = torch.tensor(target_ids, device=device)
-        if torch.equal(pred_ids, gold_ids):
+        if is_greedy:
             correct += 1
-
-        log_probs = F.log_softmax(
-            logits[n_ctx - 1 : n_ctx - 1 + n_tgt].float(), dim=-1
-        )
-        nll = -log_probs.gather(1, gold_ids.unsqueeze(1)).sum().item()
-        nll_sum   += nll
+        nll_sum   += -ll
         n_tok_sum += n_tgt
         n_used    += 1
-
-    if n_skipped > 0:
-        logger.info(f"  LAMBADA : {n_skipped} exemples skipped (alignement), "
-                    f"{n_used} utilisés")
 
     acc = correct / max(1, n_used)
     ppl = math.exp(min(nll_sum / max(1, n_tok_sum), 20))
@@ -305,12 +287,12 @@ def eval_lambada(model, tokenizer, device, n, seed):
 
 def eval_hellaswag(model, tokenizer, device, n, seed):
     """
-    HellaSwag : parmi 4 completions, choisir la plus plausible.
-    acc_norm = argmax de (log p(end | ctx) / n_tokens_end).
+    HellaSwag (lm-eval-harness `hellaswag`) : parmi 4 completions, choisir la plus plausible.
 
-    Prompt format (lm-eval-harness style) :
+    Prompt format :
       context    = "{activity_label}: {ctx_a} {ctx_b.capitalize()}"
       completion = " " + ending
+    Retourne acc (LL brute) et acc_norm (LL / nb_bytes).
     """
     try:
         from datasets import load_dataset
@@ -331,6 +313,7 @@ def eval_hellaswag(model, tokenizer, device, n, seed):
         return text
 
     correct = 0
+    correct_norm = 0
     for ex in tqdm(ds, desc="HellaSwag", leave=False):
         ctx = preprocess(ex["activity_label"] + ": "
                          + ex["ctx_a"] + " "
@@ -338,14 +321,19 @@ def eval_hellaswag(model, tokenizer, device, n, seed):
         endings = [preprocess(e) for e in ex["endings"]]
         gold    = int(ex["label"])
 
-        scores = [
-            conditional_log_likelihood(model, tokenizer, device,
-                                       ctx, " " + e, length_normalize=True)
-            for e in endings
-        ]
-        if int(np.argmax(scores)) == gold:
+        lls, lls_norm = [], []
+        for e in endings:
+            ll, _, _, nb = conditional_log_likelihood(
+                model, tokenizer, device, ctx, " " + e
+            )
+            lls.append(ll)
+            lls_norm.append(ll / max(nb, 1))
+
+        if int(np.argmax(lls)) == gold:
             correct += 1
-    return correct / len(ds)
+        if int(np.argmax(lls_norm)) == gold:
+            correct_norm += 1
+    return {"acc": correct / len(ds), "acc_norm": correct_norm / len(ds)}
 
 
 # ---------------------------------------------------------------------------
@@ -355,8 +343,9 @@ def eval_hellaswag(model, tokenizer, device, n, seed):
 
 def eval_piqa(model, tokenizer, device, n, seed):
     """
-    PIQA : choix binaire entre 2 solutions.
+    PIQA (lm-eval-harness `piqa`) : choix binaire entre 2 solutions.
     Prompt : "Question: {goal}\\nAnswer:" + " " + sol
+    Retourne acc (LL brute) et acc_norm (LL / nb_bytes).
     """
     try:
         from datasets import load_dataset
@@ -370,18 +359,25 @@ def eval_piqa(model, tokenizer, device, n, seed):
         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
     correct = 0
+    correct_norm = 0
     for ex in tqdm(ds, desc="PIQA", leave=False):
         ctx  = "Question: " + ex["goal"] + "\nAnswer:"
         sols = [ex["sol1"], ex["sol2"]]
         gold = int(ex["label"])
-        scores = [
-            conditional_log_likelihood(model, tokenizer, device,
-                                       ctx, " " + s, length_normalize=True)
-            for s in sols
-        ]
-        if int(np.argmax(scores)) == gold:
+
+        lls, lls_norm = [], []
+        for s in sols:
+            ll, _, _, nb = conditional_log_likelihood(
+                model, tokenizer, device, ctx, " " + s
+            )
+            lls.append(ll)
+            lls_norm.append(ll / max(nb, 1))
+
+        if int(np.argmax(lls)) == gold:
             correct += 1
-    return correct / len(ds)
+        if int(np.argmax(lls_norm)) == gold:
+            correct_norm += 1
+    return {"acc": correct / len(ds), "acc_norm": correct_norm / len(ds)}
 
 
 # ---------------------------------------------------------------------------
@@ -391,8 +387,9 @@ def eval_piqa(model, tokenizer, device, n, seed):
 
 def eval_arc_easy(model, tokenizer, device, n, seed):
     """
-    ARC-Easy : QA scientifique élémentaire, 3-5 choix.
+    ARC-Easy (lm-eval-harness `arc_easy`) : QA scientifique, 3-5 choix.
     Prompt : "Question: {q}\\nAnswer:" + " " + choice
+    Retourne acc (LL brute) et acc_norm (LL / nb_bytes).
     """
     try:
         from datasets import load_dataset
@@ -406,6 +403,7 @@ def eval_arc_easy(model, tokenizer, device, n, seed):
         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
     correct = 0
+    correct_norm = 0
     total   = 0
     for ex in tqdm(ds, desc="ARC-Easy", leave=False):
         q       = ex["question"]
@@ -416,16 +414,21 @@ def eval_arc_easy(model, tokenizer, device, n, seed):
             continue
 
         ctx = "Question: " + q + "\nAnswer:"
-        scores = [
-            conditional_log_likelihood(model, tokenizer, device,
-                                       ctx, " " + c, length_normalize=True)
-            for c in choices
-        ]
-        pred = labels[int(np.argmax(scores))]
-        if pred == gold:
+        lls, lls_norm = [], []
+        for c in choices:
+            ll, _, _, nb = conditional_log_likelihood(
+                model, tokenizer, device, ctx, " " + c
+            )
+            lls.append(ll)
+            lls_norm.append(ll / max(nb, 1))
+
+        if labels[int(np.argmax(lls))] == gold:
             correct += 1
+        if labels[int(np.argmax(lls_norm))] == gold:
+            correct_norm += 1
         total += 1
-    return correct / max(1, total)
+    return {"acc": correct / max(1, total),
+            "acc_norm": correct_norm / max(1, total)}
 
 
 # ---------------------------------------------------------------------------
@@ -478,12 +481,13 @@ def eval_memotrap(model, tokenizer, device, n, seed):
 
     correct = 0
     for ex in tqdm(examples, desc="MemoTrap", leave=False):
-        scores = [
-            conditional_log_likelihood(model, tokenizer, device,
-                                       ex["prompt"], c, length_normalize=True)
-            for c in ex["classes"]
-        ]
-        if int(np.argmax(scores)) == ex["answer_index"]:
+        lls = []
+        for c in ex["classes"]:
+            ll, _, _, _ = conditional_log_likelihood(
+                model, tokenizer, device, ex["prompt"], c
+            )
+            lls.append(ll)
+        if int(np.argmax(lls)) == ex["answer_index"]:
             correct += 1
     return correct / len(examples)
 
@@ -530,24 +534,27 @@ def run_eval(model, tokenizer, device, n=None, seed=42):
 
     if "HellaSwag" in BENCHMARKS_TO_EVALUATE:
         logger.info("HellaSwag ...")
-        v = eval_hellaswag(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["HellaSwag"] = round(v, 4)
-            logger.info(f"  HellaSwag   = {v:.4f}")
+        r = eval_hellaswag(model, tokenizer, device, n, seed)
+        if r is not None:
+            results["HellaSwag_acc"]      = round(r["acc"], 4)
+            results["HellaSwag_acc_norm"] = round(r["acc_norm"], 4)
+            logger.info(f"  HellaSwag   acc={r['acc']:.4f}  acc_norm={r['acc_norm']:.4f}")
 
     if "PIQA" in BENCHMARKS_TO_EVALUATE:
         logger.info("PIQA ...")
-        v = eval_piqa(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["PIQA"] = round(v, 4)
-            logger.info(f"  PIQA        = {v:.4f}")
+        r = eval_piqa(model, tokenizer, device, n, seed)
+        if r is not None:
+            results["PIQA_acc"]      = round(r["acc"], 4)
+            results["PIQA_acc_norm"] = round(r["acc_norm"], 4)
+            logger.info(f"  PIQA        acc={r['acc']:.4f}  acc_norm={r['acc_norm']:.4f}")
 
     if "ARC-Easy" in BENCHMARKS_TO_EVALUATE:
         logger.info("ARC-Easy ...")
-        v = eval_arc_easy(model, tokenizer, device, n, seed)
-        if v is not None:
-            results["ARC-Easy"] = round(v, 4)
-            logger.info(f"  ARC-Easy    = {v:.4f}")
+        r = eval_arc_easy(model, tokenizer, device, n, seed)
+        if r is not None:
+            results["ARC-Easy_acc"]      = round(r["acc"], 4)
+            results["ARC-Easy_acc_norm"] = round(r["acc_norm"], 4)
+            logger.info(f"  ARC-Easy    acc={r['acc']:.4f}  acc_norm={r['acc_norm']:.4f}")
 
     if "MemoTrap" in BENCHMARKS_TO_EVALUATE:
         logger.info("MemoTrap ...")
@@ -606,7 +613,10 @@ if __name__ == "__main__":
         "WikiText103_PPL", "WikiText103_BPB",
         "PTB_BPB", "PTB_PPL",
         "LAMBADA_acc", "LAMBADA_ppl",
-        "HellaSwag", "PIQA", "ARC-Easy", "MemoTrap",
+        "HellaSwag_acc", "HellaSwag_acc_norm",
+        "PIQA_acc", "PIQA_acc_norm",
+        "ARC-Easy_acc", "ARC-Easy_acc_norm",
+        "MemoTrap",
     ]
     ordered = [k for k in METRIC_ORDER if k in results]
     ordered += [k for k in results if k not in METRIC_ORDER]

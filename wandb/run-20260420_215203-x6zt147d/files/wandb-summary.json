@@ -1,0 +1,1 @@
+{"_runtime":233,"eval/ARC-Easy":0.335,"eval/LAMBADA_acc":0.1199,"_wandb":{"runtime":233},"eval/WikiText103_PPL":48.8368,"eval/WikiText103_BPB":1.2522,"eval/HellaSwag":0.2988,"eval/MemoTrap":0.605,"eval/LAMBADA_ppl":30.1276}

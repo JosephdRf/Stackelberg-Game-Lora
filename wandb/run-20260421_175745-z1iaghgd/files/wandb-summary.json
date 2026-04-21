@@ -1,0 +1,1 @@
+{"eval/WikiText103_PPL":40.5669,"eval/PIQA_acc_norm":0.5419,"eval/MemoTrap":0.6388,"eval/WikiText103_BPB":1.1925,"eval/PTB_BPB":1.8235,"eval/PTB_PPL":239.0584,"eval/PIQA_acc":0.5664,"eval/LAMBADA_acc":0.111,"_runtime":115,"_wandb":{"runtime":115},"eval/LAMBADA_ppl":53.6406}

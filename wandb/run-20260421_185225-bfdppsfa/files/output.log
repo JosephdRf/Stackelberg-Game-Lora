@@ -1,0 +1,33 @@
+18:52:30 | INFO | Chargement du modèle depuis /Data/joseph.de-roffignac/checkpoints/baseline/final ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+18:52:30 | INFO | === Évaluation Pythia-160M ===
+18:52:30 | INFO | WikiText-103 (in-domain, cible du FT) ...
+18:52:30 | INFO | PyTorch version 2.8.0 available.
+18:52:49 | INFO |   WT103 PPL   = 27.000   BPB = 1.0614                                                                                                                                                                                                                                      
+18:52:49 | INFO | PTB (OOD) ...
+18:52:56 | INFO |   PTB   BPB   = 1.6711   PPL = 151.288                                                                                                                                                                                                                                     
+18:52:56 | INFO | LAMBADA ...
+18:53:30 | INFO |   LAMBADA acc = 0.2300   ppl = 32.285                                                                                                                                                                                                                                      
+18:53:30 | INFO | HellaSwag ...
+18:57:52 | INFO |   HellaSwag   acc=0.2704  acc_norm=0.2816                                                                                                                                                                                                                                  
+18:57:52 | INFO | PIQA ...
+18:58:23 | INFO |   PIQA        acc=0.5958  acc_norm=0.5740                                                                                                                                                                                                                                  
+18:58:23 | INFO | ARC-Easy ...
+18:59:19 | INFO |   ARC-Easy    acc=0.3981  acc_norm=0.3784                                                                                                                                                                                                                                  
+18:59:19 | INFO | MemoTrap ...
+18:59:38 | INFO |   MemoTrap    = 0.6526                                                                                                                                                                                                                                                     
+18:59:38 | INFO |
+=== Résultats finaux ===
+18:59:38 | INFO |   WikiText103_PPL      = 27.0001
+18:59:38 | INFO |   WikiText103_BPB      = 1.0614
+18:59:38 | INFO |   PTB_BPB              = 1.6711
+18:59:38 | INFO |   PTB_PPL              = 151.2875
+18:59:38 | INFO |   LAMBADA_acc          = 0.23
+18:59:38 | INFO |   LAMBADA_ppl          = 32.2854
+18:59:38 | INFO |   HellaSwag_acc        = 0.2704
+18:59:38 | INFO |   HellaSwag_acc_norm   = 0.2816
+18:59:38 | INFO |   PIQA_acc             = 0.5958
+18:59:38 | INFO |   PIQA_acc_norm        = 0.574
+18:59:38 | INFO |   ARC-Easy_acc         = 0.3981
+18:59:38 | INFO |   ARC-Easy_acc_norm    = 0.3784
+18:59:38 | INFO |   MemoTrap             = 0.6526

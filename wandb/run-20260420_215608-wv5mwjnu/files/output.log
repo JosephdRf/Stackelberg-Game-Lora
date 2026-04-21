@@ -1,0 +1,38 @@
+21:56:14 | INFO | Chargement du modèle depuis /Data/joseph.de-roffignac/checkpoints/game_lora/final ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+21:56:14 | INFO | === Évaluation Pythia-160M ===
+21:56:14 | INFO | WikiText-103 (in-domain, cible du FT) ...
+21:56:22 | INFO |   WT103 PPL   = 67.328   BPB = 1.3556                                                                                                                                                                    
+21:56:22 | INFO | PTB (OOD) ...
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ptb_text_only' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+21:56:22 | ERROR | `trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ptb_text_only' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+21:56:22 | WARNING | PTB non disponible : Dataset scripts are no longer supported, but found ptb_text_only.py
+21:56:22 | INFO | LAMBADA ...
+21:56:39 | INFO |   LAMBADA acc = 0.0429   ppl = 325.290                                                                                                                                                                   
+21:56:39 | INFO | HellaSwag ...
+21:59:00 | INFO |   HellaSwag   = 0.2661                                                                                                                                                                                   
+21:59:00 | INFO | PIQA ...
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+21:59:00 | ERROR | `trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'ybisk/piqa' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+21:59:00 | WARNING | PIQA non disponible : Dataset scripts are no longer supported, but found piqa.py
+21:59:00 | INFO | ARC-Easy ...
+21:59:40 | INFO |   ARC-Easy    = 0.2769                                                                                                                                                                                   
+21:59:40 | INFO | MemoTrap ...
+21:59:55 | INFO |   MemoTrap    = 0.5853                                                                                                                                                                                   
+21:59:55 | INFO |
+=== Résultats finaux ===
+21:59:55 | INFO |   WikiText103_PPL      = 67.3277
+21:59:55 | INFO |   WikiText103_BPB      = 1.3556
+21:59:55 | INFO |   LAMBADA_acc          = 0.0429
+21:59:55 | INFO |   LAMBADA_ppl          = 325.2901
+21:59:55 | INFO |   HellaSwag            = 0.2661
+21:59:55 | INFO |   ARC-Easy             = 0.2769
+21:59:55 | INFO |   MemoTrap             = 0.5853
