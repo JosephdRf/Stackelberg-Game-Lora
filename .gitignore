@@ -5,3 +5,4 @@ venv/
 checkpoints/
 logs/
 plots/
+dataset/
