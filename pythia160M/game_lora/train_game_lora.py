@@ -36,7 +36,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-from train import (
+from train_utils import (
     TrainConfig,
     build_model_and_tokenizer,
     setup_training,
@@ -45,16 +45,17 @@ from train import (
     get_device,
     log_config,
     add_common_args,
+    HeadInteractionMatrix,
+    HeadOutputCapture,
+    get_output_projection_weights,
+    log_head_matrices,
 )
 from game_losses import (
-    HeadInteractionMatrix,
     LogDetBarrierLoss,
     AdaptiveBarlowTwinsLoss,
     EMALossNormalizer,
     NashMTL,
     GAMELossScheduler,
-    HeadOutputCapture,
-    get_output_projection_weights,
 )
 
 logger = logging.getLogger(__name__)
@@ -266,7 +267,7 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
                         f"  lr={lr_now:.2e}  tok/s={tokens_per_sec:,}"
                     )
                     if use_wandb:
-                        log_dict = {
+                        wandb.log({
                             "train/loss":       accum_loss,
                             "train/ce_loss":    accum_ce,
                             "train/ldb_loss":   accum_ldb,
@@ -277,16 +278,7 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
                             "train/step":       opt_step,
                             "train/tokens":     opt_step * cfg.seq_len * cfg.effective_batch_size,
                             "train/loss_ema":   _ema_loss,
-                        }
-                        if head_outputs is not None:
-                            try:
-                                W_O_log   = get_output_projection_weights(model, design_layer).to(device)
-                                omega_log = HeadInteractionMatrix.compute_weight_coupling(W_O_log)
-                                gamma     = HeadInteractionMatrix.interaction_strength(omega_log)
-                                log_dict["train/gamma_G"] = gamma.item()
-                            except Exception:
-                                pass
-                        wandb.log(log_dict, step=opt_step)
+                        }, step=opt_step)
                     history["train"]["step"].append(opt_step)
                     history["train"]["loss"].append(accum_loss)
                     history["train"]["loss_ema"].append(_ema_loss)
@@ -302,6 +294,10 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
                         autocast_dtype=torch.bfloat16,
                     )
                     logger.info(f"[val]   step {opt_step:>6d}  val_loss={v_loss:.4f}  val_ppl={v_ppl:.3f}")
+                    log_head_matrices(
+                        model, device, design_layer, opt_step, val_loader,
+                        wandb_mod=wandb if use_wandb else None,
+                    )
                     if use_wandb:
                         wandb.log({"val/loss": v_loss, "val/ppl": v_ppl}, step=opt_step)
                     history["val"]["step"].append(opt_step)

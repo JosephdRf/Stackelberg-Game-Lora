@@ -2,20 +2,14 @@
 GAME-LoRA losses — adapté pour Pythia-160M (GPT-NeoX)
 "Multi-Head Attention is a Multi-Player Game" (Chakrabarti & Balachundar, 2026)
 
-Différences vs qwen2.5_0.5B/game_lora/game_losses.py :
-  - Module d'attention : model.gpt_neox.layers[l].attention
-  - Projection output  : attention.dense  (vs self_attn.o_proj chez Qwen)
-  - LM head            : embed_out        (vs lm_head chez Qwen)
-  - num_heads / head_dim extraits depuis attn_module.config
-
 Contient :
-  - HeadInteractionMatrix  : calcul de G (Def 2.3) = ω_ij · ρ_ij
   - LogDetBarrierLoss      : L_LDB = -log det(G + εI)         (Eq 28)
   - AdaptiveBarlowTwinsLoss: L_ABT avec weighting adaptatif   (Eq 29)
   - NashMTL                : arbitrage multi-objectif          (Navon et al., 2022)
   - GAMELossScheduler      : schedule 3 phases (warmup/constant/cooldown)
-  - HeadOutputCapture      : hook sur attention.dense (pré-W_O)
-  - get_output_projection_weights : W_O par tête (LoRA-aware)
+
+HeadInteractionMatrix, HeadOutputCapture et get_output_projection_weights
+sont dans train_utils (communs à toutes les runs).
 """
 
 import torch
@@ -23,101 +17,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Tuple
 
-
-# ---------------------------------------------------------------------------
-# Head Interaction Matrix  (Definition 2.3)
-# ---------------------------------------------------------------------------
-
-
-class HeadInteractionMatrix:
-    """
-    Calcule G ∈ R^{H×H} avec G_ij = ω_ij · ρ_ij
-      - ω_ij : cosine similarity des output projections W_O^(i), W_O^(j)   (Def 2.1)
-      - ρ_ij : cosine similarity des gradients backpropagés g_i, g_j        (Def 2.2)
-
-    Γ(G) = ||G - I||_F  (interaction strength)
-    """
-
-    @staticmethod
-    def compute_weight_coupling(W_O: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            W_O: (H, d, d_h) — output projection weights per head
-        Returns:
-            omega: (H, H) — weight coupling matrix
-        """
-        W_flat = W_O.reshape(W_O.shape[0], -1).float()
-        norms = W_flat.norm(dim=1, keepdim=True).clamp(min=1e-8)
-        W_normed = W_flat / norms
-        omega = W_normed @ W_normed.T  # (H, H)
-        return omega
-
-    @staticmethod
-    def compute_gradient_coupling(
-        model, logits: torch.Tensor, labels: torch.Tensor,
-        W_O: torch.Tensor, head_dim: int
-    ) -> torch.Tensor:
-        """
-        Calcule ρ_ij = cosine(g_i, g_j) où g_i = (W_O^(i))^T η
-        η = ∇_ℓ L_CE est le gradient par rapport aux logits.
-
-        Args:
-            model: le modèle PEFT (Pythia-160M)
-            logits: (B, T, V)
-            labels: (B, T)
-            W_O: (H, d, d_h)
-            head_dim: d_h
-        Returns:
-            rho: (H, H)
-        """
-        shift_logits = logits[..., :-1, :].contiguous().detach().float()
-        shift_labels = labels[..., 1:].contiguous()
-        mask = (shift_labels != -100)
-        n_valid = mask.sum().clamp(min=1)
-        V = shift_logits.shape[-1]
-
-        # Gradient analytique : eta = softmax(logits) - one_hot(labels)
-        # Calcul item par item pour éviter le tenseur (B, T-1, V) ~3 Go en mémoire
-        probs_sum = torch.zeros(V, device=shift_logits.device)
-        for b in range(shift_logits.shape[0]):
-            p = torch.softmax(shift_logits[b], dim=-1)          # (T-1, V)
-            probs_sum += (p * mask[b].unsqueeze(-1)).sum(0)
-            del p
-
-        valid_labels = shift_labels[mask].clamp(min=0)
-        label_counts = torch.bincount(valid_labels, minlength=V).float()  # (V,)
-        eta_mean = (probs_sum - label_counts) / n_valid          # (V,)
-
-        # Cherche la LM head — Pythia utilise embed_out (GPT-NeoX)
-        lm_head_weight = None
-        for name, module in model.named_modules():
-            if hasattr(module, 'weight') and any(k in name for k in ('embed_out', 'lm_head')):
-                lm_head_weight = module.weight  # (V, d)
-                break
-        if lm_head_weight is None:
-            raise RuntimeError("LM head (embed_out / lm_head) introuvable dans le modèle")
-
-        # Projeter η de l'espace vocabulaire vers l'espace caché : (V,) @ (V, d) = (d,)
-        eta_mean = eta_mean.float() @ lm_head_weight.float()  # (d,)
-
-        # g_i = (W_O^(i))^T η ∈ R^{d_h},  W_O: (H, d, d_h)
-        g = torch.einsum('hdi,d->hi', W_O.float(), eta_mean.float())  # (H, d_h)
-        norms = g.norm(dim=1, keepdim=True).clamp(min=1e-8)
-        g_normed = g / norms
-        rho = g_normed @ g_normed.T  # (H, H)
-        return rho
-
-    @staticmethod
-    def compute_G(omega: torch.Tensor, rho: torch.Tensor) -> torch.Tensor:
-        """G_ij = ω_ij · ρ_ij  (Eq 6)"""
-        return omega * rho
-
-    @staticmethod
-    def interaction_strength(G: torch.Tensor) -> torch.Tensor:
-        """Γ(G) = ||G - I||_F  (Definition 2.3)"""
-        H = G.shape[0]
-        I = torch.eye(H, device=G.device, dtype=G.dtype)
-        return (G - I).norm(p='fro')
+from train_utils import HeadInteractionMatrix, HeadOutputCapture, get_output_projection_weights
 
 
 # ---------------------------------------------------------------------------
@@ -333,86 +233,3 @@ class GAMELossScheduler:
                 return 0.0, 0.0
             frac = max(1.0 - (step - self.cooldown_start) / remaining, 0.0)
             return self.lambda_abt * frac, self.lambda_ldb * frac
-
-
-# ---------------------------------------------------------------------------
-# Hook pour capturer les head outputs avant attention.dense  (Pythia/GPT-NeoX)
-# ---------------------------------------------------------------------------
-
-
-class HeadOutputCapture:
-    """
-    Forward pre-hook sur attention.dense pour capturer les sorties par tête
-    AVANT la projection W_O.
-
-    Architecture GPT-NeoX (Pythia) :
-      model.gpt_neox.layers[l].attention.dense
-      Input shape : (B, T, num_heads * head_size)
-
-    Usage :
-        capture = HeadOutputCapture()
-        capture.register(model, design_layer=9)
-        out = model(input_ids)
-        head_outputs = capture.get()  # (B, T, H, d_h)
-        capture.remove()
-    """
-
-    def __init__(self):
-        self.head_outputs: Optional[torch.Tensor] = None
-        self._handle = None
-
-    def register(self, model, design_layer: int = 9):
-        """
-        Enregistre le hook sur attention.dense de la couche spécifiée.
-        Compatible Pythia / GPT-NeoX avec PEFT.
-        """
-        attn_module = model.gpt_neox.layers[design_layer].attention
-        cfg = attn_module.config
-        self._num_heads = cfg.num_attention_heads
-        self._head_dim = cfg.hidden_size // cfg.num_attention_heads
-        # Pré-hook sur dense : input[0] = (B, T, H*d_h) avant mixage
-        self._handle = attn_module.dense.register_forward_pre_hook(self._hook_fn)
-        return self
-
-    def _hook_fn(self, module, input):
-        x = input[0]  # (B, T, H*d_h)
-        B, T, _ = x.shape
-        self.head_outputs = x.view(B, T, self._num_heads, self._head_dim)
-
-    def get(self) -> Optional[torch.Tensor]:
-        return self.head_outputs
-
-    def remove(self):
-        if self._handle is not None:
-            self._handle.remove()
-            self._handle = None
-
-
-def get_output_projection_weights(model, design_layer: int = 9) -> torch.Tensor:
-    """
-    Extrait les poids W_O effectifs (base + LoRA delta) de la couche spécifiée,
-    reshapés par tête. Différentiable par rapport aux paramètres LoRA.
-
-    Architecture Pythia :
-      model.gpt_neox.layers[l].attention.dense
-      W_O shape : (hidden_size, hidden_size) = (768, 768)
-
-    Returns:
-        W_O: (H, d, d_h) — poids de projection output par tête
-    """
-    attn = model.gpt_neox.layers[design_layer].attention
-    dense = attn.dense  # nn.Linear en full FT
-
-    W_O_full = dense.weight  # (hidden_size, hidden_size)
-    # W_O_full : (hidden_size, hidden_size) = (768, 768)
-
-    cfg = attn.config
-    num_heads = cfg.num_attention_heads   # 12
-    head_dim = cfg.hidden_size // num_heads  # 64
-    d = W_O_full.shape[0]  # 768
-
-    # Reshape : (d, H, d_h) → permute → (H, d, d_h)
-    W_O_heads = W_O_full.view(d, num_heads, head_dim)  # (768, 12, 64)
-    W_O_heads = W_O_heads.permute(1, 0, 2)              # (12, 768, 64)
-
-    return W_O_heads

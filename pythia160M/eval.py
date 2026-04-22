@@ -69,12 +69,12 @@ EVAL_PARAMS = {
 
 BENCHMARKS_TO_EVALUATE = [
     "WikiText103_PPL",   # (A) métrique cible
-    "PTB_BPB",           # (B) OOD léger
+    #"PTB_BPB",           # (B) OOD léger
     "LAMBADA",           # (B) complétion, sensible
     "HellaSwag",         # (B) sens commun
-    "PIQA",              # (B) raisonnement physique
-    "ARC-Easy",          # (B) QA facile
-    "MemoTrap",          # (B) diversité / anti-mémorisation
+    #"PIQA",              # (B) raisonnement physique
+    #"ARC-Easy",          # (B) QA facile
+    #"MemoTrap",          # (B) diversité / anti-mémorisation
 ]
 
 
@@ -250,7 +250,6 @@ def eval_lambada(model, tokenizer, device, n, seed):
     if n is not None:
         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
-    correct   = 0
     nll_sum   = 0.0
     n_tok_sum = 0
     n_used    = 0
@@ -263,21 +262,18 @@ def eval_lambada(model, tokenizer, device, n, seed):
         context = parts[0]
         target  = " " + parts[1]
 
-        ll, is_greedy, n_tgt, _ = conditional_log_likelihood(
+        ll, _, n_tgt, _ = conditional_log_likelihood(
             model, tokenizer, device, context, target
         )
         if n_tgt == 0:
             continue
 
-        if is_greedy:
-            correct += 1
         nll_sum   += -ll
         n_tok_sum += n_tgt
         n_used    += 1
 
-    acc = correct / max(1, n_used)
     ppl = math.exp(min(nll_sum / max(1, n_tok_sum), 20))
-    return {"acc": acc, "ppl": ppl}
+    return {"ppl": ppl}
 
 
 # ---------------------------------------------------------------------------
@@ -528,9 +524,8 @@ def run_eval(model, tokenizer, device, n=None, seed=42):
         logger.info("LAMBADA ...")
         r = eval_lambada(model, tokenizer, device, n, seed)
         if r is not None:
-            results["LAMBADA_acc"] = round(r["acc"], 4)
             results["LAMBADA_ppl"] = round(r["ppl"], 4)
-            logger.info(f"  LAMBADA acc = {r['acc']:.4f}   ppl = {r['ppl']:.3f}")
+            logger.info(f"  LAMBADA ppl = {r['ppl']:.3f}")
 
     if "HellaSwag" in BENCHMARKS_TO_EVALUATE:
         logger.info("HellaSwag ...")
@@ -612,7 +607,7 @@ if __name__ == "__main__":
     METRIC_ORDER = [
         "WikiText103_PPL", "WikiText103_BPB",
         "PTB_BPB", "PTB_PPL",
-        "LAMBADA_acc", "LAMBADA_ppl",
+        "LAMBADA_ppl",
         "HellaSwag_acc", "HellaSwag_acc_norm",
         "PIQA_acc", "PIQA_acc_norm",
         "ARC-Easy_acc", "ARC-Easy_acc_norm",

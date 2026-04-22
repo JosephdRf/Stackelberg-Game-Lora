@@ -26,7 +26,7 @@ sys.path.insert(0, _MODEL)
 import torch
 from tqdm import tqdm
 
-from train import (
+from train_utils import (
     TrainConfig,
     build_model_and_tokenizer,
     setup_training,
@@ -35,6 +35,7 @@ from train import (
     get_device,
     log_config,
     add_common_args,
+    log_head_matrices,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def train(cfg: TrainConfig):
+def train(cfg: TrainConfig, head_log_layer: int = 9):
     seed_everything(cfg.seed)
 
     device = get_device()
@@ -174,6 +175,10 @@ def train(cfg: TrainConfig):
                     )
                     logger.info(f"[val]   step {opt_step:>6d}  "
                                f"val_loss={v_loss:.4f}  val_ppl={v_ppl:.3f}")
+                    log_head_matrices(
+                        model, device, head_log_layer, opt_step, val_loader,
+                        wandb_mod=wandb if use_wandb else None,
+                    )
                     if use_wandb:
                         wandb.log({"val/loss": v_loss, "val/ppl": v_ppl},
                                   step=opt_step)
@@ -299,4 +304,4 @@ if __name__ == "__main__":
     )
 
     log_config(cfg)
-    train(cfg)
+    train(cfg, head_log_layer=args.head_log_layer)
