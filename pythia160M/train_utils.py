@@ -18,6 +18,7 @@ import os
 import math
 import random
 import logging
+import itertools
 
 _DATASETS_CACHE = os.path.join(
     os.environ.get("SCRATCH", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -397,54 +398,63 @@ class HeadInteractionMatrix:
         return omega
 
     @staticmethod
-    def compute_gradient_coupling(
-        model, logits: torch.Tensor, labels: torch.Tensor,
-        W_O: torch.Tensor, head_dim: int
-    ) -> torch.Tensor:
+    def _eta_stats(logits: torch.Tensor, labels: torch.Tensor):
         """
-        Calcule ρ_ij = cosine(g_i, g_j) où g_i = (W_O^(i))^T η
-        η = ∇_ℓ L_CE est le gradient analytique par rapport aux logits.
+        Accumule les statistiques du gradient analytique ∇_ℓ L_CE pour un batch.
 
-        Args:
-            model: le modèle (Pythia-160M)
-            logits: (B, T, V)
-            labels: (B, T)
-            W_O: (H, d, d_h)
-            head_dim: d_h
-        Returns:
-            rho: (H, H)
+        Retourne (probs_sum, label_counts, n_valid) — additifs entre batches,
+        ce qui permet de construire un eta_mean stable sur N batches avant de
+        calculer rho une seule fois.
         """
         shift_logits = logits[..., :-1, :].contiguous().detach().float()
         shift_labels = labels[..., 1:].contiguous()
         mask = (shift_labels != -100)
-        n_valid = mask.sum().clamp(min=1)
         V = shift_logits.shape[-1]
 
         probs_sum = torch.zeros(V, device=shift_logits.device)
         for b in range(shift_logits.shape[0]):
-            p = torch.softmax(shift_logits[b], dim=-1)          # (T-1, V)
+            p = torch.softmax(shift_logits[b], dim=-1)
             probs_sum += (p * mask[b].unsqueeze(-1)).sum(0)
             del p
 
         valid_labels = shift_labels[mask].clamp(min=0)
-        label_counts = torch.bincount(valid_labels, minlength=V).float()  # (V,)
-        eta_mean = (probs_sum - label_counts) / n_valid          # (V,)
+        label_counts = torch.bincount(valid_labels, minlength=V).float()
+        n_valid = mask.sum().item()
+        return probs_sum, label_counts, n_valid
+
+    @staticmethod
+    def _rho_from_eta_stats(model, probs_sum, label_counts, n_valid, W_O):
+        """
+        Calcule rho depuis des stats accumulées sur plusieurs batches.
+        Sépare la projection W_O de l'accumulation, pour stabiliser rho.
+        """
+        eta_mean = (probs_sum - label_counts) / max(n_valid, 1)  # (V,)
 
         lm_head_weight = None
         for name, module in model.named_modules():
             if hasattr(module, 'weight') and any(k in name for k in ('embed_out', 'lm_head')):
-                lm_head_weight = module.weight  # (V, d)
+                lm_head_weight = module.weight
                 break
         if lm_head_weight is None:
             raise RuntimeError("LM head (embed_out / lm_head) introuvable dans le modèle")
 
         eta_mean = eta_mean.float() @ lm_head_weight.float()  # (d,)
-
         g = torch.einsum('hdi,d->hi', W_O.float(), eta_mean.float())  # (H, d_h)
         norms = g.norm(dim=1, keepdim=True).clamp(min=1e-8)
         g_normed = g / norms
-        rho = g_normed @ g_normed.T  # (H, H)
-        return rho
+        return g_normed @ g_normed.T  # (H, H)
+
+    @staticmethod
+    def compute_gradient_coupling(
+        model, logits: torch.Tensor, labels: torch.Tensor,
+        W_O: torch.Tensor, head_dim: int
+    ) -> torch.Tensor:
+        """
+        Calcule ρ_ij = cosine(g_i, g_j) sur un seul batch.
+        Préférer log_head_matrices (N batches accumulés) pour un rho stable.
+        """
+        ps, lc, nv = HeadInteractionMatrix._eta_stats(logits, labels)
+        return HeadInteractionMatrix._rho_from_eta_stats(model, ps, lc, nv, W_O)
 
     @staticmethod
     def compute_G(omega: torch.Tensor, rho: torch.Tensor) -> torch.Tensor:
@@ -539,11 +549,21 @@ def _matrices_figure(omega: torch.Tensor, rho: torch.Tensor, G: torch.Tensor):
         (G.cpu().float().numpy(),     "G = ω · ρ"),
     ]
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))
-    for ax, (mat, title) in zip(axes, mats):
+    # rho est un produit scalaire normalisé → échelle fixe [-1, 1]
+    # omega et G ont des valeurs bien plus petites : échelle adaptée à chaque matrice
+    fixed_scale = [False, True, False]
+    for ax, (mat, title), fixed in zip(axes, mats, fixed_scale):
         mat = np.nan_to_num(mat, nan=0.0)
-        im = ax.imshow(mat, vmin=-1.0, vmax=1.0, cmap="RdBu_r", aspect="auto")
+        if fixed:
+            vmin, vmax = -1.0, 1.0
+        else:
+            off_diag = mat[~np.eye(mat.shape[0], dtype=bool)]
+            vmax = float(np.abs(off_diag).max()) or 1e-8
+            vmin = -vmax
+        im = ax.imshow(mat, vmin=vmin, vmax=vmax, cmap="RdBu_r", aspect="auto")
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         ax.set_title(title)
+        ax.set_aspect('equal')
         ax.set_xlabel("head j")
         ax.set_ylabel("head i")
     fig.tight_layout()
@@ -557,13 +577,18 @@ def log_head_matrices(
     step: int,
     val_loader,
     wandb_mod=None,
+    n_batches: int = 20,
 ) -> float:
     """
-    Calcule omega, rho, G pour `design_layer` sur un batch de validation,
-    logue une image wandb et Γ(G) comme scalaire.
+    Calcule omega, rho, G pour `design_layer`, logue une image wandb + Γ(G).
+
+    rho est estimé en accumulant les stats du gradient (probs_sum, label_counts)
+    sur n_batches batches de validation avant de calculer eta_mean une seule fois.
+    Cela stabilise rho (~160k tokens avec les defaults) vs un seul batch (4k tokens).
 
     Args:
-        wandb_mod : module wandb importé (ou None pour désactiver le logging)
+        n_batches  : nombre de batches val accumulés pour rho (défaut 20)
+        wandb_mod  : module wandb importé, ou None pour désactiver le logging
 
     Returns:
         gamma : Γ(G) = ||G − I||_F  (float)
@@ -571,22 +596,37 @@ def log_head_matrices(
     was_training = model.training
     model.eval()
 
-    batch = next(iter(val_loader))
-    input_ids = batch["input_ids"][:4].to(device)
-    labels    = batch["labels"][:4].to(device)
+    use_autocast = device.type in ("cuda", "cpu")
+    autocast_ctx = torch.autocast(
+        device_type=device.type if device.type != "mps" else "cpu",
+        dtype=torch.bfloat16,
+        enabled=use_autocast,
+    )
 
     with torch.no_grad():
-        with torch.autocast(
-            device_type=device.type if device.type != "mps" else "cpu",
-            dtype=torch.bfloat16,
-            enabled=device.type in ("cuda", "cpu"),
-        ):
-            out = model(input_ids=input_ids, labels=labels)
-
         W_O   = get_output_projection_weights(model, design_layer).to(device)
         omega = HeadInteractionMatrix.compute_weight_coupling(W_O)
-        rho   = HeadInteractionMatrix.compute_gradient_coupling(
-            model, out.logits, labels, W_O, head_dim=W_O.shape[-1],
+
+        probs_sum_acc    = None
+        label_counts_acc = None
+        n_valid_acc      = 0
+
+        for batch in itertools.islice(iter(val_loader), n_batches):
+            input_ids = batch["input_ids"].to(device)
+            labels    = batch["labels"].to(device)
+            with autocast_ctx:
+                out = model(input_ids=input_ids, labels=labels)
+            ps, lc, nv = HeadInteractionMatrix._eta_stats(out.logits, labels)
+            if probs_sum_acc is None:
+                probs_sum_acc    = ps
+                label_counts_acc = lc
+            else:
+                probs_sum_acc    = probs_sum_acc + ps
+                label_counts_acc = label_counts_acc + lc
+            n_valid_acc += nv
+
+        rho   = HeadInteractionMatrix._rho_from_eta_stats(
+            model, probs_sum_acc, label_counts_acc, n_valid_acc, W_O
         )
         G     = HeadInteractionMatrix.compute_G(omega, rho)
         gamma = HeadInteractionMatrix.interaction_strength(G).item()
@@ -602,5 +642,6 @@ def log_head_matrices(
         }, step=step)
         plt.close(fig)
 
-    logger.info(f"  [head matrices] layer={design_layer}  Γ(G)={gamma:.4f}")
+    logger.info(f"  [head matrices] layer={design_layer}  Γ(G)={gamma:.4f}  "
+                f"(rho sur {n_batches} batches)")
     return gamma

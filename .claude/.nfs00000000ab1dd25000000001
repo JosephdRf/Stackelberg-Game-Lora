@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora show HEAD:pythia160M/eval.py)",
+      "Read(//Data/**)",
+      "Bash(touch /Data/joseph.de-roffignac/test_write)",
+      "Bash(rm /Data/joseph.de-roffignac/test_write)",
+      "Bash(pip install *)",
+      "Bash(nvidia-smi --query-compute-apps=pid,used_memory,name --format=csv,noheader)",
+      "Bash(git -C /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora ls-files dataset/)",
+      "Bash(git -C /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora log --oneline --diff-filter=A -- 'dataset/**')",
+      "Bash(git -C /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora show --stat b158ecf)",
+      "Bash(git -C /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora status --short)"
+    ]
+  }
+}
