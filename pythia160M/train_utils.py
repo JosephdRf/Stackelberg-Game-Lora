@@ -1,11 +1,11 @@
 """
-Module commun pour le FULL fine-tuning de Pythia-160M sur WikiText-103.
-Partagé entre le baseline et les expériences GAME-LoRA / Stackelberg.
+Module commun pour le LoRA fine-tuning de Pythia-160M sur WikiText-103.
+Partagé entre le baseline LoRA et les expériences GAME-LoRA / Stackelberg.
 
 Contient :
   - TrainConfig
   - WikiTextDataset (map-style, packing)
-  - build_model_and_tokenizer (full FT)
+  - build_model_and_tokenizer (LoRA via PEFT)
   - setup_training (optimizer, scheduler, train/val dataloaders)
   - evaluate (loss CE + perplexité sur val)
   - seed_everything
@@ -41,6 +41,7 @@ from transformers import (
     AutoModelForCausalLM,
     get_cosine_schedule_with_warmup,
 )
+from peft import LoraConfig, get_peft_model, TaskType
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -86,8 +87,17 @@ class TrainConfig:
     seq_len: int = 1024
     total_tokens: int = 100_000_000  # ~1 epoch sur WikiText-103 (~103M tokens)
 
-    # Optimisation — FULL fine-tuning
-    lr: float = 3e-5
+    # LoRA — même config que la version Qwen (Appendix A)
+    lora_rank: int = 16
+    lora_alpha: int = 32           # scaling = alpha/rank = 2
+    lora_dropout: float = 0.1
+    # Pythia/GPT-NeoX : QKV fusionné + projection de sortie
+    lora_target_modules: list = field(
+        default_factory=lambda: ["query_key_value", "dense"]
+    )
+
+    # Optimisation — LoRA fine-tuning
+    lr: float = 3e-4               # LR standard LoRA (vs 3e-5 full FT)
     weight_decay: float = 0.01
     warmup_ratio: float = 0.03
     batch_size_per_gpu: int = 8
@@ -175,7 +185,7 @@ class WikiTextDataset(Dataset):
 
 
 # ---------------------------------------------------------------------------
-# Construction du modèle (FULL fine-tuning)
+# Construction du modèle (LoRA via PEFT)
 # ---------------------------------------------------------------------------
 
 
@@ -197,10 +207,16 @@ def build_model_and_tokenizer(cfg: TrainConfig):
             trust_remote_code=True,
         )
 
-    n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    n_total     = sum(p.numel() for p in model.parameters())
-    logger.info(f"  Params entraînables : {n_trainable:,} / {n_total:,} "
-                f"({100*n_trainable/n_total:.1f}%)")
+    lora_cfg = LoraConfig(
+        task_type=TaskType.CAUSAL_LM,
+        r=cfg.lora_rank,
+        lora_alpha=cfg.lora_alpha,
+        lora_dropout=cfg.lora_dropout,
+        target_modules=cfg.lora_target_modules,
+        bias="none",
+    )
+    model = get_peft_model(model, lora_cfg)
+    model.print_trainable_parameters()
 
     return model, tokenizer
 
@@ -523,7 +539,14 @@ def get_output_projection_weights(model, design_layer: int = 9) -> torch.Tensor:
     attn = model.gpt_neox.layers[design_layer].attention
     dense = attn.dense
 
-    W_O_full = dense.weight  # (hidden_size, hidden_size)
+    W_O_full = dense.weight.detach()  # (hidden_size, hidden_size) — poids de base
+
+    # Avec LoRA, le poids effectif = W_base + scaling · lora_B @ lora_A
+    if hasattr(dense, "lora_A") and "default" in dense.lora_A:
+        scaling = dense.scaling["default"]
+        lora_A  = dense.lora_A["default"].weight.detach()  # (r, in_features)
+        lora_B  = dense.lora_B["default"].weight.detach()  # (out_features, r)
+        W_O_full = W_O_full + scaling * (lora_B @ lora_A)
 
     cfg = attn.config
     num_heads = cfg.num_attention_heads   # 12

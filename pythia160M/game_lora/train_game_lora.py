@@ -66,7 +66,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool = True):
+def train_game_lora(
+    cfg: TrainConfig,
+    design_layer: int = 9,
+    use_nash_mtl: bool = True,
+    use_ldb: bool = True,
+    use_abt: bool = True,
+):
     seed_everything(cfg.seed)
 
     device = get_device()
@@ -82,7 +88,7 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
 
     train_loader, val_loader, optimizer, scheduler, total_steps = setup_training(cfg, model, tokenizer)
     logger.info(f"Total steps : {total_steps}  |  Warmup : {cfg.warmup_steps}")
-    logger.info(f"Design layer : {design_layer}  |  Nash-MTL : {use_nash_mtl}")
+    logger.info(f"Design layer : {design_layer}  |  Nash-MTL : {use_nash_mtl}  |  LDB : {use_ldb}  |  ABT : {use_abt}")
 
     os.makedirs(cfg.output_dir, exist_ok=True)
     _exp_dir  = os.path.dirname(os.path.abspath(cfg.output_dir))
@@ -141,6 +147,10 @@ def train_game_lora(cfg: TrainConfig, design_layer: int = 9, use_nash_mtl: bool 
 
             opt_step = (global_step + 1) // cfg.grad_accum
             lambda_abt, lambda_ldb = loss_scheduler.get_lambdas(opt_step)
+            if not use_ldb:
+                lambda_ldb = 0.0
+            if not use_abt:
+                lambda_abt = 0.0
 
             with torch.autocast(
                 device_type=device.type if device.type != "mps" else "cpu",
@@ -407,6 +417,14 @@ def parse_args():
         "--no_nash_mtl", action="store_true",
         help="Désactiver Nash-MTL, utiliser combinaison linéaire simple (Eq 27)",
     )
+    parser.add_argument(
+        "--no_ldb", action="store_true",
+        help="Ablation : désactiver L_LDB (log-det barrier)",
+    )
+    parser.add_argument(
+        "--no_abt", action="store_true",
+        help="Ablation : désactiver L_ABT (adaptive Barlow Twins)",
+    )
     return parser.parse_args()
 
 
@@ -436,4 +454,12 @@ if __name__ == "__main__":
     log_config(cfg)
     logger.info(f"  Design layer  : {args.design_layer}")
     logger.info(f"  Nash-MTL      : {not args.no_nash_mtl}")
-    train_game_lora(cfg, design_layer=args.design_layer, use_nash_mtl=not args.no_nash_mtl)
+    logger.info(f"  LDB           : {not args.no_ldb}")
+    logger.info(f"  ABT           : {not args.no_abt}")
+    train_game_lora(
+        cfg,
+        design_layer=args.design_layer,
+        use_nash_mtl=not args.no_nash_mtl,
+        use_ldb=not args.no_ldb,
+        use_abt=not args.no_abt,
+    )

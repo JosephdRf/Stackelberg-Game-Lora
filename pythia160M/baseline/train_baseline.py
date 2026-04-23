@@ -1,10 +1,13 @@
 """
-Baseline : FULL fine-tuning de Pythia-160M sur WikiText-103.
+Baseline : LoRA fine-tuning de Pythia-160M sur WikiText-103 (CE seul, sans losses GAME).
+
+Mêmes hyperparamètres LoRA que GAME-LoRA (r=16, alpha=32, dropout=0.1,
+target_modules=[query_key_value, dense]) — seule la loss diffère.
 
 Usage :
     python pythia160M/baseline/train_baseline.py
     python pythia160M/baseline/train_baseline.py --dry_run
-    python pythia160M/baseline/train_baseline.py --wandb_project my_proj --run_name pythia_fullft_v1
+    python pythia160M/baseline/train_baseline.py --wandb_project my_proj --run_name pythia_lora_baseline_v1
 """
 
 import os
@@ -99,7 +102,7 @@ def train(cfg: TrainConfig, head_log_layer: int = 9):
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
-    pbar = tqdm(total=total_steps, desc="Training (Pythia-160M full FT)", unit="step")
+    pbar = tqdm(total=total_steps, desc="Training (Pythia-160M LoRA baseline)", unit="step")
 
     _autocast_dtype = torch.bfloat16
     _use_autocast   = device.type in ("cuda", "cpu")  # pas en MPS
@@ -240,7 +243,7 @@ def train(cfg: TrainConfig, head_log_layer: int = 9):
              color="steelblue", marker="o", markersize=4, label="val loss")
     ax1.set_xlabel("optimizer step")
     ax1.set_ylabel("Cross-entropy loss")
-    ax1.set_title("Training — Pythia-160M full FT on WikiText-103")
+    ax1.set_title("Training — Pythia-160M LoRA baseline on WikiText-103")
     ax1.legend(loc="upper right")
     ax1.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -272,7 +275,7 @@ def train(cfg: TrainConfig, head_log_layer: int = 9):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Baseline FULL fine-tuning — Pythia-160M sur WikiText-103"
+        description="Baseline LoRA fine-tuning — Pythia-160M sur WikiText-103 (CE seul)"
     )
     parser = add_common_args(parser)
     parser.add_argument("--output_dir", default=os.path.join(_HERE, "checkpoints"))
