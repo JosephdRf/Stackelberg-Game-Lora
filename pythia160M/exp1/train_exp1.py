@@ -547,11 +547,11 @@ def parse_args():
         help="LR for simulated follower step (vanilla SGD, no momentum)",
     )
     parser.add_argument(
-        "--lambda_lead", type=float, default=0.0,
+        "--lambda_lead", type=float, default=0.1,
         help="Penalty weight for leader-follower similarity (0 = CE only)",
     )
     parser.add_argument(
-        "--lambda_peer", type=float, default=0.0,
+        "--lambda_peer", type=float, default=0.01,
         help="Penalty weight for peer-follower similarity (0 = CE only)",
     )
     parser.add_argument("--leader_idx", type=int, default=0,

@@ -39,24 +39,17 @@ python pythia160M/eval.py \
 
 ## 4. Stackelberg exp1 — bilevel optimization
 
-Schéma de Stackelberg : leader = `dense` LoRA (projection de sortie), followers = `query_key_value` LoRA.
-Par défaut `λ_lead=0` et `λ_peer=0` (CE pure, pour valider la boucle bilevel avant d'activer la diversité).
+Schéma de Stackelberg : leader = première tête d'attention (`query_key_value` LoRA, head 0), followers = têtes d'attention restantes.
+Par défaut `λ_lead=0.1` et `λ_peer=0.01`. Passer `--lambda_lead 0 --lambda_peer 0` pour CE pure (valider la boucle bilevel sans diversité).
 
 ```bash
 python pythia160M/exp1/train_exp1.py \
     --output_dir /Data/joseph.de-roffignac/checkpoints/exp1 \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name stackelberg_exp1_seed_42
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name Train_stackelberg_exp1_seed_42
 
 python pythia160M/eval.py \
     --model_path /Data/joseph.de-roffignac/checkpoints/exp1/final \
     --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name Eval_exp1_seed_42
-```
-
-Activer la diversité :
-```bash
-python pythia160M/exp1/train_exp1.py --lambda_lead 0.1 --lambda_peer 0.01 \
-    --output_dir /Data/joseph.de-roffignac/checkpoints/exp1_div \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name stackelberg_div_seed_42
 ```
 
 ## 5. Ablation studies (GAME-LoRA)
