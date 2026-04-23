@@ -150,7 +150,7 @@ def train_stackelberg(
     use_wandb = cfg.wandb_project is not None
     if use_wandb:
         import wandb
-        wandb.init(project=cfg.wandb_project, name=cfg.run_name, config=vars(cfg))
+        wandb.init(project=cfg.wandb_project, name=cfg.run_name, group=cfg.wandb_group, config=vars(cfg))
 
     # ── Model with eager attention ──
     model, tokenizer = build_model_eager(cfg)

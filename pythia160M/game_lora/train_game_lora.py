@@ -81,7 +81,7 @@ def train_game_lora(
     use_wandb = cfg.wandb_project is not None
     if use_wandb:
         import wandb
-        wandb.init(project=cfg.wandb_project, name=cfg.run_name, config=vars(cfg))
+        wandb.init(project=cfg.wandb_project, name=cfg.run_name, group=cfg.wandb_group, config=vars(cfg))
 
     model, tokenizer = build_model_and_tokenizer(cfg)
     model = model.to(device)
