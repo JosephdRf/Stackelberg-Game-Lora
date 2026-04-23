@@ -37,22 +37,8 @@ python pythia160M/eval.py \
     --wandb_project Stackelberg-Pythia160M --wandb_group Game_Lora --wandb_run_name Eval_game_lora
 ```
 
-## 4. Stackelberg exp1 — bilevel optimization
 
-Schéma de Stackelberg : leader = première tête d'attention (`query_key_value` LoRA, head 0), followers = têtes d'attention restantes.
-Par défaut `λ_lead=0.1` et `λ_peer=0.01`. Passer `--lambda_lead 0 --lambda_peer 0` pour CE pure (valider la boucle bilevel sans diversité).
-
-```bash
-python pythia160M/exp1/train_exp1.py \
-    --output_dir /Data/joseph.de-roffignac/checkpoints/exp1 \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name Train_stackelberg_exp1_seed_42
-
-python pythia160M/eval.py \
-    --model_path /Data/joseph.de-roffignac/checkpoints/exp1/final \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name Eval_exp1_seed_42
-```
-
-## 5. Ablation studies (GAME-LoRA)
+## 4. Ablation studies (GAME-LoRA)
 
 Les flags `--no_ldb` et `--no_abt` permettent de désactiver chaque terme de la loss GAME.
 
@@ -78,4 +64,20 @@ python pythia160M/game_lora/train_game_lora.py --no_ldb \
 python pythia160M/game_lora/train_game_lora.py --no_ldb --no_abt \
     --output_dir /Data/joseph.de-roffignac/checkpoints/ablation_lora_only \
     --wandb_project Stackelberg-Pythia160M --wandb_group Ablation --run_name lora_only_seed_42
+```
+
+
+## 5. Stackelberg exp1 — bilevel optimization
+
+Schéma de Stackelberg : leader = première tête d'attention (`query_key_value` LoRA, head 0), followers = têtes d'attention restantes.
+Par défaut `λ_lead=0.1` et `λ_peer=0.01`. Passer `--lambda_lead 0 --lambda_peer 0` pour CE pure (valider la boucle bilevel sans diversité).
+
+```bash
+python pythia160M/exp1/train_exp1.py \
+    --output_dir /Data/joseph.de-roffignac/checkpoints/exp1 \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name Train_stackelberg_exp1_seed_42
+
+python pythia160M/eval.py \
+    --model_path /Data/joseph.de-roffignac/checkpoints/exp1/final \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name Eval_exp1_seed_42
 ```

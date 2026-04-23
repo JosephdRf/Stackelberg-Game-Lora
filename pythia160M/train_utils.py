@@ -100,8 +100,8 @@ class TrainConfig:
     lr: float = 3e-4               # LR standard LoRA (vs 3e-5 full FT)
     weight_decay: float = 0.01
     warmup_ratio: float = 0.03
-    batch_size_per_gpu: int = 8
-    grad_accum: int = 2           # batch effectif = 16
+    batch_size_per_gpu: int = 4
+    grad_accum: int = 4           # batch effectif = 16
     grad_clip: float = 1.0
     betas: tuple = (0.9, 0.95)    # beta2=0.95 classique pour les LM
 
@@ -364,8 +364,8 @@ def add_common_args(parser):
     parser.add_argument("--dataset_name", default="Salesforce/wikitext")
     parser.add_argument("--dataset_config", default="wikitext-103-raw-v1")
     parser.add_argument("--total_tokens", type=int, default=100_000_000)
-    parser.add_argument("--batch_size_per_gpu", type=int, default=8)
-    parser.add_argument("--grad_accum", type=int, default=2)
+    parser.add_argument("--batch_size_per_gpu", type=int, default=4)
+    parser.add_argument("--grad_accum", type=int, default=4)
     parser.add_argument("--lr", type=float, default=3e-5)
     parser.add_argument("--wandb_project", default=None)
     parser.add_argument("--wandb_group",   default=None,

@@ -108,7 +108,7 @@ def build_model_eager(cfg: TrainConfig):
     else:
         model = AutoModelForCausalLM.from_pretrained(
             cfg.model_name,
-            torch_dtype=torch.float32,
+            torch_dtype=torch.bfloat16,
             attn_implementation="eager",
             trust_remote_code=True,
         )
@@ -192,7 +192,7 @@ def train_stackelberg(
     total_steps = 100 if cfg.dry_run else cfg.total_steps
 
     # ── Split parameters: leader (dense) vs followers (query_key_value) ──
-    leader_params, follower_params = split_leader_follower_params(model)
+    leader_params, follower_params, _grad_hooks = split_leader_follower_params(model)
     logger.info(f"Leader params (dense LoRA)          : {sum(p.numel() for p in leader_params):,}")
     logger.info(f"Follower params (query_key_value LoRA): {sum(p.numel() for p in follower_params):,}")
     logger.info(f"Design layer : {design_layer}  |  Leader head idx : {leader_idx}")
@@ -464,6 +464,8 @@ def train_stackelberg(
 
     pbar.close()
     attn_capture.remove()
+    for h in _grad_hooks:
+        h.remove()
 
     # ── Eval finale ──
     logger.info("Eval finale ...")

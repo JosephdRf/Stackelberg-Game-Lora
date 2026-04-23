@@ -255,10 +255,10 @@ class AttentionWeightCapture:
             )
 
         def hook_fn(module, args, output):
-            # GPTNeoXAttention with output_attentions=True:
-            #   output = (attn_output, present_key_value, attn_weights)
-            if isinstance(output, tuple) and len(output) >= 3 and output[2] is not None:
-                self._weights = output[2]  # (B, H, L, L)
+            # GPTNeoXAttention returns (attn_output, attn_weights) — 2-tuple.
+            # (Older transformers had a 3-tuple with present_key_value at index 1.)
+            if isinstance(output, tuple) and len(output) >= 2 and output[1] is not None:
+                self._weights = output[1]  # (B, H, L, L)
 
         self._hooks.append(attn_module.register_forward_hook(hook_fn))
 
