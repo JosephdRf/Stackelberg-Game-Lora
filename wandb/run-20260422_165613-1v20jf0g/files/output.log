@@ -1,0 +1,54 @@
+16:56:15 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+16:56:16 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+16:56:16 | INFO | PyTorch version 2.8.0 available.
+16:59:29 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+16:59:31 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+16:59:31 | INFO | Total steps : 6104  |  Warmup : 184
+16:59:31 | INFO | Eval initiale (modèle pré-entraîné, avant fine-tuning) ...
+16:59:34 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+Training (Pythia-160M full FT):   0%|                                                                                                        | 1/6104 [00:00<56:14,  1.81step/s, loss=4.4068, tok_s=29,603]16:59:34 | INFO | [train] step      1/6104  loss=4.4068  ema=4.4068  lr=1.63e-07  tok/s=29,603
+Training (Pythia-160M full FT):   0%|▎                                                                                                      | 20/6104 [00:09<50:40,  2.00step/s, loss=4.2873, tok_s=32,675]16:59:44 | INFO | [train] step     20/6104  loss=4.2873  ema=4.3234  lr=3.26e-06  tok/s=32,675
+Training (Pythia-160M full FT):   1%|▋                                                                                                      | 40/6104 [00:19<50:31,  2.00step/s, loss=4.0859, tok_s=32,764]16:59:54 | INFO | [train] step     40/6104  loss=4.0859  ema=4.1449  lr=6.52e-06  tok/s=32,764
+Training (Pythia-160M full FT):   1%|█                                                                                                      | 60/6104 [00:29<50:22,  2.00step/s, loss=3.7369, tok_s=32,753]17:00:04 | INFO | [train] step     60/6104  loss=3.7369  ema=3.9706  lr=9.78e-06  tok/s=32,753
+Training (Pythia-160M full FT):   1%|█▎                                                                                                     | 80/6104 [00:40<50:23,  1.99step/s, loss=3.7561, tok_s=32,650]17:00:14 | INFO | [train] step     80/6104  loss=3.7561  ema=3.8652  lr=1.30e-05  tok/s=32,650
+Training (Pythia-160M full FT):   2%|█▋                                                                                                    | 100/6104 [00:50<50:15,  1.99step/s, loss=3.7417, tok_s=32,657]17:00:24 | INFO | [train] step    100/6104  loss=3.7417  ema=3.8291  lr=1.63e-05  tok/s=32,657
+17:00:26 | INFO | [val]   step    100  val_loss=3.8183  val_ppl=45.527
+Training (Pythia-160M full FT):   2%|██                                                                                                    | 120/6104 [01:02<50:27,  1.98step/s, loss=3.9625, tok_s=32,566]17:00:36 | INFO | [train] step    120/6104  loss=3.9625  ema=3.8926  lr=1.96e-05  tok/s=32,566
+Training (Pythia-160M full FT):   2%|██▎                                                                                                   | 140/6104 [01:12<50:04,  1.98step/s, loss=3.9497, tok_s=32,537]17:00:46 | INFO | [train] step    140/6104  loss=3.9497  ema=3.9163  lr=2.28e-05  tok/s=32,537
+Training (Pythia-160M full FT):   3%|██▋                                                                                                   | 160/6104 [01:22<49:59,  1.98step/s, loss=4.0440, tok_s=32,475]17:00:56 | INFO | [train] step    160/6104  loss=4.0440  ema=3.9823  lr=2.61e-05  tok/s=32,475
+Training (Pythia-160M full FT):   3%|███                                                                                                   | 180/6104 [01:32<49:49,  1.98step/s, loss=4.0206, tok_s=32,435]17:01:07 | INFO | [train] step    180/6104  loss=4.0206  ema=4.0333  lr=2.93e-05  tok/s=32,435
+Training (Pythia-160M full FT):   3%|███▎                                                                                                  | 200/6104 [01:43<49:39,  1.98step/s, loss=4.2003, tok_s=32,437]17:01:17 | INFO | [train] step    200/6104  loss=4.2003  ema=4.0364  lr=3.00e-05  tok/s=32,437
+17:01:19 | INFO | [val]   step    200  val_loss=3.9902  val_ppl=54.065
+Training (Pythia-160M full FT):   4%|███▋                                                                                                  | 220/6104 [01:55<49:37,  1.98step/s, loss=3.8807, tok_s=32,421]17:01:29 | INFO | [train] step    220/6104  loss=3.8807  ema=4.0031  lr=3.00e-05  tok/s=32,421
+Training (Pythia-160M full FT):   4%|████                                                                                                  | 240/6104 [02:05<49:20,  1.98step/s, loss=4.1249, tok_s=32,525]17:01:39 | INFO | [train] step    240/6104  loss=4.1249  ema=4.0067  lr=3.00e-05  tok/s=32,525
+Training (Pythia-160M full FT):   4%|████▎                                                                                                 | 260/6104 [02:15<49:14,  1.98step/s, loss=4.0943, tok_s=32,392]17:01:49 | INFO | [train] step    260/6104  loss=4.0943  ema=4.0354  lr=3.00e-05  tok/s=32,392
+Training (Pythia-160M full FT):   5%|████▋                                                                                                 | 280/6104 [02:25<49:01,  1.98step/s, loss=4.1250, tok_s=32,459]17:01:59 | INFO | [train] step    280/6104  loss=4.1250  ema=4.0625  lr=3.00e-05  tok/s=32,459
+Training (Pythia-160M full FT):   5%|█████                                                                                                 | 300/6104 [02:36<48:54,  1.98step/s, loss=4.0914, tok_s=32,439]17:02:10 | INFO | [train] step    300/6104  loss=4.0914  ema=4.0414  lr=3.00e-05  tok/s=32,439
+17:02:12 | INFO | [val]   step    300  val_loss=4.0217  val_ppl=55.794
+Training (Pythia-160M full FT):   5%|█████▎                                                                                                | 320/6104 [02:48<48:49,  1.97step/s, loss=3.8327, tok_s=32,397]17:02:22 | INFO | [train] step    320/6104  loss=3.8327  ema=4.0560  lr=3.00e-05  tok/s=32,397
+Training (Pythia-160M full FT):   6%|█████▋                                                                                                | 340/6104 [02:58<48:36,  1.98step/s, loss=4.0016, tok_s=32,385]17:02:32 | INFO | [train] step    340/6104  loss=4.0016  ema=4.0405  lr=2.99e-05  tok/s=32,385
+Training (Pythia-160M full FT):   6%|██████                                                                                                | 360/6104 [03:08<48:27,  1.98step/s, loss=4.4984, tok_s=32,339]17:02:42 | INFO | [train] step    360/6104  loss=4.4984  ema=4.1884  lr=2.99e-05  tok/s=32,339
+Training (Pythia-160M full FT):   6%|██████▎                                                                                               | 380/6104 [03:18<48:16,  1.98step/s, loss=4.0358, tok_s=32,363]17:02:53 | INFO | [train] step    380/6104  loss=4.0358  ema=4.1870  lr=2.99e-05  tok/s=32,363
+Training (Pythia-160M full FT):   7%|██████▋                                                                                               | 400/6104 [03:29<48:07,  1.98step/s, loss=3.9812, tok_s=32,346]17:03:03 | INFO | [train] step    400/6104  loss=3.9812  ema=4.0845  lr=2.99e-05  tok/s=32,346
+17:03:05 | INFO | [val]   step    400  val_loss=3.9906  val_ppl=54.086
+Training (Pythia-160M full FT):   7%|███████                                                                                               | 420/6104 [03:41<48:01,  1.97step/s, loss=3.9628, tok_s=32,353]17:03:15 | INFO | [train] step    420/6104  loss=3.9628  ema=4.0245  lr=2.99e-05  tok/s=32,353
+Training (Pythia-160M full FT):   7%|███████▎                                                                                              | 440/6104 [03:51<47:47,  1.98step/s, loss=3.9107, tok_s=32,367]17:03:25 | INFO | [train] step    440/6104  loss=3.9107  ema=3.9619  lr=2.99e-05  tok/s=32,367
+Training (Pythia-160M full FT):   8%|███████▋                                                                                              | 460/6104 [04:01<47:36,  1.98step/s, loss=3.7523, tok_s=32,393]17:03:35 | INFO | [train] step    460/6104  loss=3.7523  ema=3.9467  lr=2.98e-05  tok/s=32,393
+Training (Pythia-160M full FT):   8%|████████                                                                                              | 480/6104 [04:12<47:28,  1.97step/s, loss=4.0747, tok_s=32,341]17:03:46 | INFO | [train] step    480/6104  loss=4.0747  ema=3.9548  lr=2.98e-05  tok/s=32,341
+Training (Pythia-160M full FT):   8%|████████▎                                                                                             | 500/6104 [04:22<47:17,  1.97step/s, loss=4.0574, tok_s=32,349]17:03:56 | INFO | [train] step    500/6104  loss=4.0574  ema=3.9463  lr=2.98e-05  tok/s=32,349
+17:03:58 | INFO | [val]   step    500  val_loss=3.9112  val_ppl=49.959
+17:03:59 | INFO | Checkpoint → /Data/joseph.de-roffignac/checkpoints/baseline/step_500
+Training (Pythia-160M full FT):   9%|████████▋                                                                                             | 520/6104 [04:35<47:13,  1.97step/s, loss=3.9632, tok_s=32,327]17:04:09 | INFO | [train] step    520/6104  loss=3.9632  ema=3.9306  lr=2.98e-05  tok/s=32,327
+Training (Pythia-160M full FT):   9%|████████▊                                                                                             | 529/6104 [04:39<47:03,  1.97step/s, loss=3.9913, tok_s=32,327]Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 302, in <module>
+    train(cfg)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 122, in train
+    accum_loss += loss.item()
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 302, in <module>
+    train(cfg)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/baseline/train_baseline.py", line 122, in train
+    accum_loss += loss.item()
+KeyboardInterrupt

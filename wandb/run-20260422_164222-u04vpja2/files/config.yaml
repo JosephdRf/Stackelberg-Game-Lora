@@ -1,0 +1,80 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            jbsurb4g436icbr70ui9du69ctydwdyo:
+                args:
+                    - --model_path
+                    - EleutherAI/pythia-160m
+                    - --wandb_project
+                    - Stackelberg-Pythia160M
+                    - --wandb_group
+                    - Base
+                    - --wandb_run_name
+                    - Eval_seed_42
+                codePath: pythia160M/eval.py
+                codePathLocal: pythia160M/eval.py
+                cpu_count: 20
+                cpu_count_logical: 28
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "4227858432"
+                        used: "1275678720"
+                email: joseph.deroffignac@gmail.com
+                executable: /usr/bin/python
+                git:
+                    commit: c9793bfd3e0a7f690546fb6ef72bf49a8718599c
+                    remote: https://github.com/JosephdRf/Stackelberg-Game-Lora
+                gpu: NVIDIA RTX 4000 Ada Generation
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 6144
+                      memoryTotal: "21469593600"
+                      name: NVIDIA RTX 4000 Ada Generation
+                      uuid: GPU-a17b5f03-c089-e331-a72c-5c315ae8c7b2
+                host: landes.polytechnique.fr
+                memory:
+                    total: "66822729728"
+                os: Linux-5.14.0-611.47.1.el9_7.x86_64-x86_64-with-glibc2.34
+                program: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py
+                python: CPython 3.9.25
+                root: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora
+                startedAt: "2026-04-22T14:42:22.537490Z"
+                writerId: jbsurb4g436icbr70ui9du69ctydwdyo
+        m: []
+        python_version: 3.9.25
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 71
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 51
+                - 53
+                - 71
+            "3":
+                - 2
+                - 13
+                - 15
+                - 16
+                - 62
+            "4": 3.9.25
+            "5": 0.25.1
+            "6": 4.57.6
+            "12": 0.25.1
+            "13": linux-x86_64
+model_path:
+    value: EleutherAI/pythia-160m
+n_samples:
+    value: null
+seed:
+    value: 42

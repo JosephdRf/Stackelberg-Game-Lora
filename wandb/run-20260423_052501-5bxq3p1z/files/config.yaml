@@ -1,0 +1,82 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            2x3f0j755woijp5lbqcbyzc2hves4ihu:
+                args:
+                    - --model_path
+                    - /Data/joseph.de-roffignac/checkpoints/baseline/final
+                    - --wandb_project
+                    - Stackelberg-Pythia160M
+                    - --wandb_group
+                    - Baseline
+                    - --wandb_run_name
+                    - Eval_baseline_3seeds
+                codePath: pythia160M/eval.py
+                codePathLocal: pythia160M/eval.py
+                cpu_count: 20
+                cpu_count_logical: 28
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "4227858432"
+                        used: "1275678720"
+                email: joseph.deroffignac@gmail.com
+                executable: /usr/bin/python
+                git:
+                    commit: 36e71a9b523d921b77fd40c92973fb56d29cf281
+                    remote: https://github.com/JosephdRf/Stackelberg-Game-Lora
+                gpu: NVIDIA RTX 4000 Ada Generation
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 6144
+                      memoryTotal: "21469593600"
+                      name: NVIDIA RTX 4000 Ada Generation
+                      uuid: GPU-a17b5f03-c089-e331-a72c-5c315ae8c7b2
+                host: landes.polytechnique.fr
+                memory:
+                    total: "66822725632"
+                os: Linux-5.14.0-611.49.1.el9_7.x86_64-x86_64-with-glibc2.34
+                program: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py
+                python: CPython 3.9.25
+                root: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora
+                startedAt: "2026-04-23T03:25:01.656446Z"
+                writerId: 2x3f0j755woijp5lbqcbyzc2hves4ihu
+        m: []
+        python_version: 3.9.25
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 71
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 51
+                - 53
+                - 71
+                - 98
+            "3":
+                - 13
+                - 15
+                - 16
+            "4": 3.9.25
+            "5": 0.25.1
+            "6": 4.57.6
+            "12": 0.25.1
+            "13": linux-x86_64
+model_path:
+    value: /Data/joseph.de-roffignac/checkpoints/baseline/final
+n_samples:
+    value: null
+seeds:
+    value:
+        - 42
+        - 43
+        - 44

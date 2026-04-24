@@ -1,0 +1,124 @@
+05:25:03 | INFO | Chargement du modèle depuis /Data/joseph.de-roffignac/checkpoints/baseline/final ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+05:25:07 | INFO |
+--- Seed 42 ---
+05:25:07 | INFO | === Évaluation Pythia-160M ===
+05:25:07 | INFO |   Ignorés : ['PTB_BPB', 'PIQA', 'ARC-Easy', 'MemoTrap']
+05:25:07 | INFO | WikiText-103 (in-domain, cible du FT) ...
+05:25:07 | INFO | PyTorch version 2.8.0 available.
+05:25:26 | INFO |   WT103 PPL   = 31.756   BPB = 1.1136                                                                                                                                      
+05:25:26 | INFO | LAMBADA ...
+05:25:53 | INFO |   LAMBADA ppl = 11.427                                                                                                                                                     
+05:25:53 | INFO | HellaSwag ...
+05:29:10 | INFO |   HellaSwag   acc=0.2850  acc_norm=0.3001                                                                                                                                  
+05:29:10 | INFO |
+--- Seed 43 ---
+05:29:10 | INFO | === Évaluation Pythia-160M ===
+05:29:10 | INFO |   Ignorés : ['PTB_BPB', 'PIQA', 'ARC-Easy', 'MemoTrap']
+05:29:10 | INFO | WikiText-103 (in-domain, cible du FT) ...
+05:29:28 | INFO |   WT103 PPL   = 31.756   BPB = 1.1136                                                                                                                                      
+05:29:28 | INFO | LAMBADA ...
+05:29:56 | INFO |   LAMBADA ppl = 11.427                                                                                                                                                     
+05:29:56 | INFO | HellaSwag ...
+05:33:13 | INFO |   HellaSwag   acc=0.2850  acc_norm=0.3001                                                                                                                                  
+05:33:13 | INFO |
+--- Seed 44 ---
+05:33:13 | INFO | === Évaluation Pythia-160M ===
+05:33:13 | INFO |   Ignorés : ['PTB_BPB', 'PIQA', 'ARC-Easy', 'MemoTrap']
+05:33:13 | INFO | WikiText-103 (in-domain, cible du FT) ...
+05:33:31 | INFO |   WT103 PPL   = 31.756   BPB = 1.1136                                                                                                                                      
+05:33:31 | INFO | LAMBADA ...
+05:33:58 | INFO |   LAMBADA ppl = 11.427                                                                                                                                                     
+05:33:58 | INFO | HellaSwag ...
+Traceback (most recent call last):                                                                                                                                                           
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 609, in <module>
+    "PTB_BPB", "PTB_PPL",
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 532, in run_eval
+    r = eval_hellaswag(model, tokenizer, device, n, seed)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 322, in eval_hellaswag
+    ll, _, _, nb = conditional_log_likelihood(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 144, in conditional_log_likelihood
+    out = model(input_ids=input_ids)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/utils/generic.py", line 918, in wrapper
+    output = func(self, *args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 577, in forward
+    outputs: BaseModelOutputWithPast = self.gpt_neox(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/utils/generic.py", line 1072, in wrapper
+    outputs = func(self, *args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 475, in forward
+    outputs = layer(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/modeling_layers.py", line 94, in __call__
+    return super().__call__(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 238, in forward
+    mlp_output = self.mlp(self.post_attention_layernorm(hidden_states))
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 46, in forward
+    hidden_states = self.dense_h_to_4h(hidden_states)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 609, in <module>
+    "PTB_BPB", "PTB_PPL",
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 532, in run_eval
+    r = eval_hellaswag(model, tokenizer, device, n, seed)
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 322, in eval_hellaswag
+    ll, _, _, nb = conditional_log_likelihood(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/eval.py", line 144, in conditional_log_likelihood
+    out = model(input_ids=input_ids)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/utils/generic.py", line 918, in wrapper
+    output = func(self, *args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 577, in forward
+    outputs: BaseModelOutputWithPast = self.gpt_neox(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/utils/generic.py", line 1072, in wrapper
+    outputs = func(self, *args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 475, in forward
+    outputs = layer(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/modeling_layers.py", line 94, in __call__
+    return super().__call__(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 238, in forward
+    mlp_output = self.mlp(self.post_attention_layernorm(hidden_states))
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 46, in forward
+    hidden_states = self.dense_h_to_4h(hidden_states)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt

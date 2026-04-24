@@ -1,0 +1,23 @@
+17:42:27 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+17:42:28 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+17:42:28 | INFO | PyTorch version 2.8.0 available.
+17:45:36 | INFO |   Dataset 'train' : 1,637,950 tokens → 1598 blocs de 1025 tokens
+17:45:38 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+17:45:38 | INFO | Total steps : 100  |  Warmup : 184
+17:45:38 | INFO | Eval initiale (modèle pré-entraîné, avant fine-tuning) ...
+17:45:40 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+Training (Pythia-160M full FT):   1%|█                                                                                                        | 1/100 [00:00<00:52,  1.88step/s, loss=4.3490, tok_s=30,804]17:45:41 | INFO | [train] step      1/100  loss=4.3490  ema=4.3490  lr=1.63e-07  tok/s=30,804
+Training (Pythia-160M full FT):  20%|████████████████████▊                                                                                   | 20/100 [00:09<00:39,  2.01step/s, loss=4.1616, tok_s=32,952]17:45:50 | INFO | [train] step     20/100  loss=4.1616  ema=4.2720  lr=3.26e-06  tok/s=32,952
+Training (Pythia-160M full FT):  40%|█████████████████████████████████████████▌                                                              | 40/100 [00:19<00:29,  2.00step/s, loss=4.0359, tok_s=32,818]17:46:00 | INFO | [train] step     40/100  loss=4.0359  ema=4.1218  lr=6.52e-06  tok/s=32,818
+Training (Pythia-160M full FT):  60%|██████████████████████████████████████████████████████████████▍                                         | 60/100 [00:29<00:19,  2.00step/s, loss=3.8013, tok_s=32,807]17:46:10 | INFO | [train] step     60/100  loss=3.8013  ema=3.9622  lr=9.78e-06  tok/s=32,807
+Training (Pythia-160M full FT):  80%|███████████████████████████████████████████████████████████████████████████████████▏                    | 80/100 [00:40<00:10,  1.94step/s, loss=3.8686, tok_s=32,647]17:46:20 | INFO | [train] step     80/100  loss=3.8686  ema=3.8729  lr=1.30e-05  tok/s=32,647
+Training (Pythia-160M full FT):  99%|██████████████████████████████████████████████████████████████████████████████████████████████████████▉ | 99/100 [00:49<00:00,  1.99step/s, loss=3.8126, tok_s=32,646]17:46:30 | INFO | Fin d'epoch — on recommence un passage sur le dataset.
+Training (Pythia-160M full FT): 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:50<00:00,  1.99step/s, loss=3.7937, tok_s=32,467]17:46:30 | INFO | [train] step    100/100  loss=3.7937  ema=3.8434  lr=1.63e-05  tok/s=32,467
+17:46:33 | INFO | [val]   step    100  val_loss=3.8617  val_ppl=47.544
+17:46:33 | INFO |   [head matrices] layer=9  Γ(G)=0.0127
+Training (Pythia-160M full FT): 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:53<00:00,  1.88step/s, loss=3.7937, tok_s=32,467]
+17:46:33 | INFO | Eval finale ...
+17:46:36 | INFO |   [final] val_loss=3.8617  val_ppl=47.544
+17:46:36 | INFO | Modèle final sauvegardé → /Data/joseph.de-roffignac/checkpoints/baseline/final
+17:46:36 | INFO | Plots → /Data/joseph.de-roffignac/checkpoints/plots

@@ -1,0 +1,141 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            zr0fk2zkl6oqychag7ajkz0wbszakdno:
+                args:
+                    - --run_name
+                    - Train_stackelberg_exp1_4_seed42
+                    - --seed
+                    - "42"
+                    - --lr_leader
+                    - "3e-5"
+                    - --lr_follower
+                    - "3e-5"
+                    - --lr_sim
+                    - "3e-5"
+                    - --lambda_lead
+                    - "0"
+                    - --lambda_peer
+                    - "0"
+                codePath: pythia160M/exp1/train_exp1.py
+                codePathLocal: pythia160M/exp1/train_exp1.py
+                cpu_count: 20
+                cpu_count_logical: 28
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "4227858432"
+                        used: "1275383808"
+                email: joseph.deroffignac@gmail.com
+                executable: /usr/bin/python
+                git:
+                    commit: 90bc03ab7a20f1732ce39abbb35c8cb1baa66052
+                    remote: https://github.com/JosephdRf/Stackelberg-Game-Lora
+                gpu: NVIDIA RTX 4000 Ada Generation
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 6144
+                      memoryTotal: "21469593600"
+                      name: NVIDIA RTX 4000 Ada Generation
+                      uuid: GPU-a17b5f03-c089-e331-a72c-5c315ae8c7b2
+                host: landes.polytechnique.fr
+                memory:
+                    total: "66822725632"
+                os: Linux-5.14.0-611.49.1.el9_7.x86_64-x86_64-with-glibc2.34
+                program: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py
+                python: CPython 3.9.25
+                root: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora
+                startedAt: "2026-04-24T04:40:10.644058Z"
+                writerId: zr0fk2zkl6oqychag7ajkz0wbszakdno
+        m: []
+        python_version: 3.9.25
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 71
+                - 98
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 51
+                - 53
+                - 71
+                - 98
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.9.25
+            "5": 0.25.1
+            "6": 4.57.6
+            "12": 0.25.1
+            "13": linux-x86_64
+batch_size_per_gpu:
+    value: 4
+betas:
+    value:
+        - 0.9
+        - 0.95
+dataset_config:
+    value: wikitext-103-raw-v1
+dataset_name:
+    value: Salesforce/wikitext
+dry_run:
+    value: false
+eval_every:
+    value: 100
+eval_max_batches:
+    value: 50
+grad_accum:
+    value: 4
+grad_clip:
+    value: 1
+log_every:
+    value: 20
+lora_alpha:
+    value: 32
+lora_dropout:
+    value: 0.1
+lora_rank:
+    value: 16
+lora_target_modules:
+    value:
+        - query_key_value
+        - dense
+lr:
+    value: 3e-05
+model_name:
+    value: EleutherAI/pythia-160m
+num_workers:
+    value: 8
+output_dir:
+    value: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/checkpoints
+random_init:
+    value: false
+run_name:
+    value: Train_stackelberg_exp1_4_seed42
+save_every:
+    value: 500
+seed:
+    value: 42
+seq_len:
+    value: 1024
+total_tokens:
+    value: 100000000
+wandb_group:
+    value: null
+wandb_project:
+    value: Stackelberg-Pythia160M
+warmup_ratio:
+    value: 0.03
+weight_decay:
+    value: 0.01

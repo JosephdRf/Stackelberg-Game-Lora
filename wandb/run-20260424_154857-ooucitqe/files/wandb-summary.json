@@ -1,0 +1,1 @@
+{"_wandb":{"runtime":798},"_runtime":798,"eval/WikiText103_PPL":36.1121,"eval/WikiText103_BPB":1.155,"eval/LAMBADA_ppl":21.2821,"eval/HellaSwag_acc":0.2825,"eval/HellaSwag_acc_norm":0.2955}

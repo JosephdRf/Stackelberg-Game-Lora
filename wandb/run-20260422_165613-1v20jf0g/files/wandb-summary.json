@@ -1,0 +1,1 @@
+{"train/step":520,"train/loss":3.9631974697113037,"_runtime":479.089598129,"val/loss":3.911206929914413,"train/tokens":8519680,"train/loss_ema":3.930631423522742,"_wandb":{"runtime":479},"_timestamp":1.7768702490839534e+09,"_step":520,"train/lr":2.9762181733508454e-05,"val/ppl":49.959212869266295}

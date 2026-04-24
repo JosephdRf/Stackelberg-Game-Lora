@@ -1,0 +1,25 @@
+{
+  "os": "Linux-5.14.0-611.49.1.el9_7.x86_64-x86_64-with-glibc2.34",
+  "python": "CPython 3.9.25",
+  "startedAt": "2026-04-24T04:37:21.771188Z",
+  "args": [
+    "--history",
+    "pythia160M/exp1/logs/history.json",
+    "--run_name",
+    "Train_stackelberg_exp1_2_seed42",
+    "--group",
+    "Exp1"
+  ],
+  "program": "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/upload_history_to_wandb.py",
+  "codePath": "pythia160M/exp1/upload_history_to_wandb.py",
+  "codePathLocal": "pythia160M/exp1/upload_history_to_wandb.py",
+  "git": {
+    "remote": "https://github.com/JosephdRf/Stackelberg-Game-Lora",
+    "commit": "90bc03ab7a20f1732ce39abbb35c8cb1baa66052"
+  },
+  "email": "joseph.deroffignac@gmail.com",
+  "root": "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora",
+  "host": "landes.polytechnique.fr",
+  "executable": "/usr/bin/python",
+  "writerId": "r9meszecb7yqa959npzl45eikmkc43pc"
+}

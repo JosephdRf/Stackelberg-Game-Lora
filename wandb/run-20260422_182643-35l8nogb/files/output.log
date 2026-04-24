@@ -1,0 +1,15 @@
+18:26:47 | INFO | Chargement de EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+18:26:48 | INFO |   Params entraînables : 162,322,944 / 162,322,944 (100.0%)
+18:26:48 | INFO | PyTorch version 2.8.0 available.
+18:30:02 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+18:30:04 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+18:30:04 | INFO | Total steps : 6104  |  Warmup : 184
+18:30:04 | INFO | Eval initiale (modèle pré-entraîné, avant fine-tuning) ...
+18:30:07 | INFO |   [step 0] val_loss=4.3708  val_ppl=79.109
+Training (Pythia-160M full FT):   0%|                                                                                                      | 1/6104 [00:00<1:28:35,  1.15step/s, loss=4.4068, tok_s=18,801]18:30:08 | INFO | [train] step      1/6104  loss=4.4068  ema=4.4068  lr=1.63e-07  tok/s=18,801
+Training (Pythia-160M full FT):   0%|▎                                                                                                      | 20/6104 [00:11<59:19,  1.71step/s, loss=4.2763, tok_s=29,572]18:30:19 | INFO | [train] step     20/6104  loss=4.2763  ema=4.3223  lr=3.26e-06  tok/s=29,572
+Training (Pythia-160M full FT):   1%|▋                                                                                                      | 40/6104 [00:23<58:19,  1.73step/s, loss=4.0861, tok_s=29,567]18:30:31 | INFO | [train] step     40/6104  loss=4.0861  ema=4.1387  lr=6.52e-06  tok/s=29,567
+Training (Pythia-160M full FT):   1%|█                                                                                                      | 60/6104 [00:35<57:34,  1.75step/s, loss=3.7550, tok_s=29,521]18:30:42 | INFO | [train] step     60/6104  loss=3.7550  ema=3.9678  lr=9.78e-06  tok/s=29,521
+Training (Pythia-160M full FT):   1%|█▎                                                                                                     | 80/6104 [00:46<56:51,  1.77step/s, loss=3.7968, tok_s=29,552]18:30:54 | INFO | [train] step     80/6104  loss=3.7968  ema=3.8778  lr=1.30e-05  tok/s=29,552
+Training (Pythia-160M full FT):   2%|█▌                                                                                                   | 93/6104 [00:54<1:01:58,  1.62step/s, loss=3.9145, tok_s=21,663]

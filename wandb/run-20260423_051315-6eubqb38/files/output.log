@@ -1,0 +1,18 @@
+05:13:18 | INFO | Chargement du modèle depuis /Data/joseph.de-roffignac/checkpoints/baseline/final ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+05:13:28 | INFO | === Évaluation Pythia-160M ===
+05:13:28 | INFO |   Ignorés : ['PTB_BPB', 'PIQA', 'ARC-Easy', 'MemoTrap']
+05:13:28 | INFO | WikiText-103 (in-domain, cible du FT) ...
+05:13:28 | INFO | PyTorch version 2.8.0 available.
+05:13:48 | INFO |   WT103 PPL   = 31.756   BPB = 1.1136                                                                                                                                      
+05:13:48 | INFO | LAMBADA ...
+05:14:16 | INFO |   LAMBADA ppl = 11.427                                                                                                                                                     
+05:14:16 | INFO | HellaSwag ...
+05:17:33 | INFO |   HellaSwag   acc=0.2850  acc_norm=0.3001                                                                                                                                  
+05:17:33 | INFO |
+=== Résultats finaux ===
+05:17:33 | INFO |   WikiText103_PPL      = 31.7564
+05:17:33 | INFO |   WikiText103_BPB      = 1.1136
+05:17:33 | INFO |   LAMBADA_ppl          = 11.4267
+05:17:33 | INFO |   HellaSwag_acc        = 0.285
+05:17:33 | INFO |   HellaSwag_acc_norm   = 0.3001

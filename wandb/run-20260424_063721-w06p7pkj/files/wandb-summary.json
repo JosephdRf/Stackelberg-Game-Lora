@@ -1,0 +1,1 @@
+{"train/leader_ce":4.136177062988281,"val/loss":4.039444942474365,"_runtime":0.151459625,"val/ppl":56.79480966840262,"_step":6104,"train/ce_loss":4.118120193481445,"train/ce_ema":4.110088451953715,"train/div_loss":0,"_wandb":{"runtime":0},"_timestamp":1.7770054435441036e+09}

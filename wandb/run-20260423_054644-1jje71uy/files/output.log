@@ -1,0 +1,60 @@
+05:46:45 | INFO | Chargement de EleutherAI/pythia-160m (eager attention) ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+trainable params: 884,736 || all params: 163,207,680 || trainable%: 0.5421
+05:46:49 | INFO | PyTorch version 2.8.0 available.
+05:49:55 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+05:49:58 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+05:49:58 | INFO | Leader params (dense LoRA)          : 73,728
+05:49:58 | INFO | Follower params (query_key_value LoRA): 884,736
+05:49:58 | INFO | Design layer : 9  |  Leader head idx : 0
+05:49:58 | INFO | λ_lead=0.1  λ_peer=0.01
+05:49:58 | INFO | Eval initiale ...
+05:50:04 | INFO |   [step 0] val_loss=4.7327  val_ppl=113.603
+Stackelberg Training (Pythia-160M):   0%|                                                                                                                         | 0/6104 [00:00<?, ?step/s]Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 596, in <module>
+    train_stackelberg(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 287, in train_stackelberg
+    out = model(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/peft/peft_model.py", line 1850, in forward
+    return self.base_model(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/peft/tuners/tuners_utils.py", line 222, in forward
+    return self.model.forward(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/utils/generic.py", line 918, in wrapper
+    output = func(self, *args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 598, in forward
+    loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/loss/loss_utils.py", line 55, in ForCausalLMLoss
+    logits = logits.float()
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.54 GiB. GPU 0 has a total capacity of 19.53 GiB of which 982.62 MiB is free. Process 284525 has 1.25 GiB memory in use. Including non-PyTorch memory, this process has 17.17 GiB memory in use. Of the allocated memory 16.46 GiB is allocated by PyTorch, and 518.68 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 596, in <module>
+    train_stackelberg(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 287, in train_stackelberg
+    out = model(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/peft/peft_model.py", line 1850, in forward
+    return self.base_model(
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/peft/tuners/tuners_utils.py", line 222, in forward
+    return self.model.forward(*args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/utils/generic.py", line 918, in wrapper
+    output = func(self, *args, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py", line 598, in forward
+    loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
+  File "/users/eleves-a/2023/joseph.de-roffignac/.local/lib/python3.9/site-packages/transformers/loss/loss_utils.py", line 55, in ForCausalLMLoss
+    logits = logits.float()
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.54 GiB. GPU 0 has a total capacity of 19.53 GiB of which 982.62 MiB is free. Process 284525 has 1.25 GiB memory in use. Including non-PyTorch memory, this process has 17.17 GiB memory in use. Of the allocated memory 16.46 GiB is allocated by PyTorch, and 518.68 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

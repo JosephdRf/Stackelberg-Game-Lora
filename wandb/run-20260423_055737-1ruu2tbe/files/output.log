@@ -1,0 +1,40 @@
+05:57:39 | INFO | Chargement de EleutherAI/pythia-160m (eager attention) ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+trainable params: 884,736 || all params: 163,207,680 || trainable%: 0.5421
+05:57:42 | INFO | PyTorch version 2.8.0 available.
+06:00:49 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+06:00:51 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+06:00:51 | INFO | Leader params (dense LoRA)          : 73,728
+06:00:51 | INFO | Follower params (query_key_value LoRA): 884,736
+06:00:51 | INFO | Design layer : 9  |  Leader head idx : 0
+06:00:51 | INFO | λ_lead=0.1  λ_peer=0.01
+06:00:51 | INFO | Eval initiale ...
+06:00:56 | INFO |   [step 0] val_loss=4.7145  val_ppl=111.558
+Stackelberg Training (Pythia-160M):   0%|                                                 | 1/6104 [00:01<2:26:59,  1.45s/step, ce=4.7597, div=0.0000, ema=4.7597, l_ce=4.9864, tok_s=11,333]06:00:57 | INFO | [train] step      1/6104  CE=4.7597  ema=4.7597  div=0.0000  leader_CE=4.9864  lr_L=5.43e-07  lr_F=1.63e-06  tok/s=11,333
+Stackelberg Training (Pythia-160M):   0%|▏                                               | 20/6104 [00:24<2:04:42,  1.23s/step, ce=4.7504, div=0.0000, ema=4.7433, l_ce=4.6950, tok_s=13,321]06:01:21 | INFO | [train] step     20/6104  CE=4.7504  ema=4.7433  div=0.0000  leader_CE=4.6950  lr_L=1.09e-05  lr_F=3.26e-05  tok/s=13,321
+Stackelberg Training (Pythia-160M):   1%|▎                                               | 40/6104 [00:49<2:04:31,  1.23s/step, ce=4.5178, div=0.0000, ema=4.5844, l_ce=4.4974, tok_s=13,293]06:01:45 | INFO | [train] step     40/6104  CE=4.5178  ema=4.5844  div=0.0000  leader_CE=4.4974  lr_L=2.17e-05  lr_F=6.52e-05  tok/s=13,293
+Stackelberg Training (Pythia-160M):   1%|▍                                               | 60/6104 [01:14<2:04:14,  1.23s/step, ce=4.1971, div=0.0000, ema=4.3931, l_ce=4.1727, tok_s=13,270]06:02:10 | INFO | [train] step     60/6104  CE=4.1971  ema=4.3931  div=0.0000  leader_CE=4.1727  lr_L=3.26e-05  lr_F=9.78e-05  tok/s=13,270
+Stackelberg Training (Pythia-160M):   1%|▋                                               | 80/6104 [01:38<2:03:50,  1.23s/step, ce=4.1939, div=0.0000, ema=4.2851, l_ce=4.0056, tok_s=13,290]06:02:35 | INFO | [train] step     80/6104  CE=4.1939  ema=4.2851  div=0.0000  leader_CE=4.0056  lr_L=4.35e-05  lr_F=1.30e-04  tok/s=13,290
+Stackelberg Training (Pythia-160M):   2%|▊                                              | 100/6104 [02:03<2:03:26,  1.23s/step, ce=4.0768, div=0.0000, ema=4.1997, l_ce=4.0212, tok_s=13,281]06:02:59 | INFO | [train] step    100/6104  CE=4.0768  ema=4.1997  div=0.0000  leader_CE=4.0212  lr_L=5.43e-05  lr_F=1.63e-04  tok/s=13,281
+06:03:05 | INFO | [val]   step    100  val_loss=4.1073  val_ppl=60.781
+06:03:08 | INFO |   [head matrices] layer=9  Γ(G)=0.0124  (rho sur 20 batches)
+Stackelberg Training (Pythia-160M):   2%|▉                                              | 120/6104 [02:36<2:03:24,  1.24s/step, ce=4.1665, div=0.0000, ema=4.1704, l_ce=4.0497, tok_s=13,266]06:03:32 | INFO | [train] step    120/6104  CE=4.1665  ema=4.1704  div=0.0000  leader_CE=4.0497  lr_L=6.52e-05  lr_F=1.96e-04  tok/s=13,266
+Stackelberg Training (Pythia-160M):   2%|█                                              | 140/6104 [03:01<2:02:42,  1.23s/step, ce=4.1157, div=0.0000, ema=4.1401, l_ce=4.2793, tok_s=13,281]06:03:57 | INFO | [train] step    140/6104  CE=4.1157  ema=4.1401  div=0.0000  leader_CE=4.2793  lr_L=7.61e-05  lr_F=2.28e-04  tok/s=13,281
+Stackelberg Training (Pythia-160M):   3%|█▏                                             | 160/6104 [03:25<2:02:16,  1.23s/step, ce=4.2049, div=0.0000, ema=4.1512, l_ce=4.1064, tok_s=13,281]06:04:22 | INFO | [train] step    160/6104  CE=4.2049  ema=4.1512  div=0.0000  leader_CE=4.1064  lr_L=8.70e-05  lr_F=2.61e-04  tok/s=13,281
+Stackelberg Training (Pythia-160M):   3%|█▍                                             | 180/6104 [03:50<2:01:53,  1.23s/step, ce=4.3882, div=0.0000, ema=4.2860, l_ce=4.3229, tok_s=13,273]06:04:46 | INFO | [train] step    180/6104  CE=4.3882  ema=4.2860  div=0.0000  leader_CE=4.3229  lr_L=9.78e-05  lr_F=2.93e-04  tok/s=13,273
+Stackelberg Training (Pythia-160M):   3%|█▌                                             | 200/6104 [04:15<2:01:35,  1.24s/step, ce=4.5465, div=0.0000, ema=4.3807, l_ce=4.4456, tok_s=13,248]06:05:11 | INFO | [train] step    200/6104  CE=4.5465  ema=4.3807  div=0.0000  leader_CE=4.4456  lr_L=1.00e-04  lr_F=3.00e-04  tok/s=13,248
+06:05:16 | INFO | [val]   step    200  val_loss=4.3095  val_ppl=74.406
+06:05:19 | INFO |   [head matrices] layer=9  Γ(G)=0.0109  (rho sur 20 batches)
+Stackelberg Training (Pythia-160M):   4%|█▋                                             | 220/6104 [04:47<2:01:22,  1.24s/step, ce=4.1934, div=0.0000, ema=4.3300, l_ce=4.1399, tok_s=13,269]06:05:44 | INFO | [train] step    220/6104  CE=4.1934  ema=4.3300  div=0.0000  leader_CE=4.1399  lr_L=1.00e-04  lr_F=3.00e-04  tok/s=13,269
+Stackelberg Training (Pythia-160M):   4%|█▊                                             | 235/6104 [05:06<2:00:50,  1.24s/step, ce=4.2484, div=0.0000, ema=4.2843, l_ce=4.0839, tok_s=13,252]Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 596, in <module>
+    train_stackelberg(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 312, in train_stackelberg
+    accum_ce  += ce_loss.item() / cfg.grad_accum
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 596, in <module>
+    train_stackelberg(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 312, in train_stackelberg
+    accum_ce  += ce_loss.item() / cfg.grad_accum
+KeyboardInterrupt

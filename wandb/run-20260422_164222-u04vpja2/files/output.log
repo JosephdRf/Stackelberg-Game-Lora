@@ -1,0 +1,18 @@
+16:42:33 | INFO | Chargement du modèle depuis EleutherAI/pythia-160m ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+16:42:37 | INFO | === Évaluation Pythia-160M ===
+16:42:37 | INFO |   Ignorés : ['PTB_BPB', 'PIQA', 'ARC-Easy', 'MemoTrap']
+16:42:37 | INFO | WikiText-103 (in-domain, cible du FT) ...
+16:42:37 | INFO | PyTorch version 2.8.0 available.
+16:42:56 | INFO |   WT103 PPL   = 28.418   BPB = 1.0779                                                                                                                                                         
+16:42:56 | INFO | LAMBADA ...
+16:43:21 | INFO |   LAMBADA ppl = 14.053                                                                                                                                                                        
+16:43:21 | INFO | HellaSwag ...
+16:46:24 | INFO |   HellaSwag   acc=0.2837  acc_norm=0.3024                                                                                                                                                     
+16:46:24 | INFO |
+=== Résultats finaux ===
+16:46:24 | INFO |   WikiText103_PPL      = 28.4184
+16:46:24 | INFO |   WikiText103_BPB      = 1.0779
+16:46:24 | INFO |   LAMBADA_ppl          = 14.053
+16:46:24 | INFO |   HellaSwag_acc        = 0.2837
+16:46:24 | INFO |   HellaSwag_acc_norm   = 0.3024
