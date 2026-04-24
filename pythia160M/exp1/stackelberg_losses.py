@@ -80,13 +80,40 @@ def compute_diversity_loss(
 # ---------------------------------------------------------------------------
 
 
+class GradMaskMode:
+    """
+    Shared mutable flag for mode-aware gradient hooks on design-layer params.
+
+    The same LoRA parameter is shared by both the leader and follower optimizer.
+    The gradient hook reads this flag to decide which head slice to keep/zero:
+      - FOLLOWER mode (Phase 1): zero out the leader slice → follower sees only its heads
+      - LEADER mode   (Phase 2): zero out follower slices  → leader sees only its head
+
+    Usage in the training loop:
+        mask_mode.set_leader()   # before leader_ce.backward()
+        ...
+        mask_mode.set_follower() # after leader_optimizer.step()
+    """
+    FOLLOWER = "follower"
+    LEADER   = "leader"
+
+    def __init__(self):
+        self.value = self.FOLLOWER
+
+    def set_follower(self):
+        self.value = self.FOLLOWER
+
+    def set_leader(self):
+        self.value = self.LEADER
+
+
 def split_leader_follower_params(
     model,
     leader_idx: int = 0,
     design_layer: int = 9,
     d_model: int = 768,
     n_heads: int = 12,
-) -> Tuple[List[torch.nn.Parameter], List[torch.nn.Parameter]]:
+) -> Tuple[List[torch.nn.Parameter], List[torch.nn.Parameter], list, "GradMaskMode"]:
     """
     Sépare les paramètres LoRA entraînables en deux groupes :
       - leader_params  : paramètres dont seule la tranche head=leader_idx reçoit un gradient
@@ -94,44 +121,35 @@ def split_leader_follower_params(
 
     Pour Pythia (GPT-NeoX), Q/K/V sont fusionnées en un seul tenseur 'query_key_value'
     de shape (d_model, 3*d_model). On ne peut pas mettre ce tenseur dans deux groupes
-    d'optimiseur distincts — on enregistre donc des gradient hooks qui masquent les
-    tranches indésirables lors du backward.
+    d'optimiseur distincts — on enregistre donc un gradient hook à état partagé qui
+    masque les tranches indésirables selon la phase (follower ou leader).
 
-    Layout de query_key_value (dim=1 pour lora_B, dim=0 pour lora_A) :
-        Q : colonnes [h*d_head : (h+1)*d_head]
-        K : colonnes [d_model + h*d_head : d_model + (h+1)*d_head]
-        V : colonnes [2*d_model + h*d_head : 2*d_model + (h+1)*d_head]
+    Layout de query_key_value (lora_B shape: (3*d_model, r)) :
+        Q : lignes [h*d_head : (h+1)*d_head]
+        K : lignes [d_model + h*d_head : d_model + (h+1)*d_head]
+        V : lignes [2*d_model + h*d_head : 2*d_model + (h+1)*d_head]
 
-    Layout de dense / o_proj (dim=0) :
-        Tête h : lignes [h*d_head : (h+1)*d_head]
-
-    Args:
-        model        : PeftModel Pythia-160M
-        leader_idx   : index de la tête leader (défaut 0)
-        design_layer : layer sur lequel s'applique la séparation (défaut 9)
-        d_model      : dimension du modèle (768 pour Pythia-160M)
-        n_heads      : nombre de têtes (12 pour Pythia-160M)
+    Layout de dense (lora_A shape: (r, d_model)) :
+        Tête h : colonnes [h*d_head : (h+1)*d_head]
 
     Returns:
-        (leader_params, follower_params) — listes de nn.Parameter
-        Les paramètres hors design_layer sont mis dans follower_params par défaut.
+        (leader_params, follower_params, hooks, mask_mode)
+        Appeler mask_mode.set_leader() avant leader_ce.backward(),
+        mask_mode.set_follower() après leader_optimizer.step().
     """
     d_head = d_model // n_heads  # 64
 
-    # Slices de la tête leader dans les matrices fusionnées
-    # query_key_value : shape (d_model, 3*d_model) — on indexe sur la dim des têtes
     leader_q = slice(leader_idx * d_head, (leader_idx + 1) * d_head)
     leader_k = slice(d_model   + leader_idx * d_head, d_model   + (leader_idx + 1) * d_head)
     leader_v = slice(2*d_model + leader_idx * d_head, 2*d_model + (leader_idx + 1) * d_head)
-    leader_o = slice(leader_idx * d_head, (leader_idx + 1) * d_head)  # dim 0 de dense
+    leader_o = slice(leader_idx * d_head, (leader_idx + 1) * d_head)
 
-    # Préfixe du design layer dans les noms de paramètres PEFT
-    # ex: "base_model.model.gpt_neox.layers.9.attention.query_key_value.lora_A.default.weight"
     layer_prefix = f"layers.{design_layer}."
+    mask_mode = GradMaskMode()
 
     leader_params   = []
     follower_params = []
-    _hooks = []  # on stocke les hooks pour pouvoir les retirer si besoin
+    _hooks = []
 
     for name, p in model.named_parameters():
         if not p.requires_grad:
@@ -139,73 +157,46 @@ def split_leader_follower_params(
 
         is_design_layer = layer_prefix in name
         is_qkv   = "query_key_value" in name
-        is_dense  = "dense" in name and "dense_h_to_4h" not in name  # éviter FFN
+        is_dense  = "dense" in name and "dense_h_to_4h" not in name
 
         if not is_design_layer or (not is_qkv and not is_dense):
-            # Hors design layer ou FFN → follower par défaut
             follower_params.append(p)
             continue
 
-        # Paramètre du design layer sur attention QKV ou dense
-        # On met le même paramètre dans LES DEUX groupes — les hooks
-        # garantissent que chaque optimiseur ne voit que sa tranche.
+        # Design-layer QKV / dense: shared parameter, mode-aware hook handles slicing.
         leader_params.append(p)
         follower_params.append(p)
 
-        # ── Gradient hooks ──
-        # lora_A : shape (r, in_features)  — on masque sur dim 1 (in_features)
-        # lora_B : shape (out_features, r) — on masque sur dim 0 (out_features)
-        # Pour QKV, out_features = 3*d_model, in_features = d_model
-        # Pour dense, out_features = d_model, in_features = d_model
-
-        def make_leader_hook(param_name, qkv, dense):
-            """Garde seulement la tranche leader, annule le reste."""
+        def make_mode_hook(param_name, qkv, dense):
             def hook(grad):
                 g = grad.clone()
-                mask = torch.zeros_like(g)
-                if qkv:
-                    if "lora_B" in param_name:
-                        # lora_B shape (3*d_model, r) → mask sur dim 0
+                if mask_mode.value == GradMaskMode.FOLLOWER:
+                    # Phase 1: zero the leader slice so the follower doesn't update it.
+                    if qkv and "lora_B" in param_name:
+                        g[leader_q, :] = 0
+                        g[leader_k, :] = 0
+                        g[leader_v, :] = 0
+                    elif dense and "lora_A" in param_name:
+                        g[:, leader_o] = 0
+                else:
+                    # Phase 2: keep only the leader slice, zero everything else.
+                    mask = torch.zeros_like(g)
+                    if qkv and "lora_B" in param_name:
                         mask[leader_q, :] = 1
                         mask[leader_k, :] = 1
                         mask[leader_v, :] = 1
                     else:
-                        # lora_A shape (r, d_model) → pas de découpage tête ici
-                        # lora_A projette depuis d_model, partagé entre toutes têtes
-                        # On garde tout (approximation nécessaire — voir note)
+                        # lora_A (QKV or dense lora_B): shared projection, keep all.
                         mask[:] = 1
-                elif dense:
-                    if "lora_A" in param_name:
-                        # lora_A shape (r, d_model) → mask sur dim 1
+                    if dense and "lora_A" in param_name:
+                        mask = torch.zeros_like(g)
                         mask[:, leader_o] = 1
-                    else:
-                        # lora_B shape (d_model, r) → pas de découpage tête
-                        mask[:] = 1
-                return g * mask
-            return hook
-
-        def make_follower_hook(param_name, qkv, dense):
-            """Annule la tranche leader, garde le reste."""
-            def hook(grad):
-                g = grad.clone()
-                if qkv:
-                    if "lora_B" in param_name:
-                        g[leader_q, :] = 0
-                        g[leader_k, :] = 0
-                        g[leader_v, :] = 0
-                else:
-                    if "lora_A" in param_name:
-                        g[:, leader_o] = 0
+                    g = g * mask
                 return g
             return hook
 
-        # On enregistre les deux hooks — ils sont appelés en ordre LIFO
-        # donc on enregistre follower en premier, leader en second.
-        # Chaque optimiseur appellera step() sur le même p.grad —
-        # MAIS les deux backward() sont séparés dans le code d'entraînement.
-        # Les hooks sont donc utilisés pour zerograder ce qu'il ne faut pas.
-        h1 = p.register_hook(make_follower_hook(name, is_qkv, is_dense))
-        _hooks.append(h1)
+        h = p.register_hook(make_mode_hook(name, is_qkv, is_dense))
+        _hooks.append(h)
 
     # Note sur lora_A :
     # lora_A projette (in_features → r) : elle s'applique AVANT la séparation par tête.
@@ -214,7 +205,7 @@ def split_leader_follower_params(
     # et follower (gradient complet des deux côtés). Seul lora_B, qui projette
     # (r → out_features), est découpable proprement par tranche de tête.
 
-    return leader_params, follower_params, _hooks
+    return leader_params, follower_params, _hooks, mask_mode
 
 
 

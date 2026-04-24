@@ -119,7 +119,7 @@ class TrainConfig:
     seed: int = 42
     dry_run: bool = False
     random_init: bool = False
-    num_workers: int = 2
+    num_workers: int = 8
 
     @property
     def effective_batch_size(self) -> int:
@@ -376,7 +376,7 @@ def add_common_args(parser):
     parser.add_argument("--eval_every", type=int, default=100)
     parser.add_argument("--eval_max_batches", type=int, default=50)
     parser.add_argument("--save_every", type=int, default=500)
-    parser.add_argument("--num_workers", type=int, default=2)
+    parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--random_init", action="store_true",
                         help="Initialiser les poids aléatoirement (pas de préentraînement)")
     parser.add_argument("--head_log_layer", type=int, default=9,
