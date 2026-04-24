@@ -1,0 +1,36 @@
+2026-04-24 21:26:50 INFO open for scan: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/run-p0eev0ax.wandb
+2026-04-24 21:26:51 INFO watching files in: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files
+2026-04-24 21:26:51 INFO run started: p0eev0ax with start time 1777058270.370908
+2026-04-24 21:26:51 INFO saving file wandb-metadata.json with policy now
+2026-04-24 21:26:52 INFO saving file wandb-metadata.json with policy now
+2026-04-24 21:26:52 INFO saving file requirements.txt with policy now
+2026-04-24 21:26:52 INFO Uploaded file /tmp/tmpmqr52km9wandb/hu15ljjf-wandb-metadata.json
+2026-04-24 21:26:52 INFO Uploaded file /tmp/tmpmqr52km9wandb/8lg0tha0-requirements.txt
+2026-04-24 21:26:52 INFO file/dir modified: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/config.yaml
+2026-04-24 21:26:52 INFO file/dir created: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/wandb-metadata.json
+2026-04-24 21:26:52 INFO file/dir created: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/output.log
+2026-04-24 21:26:52 INFO saving file wandb-summary.json with policy end
+2026-04-24 21:26:52 INFO saving file wandb-summary.json with policy end
+2026-04-24 21:26:52 INFO saving file wandb-summary.json with policy end
+2026-04-24 21:26:52 INFO saving file wandb-summary.json with policy end
+2026-04-24 21:26:52 INFO saving file wandb-summary.json with policy end
+2026-04-24 21:26:52 INFO Uploaded file /tmp/tmpmqr52km9wandb/l6qzxxy6-wandb-metadata.json
+2026-04-24 21:26:53 INFO saving file wandb-summary.json with policy end
+2026-04-24 21:26:53 INFO shutting down sender
+2026-04-24 21:26:53 INFO file/dir modified: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/config.yaml
+2026-04-24 21:26:53 INFO file/dir created: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/wandb-summary.json
+2026-04-24 21:26:54 INFO shutting down directory watcher
+2026-04-24 21:26:54 INFO file/dir modified: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/output.log
+2026-04-24 21:26:54 INFO scan: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files
+2026-04-24 21:26:54 INFO scan save: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/requirements.txt requirements.txt
+2026-04-24 21:26:54 INFO scan save: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/config.yaml config.yaml
+2026-04-24 21:26:54 INFO scan save: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/wandb-metadata.json wandb-metadata.json
+2026-04-24 21:26:54 INFO scan save: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/output.log output.log
+2026-04-24 21:26:54 INFO scan save: /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/wandb-summary.json wandb-summary.json
+2026-04-24 21:26:54 INFO shutting down file pusher
+2026-04-24 21:26:54 INFO waiting for file pusher
+2026-04-24 21:26:55 INFO Uploaded file /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/config.yaml
+2026-04-24 21:26:55 INFO Uploaded file /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/output.log
+2026-04-24 21:26:55 INFO Uploaded file /users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260424_211749-p0eev0ax/files/wandb-summary.json
+2026-04-24 21:26:55 INFO file stream finish called
+2026-04-24 21:26:56 INFO file stream finish is done

@@ -75,9 +75,9 @@ Par défaut `λ_lead=0.1` et `λ_peer=0.01`. Passer `--lambda_lead 0 --lambda_pe
 ```bash
 python pythia160M/exp1/train_exp1.py \
     --output_dir /Data/joseph.de-roffignac/checkpoints/exp1 \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name Train_stackelberg_exp1_seed_42
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name Train_stackelberg_exp1_n
 
 python pythia160M/eval.py \
     --model_path /Data/joseph.de-roffignac/checkpoints/exp1/final \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name Eval_exp1_seed_42
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name Eval_exp1_n
 ```

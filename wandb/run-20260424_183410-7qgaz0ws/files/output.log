@@ -1,0 +1,27 @@
+18:34:12 | INFO | Chargement de EleutherAI/pythia-160m (eager attention) ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+trainable params: 884,736 || all params: 163,207,680 || trainable%: 0.5421
+18:34:15 | INFO | PyTorch version 2.8.0 available.
+18:35:01 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+18:35:02 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+18:35:02 | INFO | Total trainable params : 884,736
+18:35:02 | INFO | Design layer           : 9  |  Leader head idx : 0
+18:35:02 | INFO | λ_lead=0.1  λ_peer=0.01
+18:35:02 | INFO | Eval initiale ...
+18:35:18 | INFO |   [step 0] val_loss=4.7145  val_ppl=111.558
+Stackelberg Training (Pythia-160M):   0%|                                                                               | 1/6104 [00:06<11:17:00,  6.66s/step, ce=4.7597, div=0.4457, ema=4.7597, l_ce=4.7599, tok_s=2,461]18:35:25 | INFO | [train] step      1/6104  CE=4.7597  ema=4.7597  div=0.4457  leader_CE=4.7599  lr_L=1.63e-07  lr_F=1.63e-07  tok/s=2,461
+Stackelberg Training (Pythia-160M):   0%|▎                                                                             | 20/6104 [02:13<11:16:08,  6.67s/step, ce=4.8437, div=0.4554, ema=4.7619, l_ce=4.8512, tok_s=2,400]18:37:32 | INFO | [train] step     20/6104  CE=4.8437  ema=4.7619  div=0.4554  leader_CE=4.8512  lr_L=3.26e-06  lr_F=3.26e-06  tok/s=2,400
+Stackelberg Training (Pythia-160M):   1%|▌                                                                             | 40/6104 [04:26<11:11:26,  6.64s/step, ce=4.8529, div=0.4469, ema=4.7447, l_ce=4.8611, tok_s=2,497]18:39:45 | INFO | [train] step     40/6104  CE=4.8529  ema=4.7447  div=0.4469  leader_CE=4.8611  lr_L=6.52e-06  lr_F=6.52e-06  tok/s=2,497
+Stackelberg Training (Pythia-160M):   1%|▊                                                                             | 60/6104 [06:39<11:14:46,  6.70s/step, ce=4.6386, div=0.4311, ema=4.7172, l_ce=4.6416, tok_s=2,398]18:41:58 | INFO | [train] step     60/6104  CE=4.6386  ema=4.7172  div=0.4311  leader_CE=4.6416  lr_L=9.78e-06  lr_F=9.78e-06  tok/s=2,398
+Stackelberg Training (Pythia-160M):   1%|▉                                                                             | 72/6104 [07:59<11:13:02,  6.69s/step, ce=4.7542, div=0.4018, ema=4.7088, l_ce=4.7449, tok_s=2,416]Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 652, in <module>
+    train_stackelberg(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 346, in train_stackelberg
+    accum_ce  += ce_loss.item() / cfg.grad_accum
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 652, in <module>
+    train_stackelberg(
+  File "/users/eleves-a/2023/joseph.de-roffignac/stage3A/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 346, in train_stackelberg
+    accum_ce  += ce_loss.item() / cfg.grad_accum
+KeyboardInterrupt

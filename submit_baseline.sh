@@ -21,9 +21,17 @@ source "$SLURM_SUBMIT_DIR/venv/bin/activate"
 # Se placer dans le répertoire du projet
 cd "$SLURM_SUBMIT_DIR"
 
+# Configurer WandB pour le mode hors ligne
+export WANDB_MODE=offline
+
+# Configurer Hugging Face pour le mode hors ligne
+export HF_DATASETS_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+
 # Lancer l'entraînement
-# python qwen2.5_0.5B/baseline/train_baseline.py \
-#     --batch_size_per_gpu 4 \
-#     --grad_accum 4 \
-#     --lr 3e-4 \
-#     "$@"
+
+python pythia160M/eval.py \
+    --model_path EleutherAI/pythia-160m \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Base --wandb_run_name Eval_seed_42 \
+    "$@"

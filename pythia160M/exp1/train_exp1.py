@@ -13,14 +13,19 @@ The bilevel (K=1 Stackelberg) update per optimizer step:
 
   Phase 1 — Accumulate follower gradients
       Forward → CE + diversity loss → backward (accumulated over micro-batches)
+      mask_follower_grad() zeros the leader slice in .grad
 
   Phase 2 — Leader looks ahead
       θ_F' = θ_F − η_sim · g_F          (simulated follower step, vanilla SGD)
       Forward with θ_F' → leader loss = CE(θ_L, θ_F')
-      θ_L  ← Adam(θ_L, ∇_{θ_L} CE)     (leader update)
+      mask_leader_grad() zeros follower slices + "other" params in .grad
 
-  Phase 3 — Follower update
-      Restore θ_F, apply saved accumulated gradients via Adam
+  Phase 3 — Single optimizer step
+      assemble_gradients(g_follower, g_leader) → writes final p.grad:
+        disjoint slices (qkv_lora_B, dense_lora_A) : g_F + g_L
+        shared params  (qkv_lora_A, dense_lora_B)  : (g_F + g_L) / 2
+        other params                                : g_F
+      Restore θ_F, optimizer.step() — single Adam step, single t counter.
 
 Parameter split (LoRA):
   Leader   = dense LoRA           (head output mixing, output projection)
@@ -81,7 +86,10 @@ from train_utils import (
 )
 from stackelberg_losses import (
     compute_diversity_loss,
-    split_leader_follower_params,
+    collect_lora_params,
+    mask_follower_grad,
+    mask_leader_grad,
+    assemble_gradients,
     AttentionWeightCapture,
 )
 
@@ -191,39 +199,64 @@ def train_stackelberg(
     )
     total_steps = 100 if cfg.dry_run else cfg.total_steps
 
-    # ── Split parameters: leader (dense) vs followers (query_key_value) ──
-    leader_params, follower_params, _grad_hooks, mask_mode = split_leader_follower_params(model)
-    logger.info(f"Leader params (dense LoRA)          : {sum(p.numel() for p in leader_params):,}")
-    logger.info(f"Follower params (query_key_value LoRA): {sum(p.numel() for p in follower_params):,}")
-    logger.info(f"Design layer : {design_layer}  |  Leader head idx : {leader_idx}")
+    # ── Single optimizer over all trainable params ──
+    all_params, grad_assembly = collect_lora_params(
+        model,
+        design_layer=design_layer,
+        d_model=768,
+        n_heads=12,
+        leader_idx=leader_idx,
+    )
+
+    n_leader_params   = sum(
+        p.numel() for r in grad_assembly.roles
+        if r.kind in ("qkv_lora_B", "dense_lora_A", "dense_lora_B")
+        for p in [r.param]
+    )
+    n_follower_params = sum(
+        p.numel() for r in grad_assembly.roles
+        if r.kind in ("qkv_lora_B", "qkv_lora_A", "other")
+        for p in [r.param]
+    )
+    logger.info(f"Total trainable params : {sum(p.numel() for p in all_params):,}")
+    logger.info(f"Design layer           : {design_layer}  |  Leader head idx : {leader_idx}")
     logger.info(f"λ_lead={lambda_lead}  λ_peer={lambda_peer}"
                 + ("  (CE only — diversity inactive)" if lambda_lead == 0 and lambda_peer == 0 else ""))
 
-    # ── Two separate Adam optimizers ──
-    leader_optimizer = torch.optim.AdamW(
-        leader_params,
-        lr=lr_leader,
+    # lr_follower is the reference lr; leader uses lr_leader.
+    # Since there is a single optimizer we use lr_follower as base and apply
+    # a per-param-group lr_leader for the leader-only parameters.
+    # We split into two param groups for lr scheduling but share Adam state.
+    leader_param_ids = {
+        id(r.param) for r in grad_assembly.roles
+        if r.kind in ("dense_lora_A", "dense_lora_B")
+    }
+    # qkv_lora_B and shared params go at follower lr; pure-leader dense params at leader lr.
+    param_groups = [
+        {
+            "params": [p for p in all_params if id(p) not in leader_param_ids],
+            "lr": lr_follower,
+            "name": "follower_and_shared",
+        },
+        {
+            "params": [p for p in all_params if id(p) in leader_param_ids],
+            "lr": lr_leader,
+            "name": "leader",
+        },
+    ]
+
+    optimizer = torch.optim.AdamW(
+        param_groups,
         betas=cfg.betas,
         weight_decay=cfg.weight_decay,
     )
-    follower_optimizer = torch.optim.AdamW(
-        follower_params,
-        lr=lr_follower,
-        betas=cfg.betas,
-        weight_decay=cfg.weight_decay,
-    )
-    leader_scheduler = get_cosine_schedule_with_warmup(
-        leader_optimizer,
-        num_warmup_steps=cfg.warmup_steps,
-        num_training_steps=total_steps,
-    )
-    follower_scheduler = get_cosine_schedule_with_warmup(
-        follower_optimizer,
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer,
         num_warmup_steps=cfg.warmup_steps,
         num_training_steps=total_steps,
     )
 
-    # ── Attention hook on design layer (only needed when diversity is active) ──
+    # ── Attention hook on design layer ──
     need_attn = lambda_lead > 0 or lambda_peer > 0
     attn_capture = AttentionWeightCapture()
     if need_attn:
@@ -256,17 +289,15 @@ def train_stackelberg(
 
     # ── Training state ──
     model.train()
-    global_step    = 0
-    accum_ce       = 0.0
-    accum_div      = 0.0
+    global_step     = 0
+    accum_ce        = 0.0
+    accum_div       = 0.0
     accum_leader_ce = 0.0
-    leader_optimizer.zero_grad()
-    follower_optimizer.zero_grad()
+    optimizer.zero_grad()
 
     _step_start = time.perf_counter()
     pbar = tqdm(total=total_steps, desc="Stackelberg Training (Pythia-160M)", unit="step")
 
-    # Accumuler tous les micro-batches du step courant pour le leader lookahead.
     accum_inputs: list = []
     accum_labels: list = []
 
@@ -278,10 +309,10 @@ def train_stackelberg(
             accum_inputs.append(input_ids)
             accum_labels.append(labels)
 
-            # ==============================================================
-            # Phase 1: Forward — accumulate follower loss gradients
+            # ==================================================================
+            # Phase 1: Follower forward — accumulate follower gradients
             # L_F = L_CE + L_diversity (scaled by 1/grad_accum)
-            # ==============================================================
+            # ==================================================================
             with torch.autocast(
                 device_type=device.type if device.type != "mps" else "cpu",
                 dtype=torch.bfloat16,
@@ -315,38 +346,44 @@ def train_stackelberg(
             accum_ce  += ce_loss.item() / cfg.grad_accum
             accum_div += div_loss.item() / cfg.grad_accum
 
-            # ==============================================================
+            # ==================================================================
             # Optimizer step every grad_accum micro-batches
-            # ==============================================================
+            # ==================================================================
             if (global_step + 1) % cfg.grad_accum == 0:
                 opt_step = (global_step + 1) // cfg.grad_accum
 
-                # ==========================================================
-                # Phase 2: Stackelberg bilevel — leader looks ahead
-                # ==========================================================
-
-                # Save follower accumulated gradients
-                saved_follower_grads = [
-                    p.grad.clone() if p.grad is not None else torch.zeros_like(p)
-                    for p in follower_params
-                ]
-
-                # Simulated follower step (vanilla SGD, no Adam/momentum)
-                #   θ_F' = θ_F − η_sim · ĝ_F   (ĝ_F = clipped gradient)
-                # Clip before the simulated step to match Phase 3 clipping.
-                sim_gnorm = torch.norm(
-                    torch.stack([g.norm() for g in saved_follower_grads if g.numel() > 0])
-                )
-                sim_clip = min(1.0, cfg.grad_clip / (sim_gnorm.item() + 1e-8))
-                saved_follower_data = [p.data.clone() for p in follower_params]
+                # Mask leader slice out of follower gradients
                 with torch.no_grad():
-                    for p, g in zip(follower_params, saved_follower_grads):
-                        p.data.sub_(lr_sim * g * sim_clip)
+                    mask_follower_grad(grad_assembly)
 
-                # Forward over ALL accumulated micro-batches (same distribution as
-                # the follower gradient) → leader loss = mean CE across micro-batches.
-                leader_optimizer.zero_grad()
-                mask_mode.set_leader()  # hook now keeps only the leader head slice
+                # Save masked follower gradients
+                g_follower = {
+                    id(r.param): r.param.grad.clone()
+                    if r.param.grad is not None
+                    else torch.zeros_like(r.param)
+                    for r in grad_assembly.roles
+                }
+
+                # ==============================================================
+                # Phase 2: Leader lookahead
+                # θ_F' = θ_F − η_sim · ĝ_F  (clipped vanilla SGD)
+                # ==============================================================
+
+                # Clip before simulated step to match Phase 3 clipping
+                sim_gnorm = torch.norm(torch.stack([
+                    g.norm() for g in g_follower.values() if g.numel() > 0
+                ]))
+                sim_clip = min(1.0, cfg.grad_clip / (sim_gnorm.item() + 1e-8))
+
+                design_roles = [r for r in grad_assembly.roles if r.kind != "other"]
+                saved_data = {id(r.param): r.param.data.clone() for r in design_roles}
+                with torch.no_grad():
+                    for r in design_roles:
+                        gf = g_follower[id(r.param)]
+                        r.param.data.sub_(lr_sim * gf * sim_clip)
+
+                # Leader forward over all accumulated micro-batches
+                optimizer.zero_grad()
                 leader_ce_accum = torch.tensor(0.0, device=device)
                 for inp, lab in zip(accum_inputs, accum_labels):
                     with torch.autocast(
@@ -361,29 +398,35 @@ def train_stackelberg(
                     leader_ce_mb.backward()
                     leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
 
-                leader_ce = leader_ce_accum
-                torch.nn.utils.clip_grad_norm_(leader_params, max_norm=cfg.grad_clip)
-                leader_optimizer.step()
-                leader_scheduler.step()
-                mask_mode.set_follower()  # restore for Phase 1 of next step
-                accum_leader_ce = leader_ce.item()
+                accum_leader_ce = leader_ce_accum.item()
 
-                # ==========================================================
-                # Phase 3: Restore followers & apply saved gradients
-                # ==========================================================
+                # Mask: keep only leader slices, zero "other" params
                 with torch.no_grad():
-                    for p, saved in zip(follower_params, saved_follower_data):
-                        p.data.copy_(saved)
+                    mask_leader_grad(grad_assembly)
 
-                follower_optimizer.zero_grad()
-                for p, g in zip(follower_params, saved_follower_grads):
-                    p.grad = g
-                torch.nn.utils.clip_grad_norm_(follower_params, max_norm=cfg.grad_clip)
-                follower_optimizer.step()
-                follower_scheduler.step()
+                # Save masked leader gradients
+                g_leader = {
+                    id(r.param): r.param.grad.clone()
+                    if r.param.grad is not None
+                    else torch.zeros_like(r.param)
+                    for r in grad_assembly.roles
+                }
 
-                leader_optimizer.zero_grad()
-                follower_optimizer.zero_grad()
+                # ==============================================================
+                # Phase 3: Restore followers, assemble final gradient, single step
+                # ==============================================================
+                with torch.no_grad():
+                    for r in design_roles:
+                        r.param.data.copy_(saved_data[id(r.param)])
+
+                # Write assembled gradient into p.grad
+                with torch.no_grad():
+                    assemble_gradients(grad_assembly, g_follower, g_leader)
+
+                torch.nn.utils.clip_grad_norm_(all_params, max_norm=cfg.grad_clip)
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
 
                 # EMA
                 _ema_ce = (
@@ -406,8 +449,8 @@ def train_stackelberg(
 
                 # ── Log train ──
                 if opt_step % cfg.log_every == 0 or opt_step == 1:
-                    lr_l = leader_scheduler.get_last_lr()[0]
-                    lr_f = follower_scheduler.get_last_lr()[0]
+                    lr_f = scheduler.get_last_lr()[0]
+                    lr_l = scheduler.get_last_lr()[1] if len(scheduler.get_last_lr()) > 1 else lr_f
                     logger.info(
                         f"[train] step {opt_step:>6d}/{total_steps}"
                         f"  CE={accum_ce:.4f}  ema={_ema_ce:.4f}"
@@ -417,13 +460,13 @@ def train_stackelberg(
                     )
                     if use_wandb:
                         wandb.log({
-                            "train/ce_loss":    accum_ce,
-                            "train/ce_ema":     _ema_ce,
-                            "train/div_loss":   accum_div,
-                            "train/leader_ce":  accum_leader_ce,
-                            "train/lr_leader":  lr_l,
+                            "train/ce_loss":     accum_ce,
+                            "train/ce_ema":      _ema_ce,
+                            "train/div_loss":    accum_div,
+                            "train/leader_ce":   accum_leader_ce,
+                            "train/lr_leader":   lr_l,
                             "train/lr_follower": lr_f,
-                            "train/tokens":     opt_step * cfg.seq_len * cfg.effective_batch_size,
+                            "train/tokens":      opt_step * cfg.seq_len * cfg.effective_batch_size,
                         }, step=opt_step)
                     history["train"]["step"].append(opt_step)
                     history["train"]["ce"].append(accum_ce)
@@ -480,8 +523,6 @@ def train_stackelberg(
 
     pbar.close()
     attn_capture.remove()
-    for h in _grad_hooks:
-        h.remove()
 
     # ── Eval finale ──
     logger.info("Eval finale ...")

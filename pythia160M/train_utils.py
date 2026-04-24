@@ -22,7 +22,7 @@ import itertools
 
 _DATASETS_CACHE = os.path.join(
     os.environ.get("SCRATCH", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "dataset"
+    "datasets"
 )
 from dataclasses import dataclass, field
 from typing import Optional, List

@@ -46,7 +46,7 @@ import argparse
 import logging
 
 _DATASETS_CACHE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset"
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "datasets"
 )
 
 import torch
