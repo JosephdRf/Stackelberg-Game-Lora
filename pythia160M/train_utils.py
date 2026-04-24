@@ -113,7 +113,7 @@ class TrainConfig:
     output_dir: str = "./checkpoints/baseline"
     log_every: int = 20
     save_every: int = 500
-    wandb_project: Optional[str] = None
+    wandb_project: Optional[str] = "Stackelberg-Pythia160M"
     wandb_group: Optional[str] = None
     run_name: Optional[str] = None
     seed: int = 42
@@ -152,16 +152,17 @@ class WikiTextDataset(Dataset):
         super().__init__()
         from datasets import load_dataset
 
-        ds = load_dataset(dataset_name, dataset_config, split=split, streaming=True)
+        ds = load_dataset(dataset_name, dataset_config, split=split)
         eos = tokenizer.eos_token_id
         all_ids: List[int] = []
-        for ex in ds:
-            t = ex["text"]
-            if not t.strip():
-                continue
-            ids = tokenizer(t, add_special_tokens=False, truncation=False)["input_ids"]
-            all_ids.extend(ids)
-            all_ids.append(eos)
+        BATCH = 1000
+        texts = [ex["text"] for ex in ds if ex["text"].strip()]
+        for i in range(0, len(texts), BATCH):
+            batch = texts[i : i + BATCH]
+            enc = tokenizer(batch, add_special_tokens=False, truncation=False)["input_ids"]
+            for ids in enc:
+                all_ids.extend(ids)
+                all_ids.append(eos)
 
         if max_tokens is not None and len(all_ids) > max_tokens:
             all_ids = all_ids[:max_tokens]
@@ -367,7 +368,7 @@ def add_common_args(parser):
     parser.add_argument("--batch_size_per_gpu", type=int, default=4)
     parser.add_argument("--grad_accum", type=int, default=4)
     parser.add_argument("--lr", type=float, default=3e-5)
-    parser.add_argument("--wandb_project", default=None)
+    parser.add_argument("--wandb_project", default="Stackelberg-Pythia160M")
     parser.add_argument("--wandb_group",   default=None,
                         help="Groupe W&B (ex: 'baseline', 'game_lora', 'exp1')")
     parser.add_argument("--seed", type=int, default=42)
