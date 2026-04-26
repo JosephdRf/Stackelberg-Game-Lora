@@ -1,0 +1,27 @@
+2026-04-26 14:54:42 INFO open for scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/run-2nmssiu8.wandb
+2026-04-26 14:54:43 INFO watching files in: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files
+2026-04-26 14:54:43 INFO run started: 2nmssiu8 with start time 1777142725.815245
+2026-04-26 14:54:43 INFO saving file wandb-metadata.json with policy now
+2026-04-26 14:54:43 INFO saving file wandb-metadata.json with policy now
+2026-04-26 14:54:43 INFO saving file requirements.txt with policy now
+2026-04-26 14:54:43 INFO shutting down sender
+2026-04-26 14:54:43 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpp115wawtwandb/4haepk8q-wandb-metadata.json
+2026-04-26 14:54:43 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpp115wawtwandb/xftfrfzw-requirements.txt
+2026-04-26 14:54:44 WARNING Terminal output too large. Logging without processing.
+2026-04-26 14:54:44 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpp115wawtwandb/zy1dy6tb-wandb-metadata.json
+2026-04-26 14:54:44 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/config.yaml
+2026-04-26 14:54:44 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/wandb-metadata.json
+2026-04-26 14:54:44 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/output.log
+2026-04-26 14:54:45 INFO shutting down directory watcher
+2026-04-26 14:54:46 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/output.log
+2026-04-26 14:54:46 INFO scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files
+2026-04-26 14:54:46 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/requirements.txt requirements.txt
+2026-04-26 14:54:46 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/output.log output.log
+2026-04-26 14:54:46 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/config.yaml config.yaml
+2026-04-26 14:54:46 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/wandb-metadata.json wandb-metadata.json
+2026-04-26 14:54:46 INFO shutting down file pusher
+2026-04-26 14:54:46 INFO waiting for file pusher
+2026-04-26 14:54:46 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/output.log
+2026-04-26 14:54:46 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/files/config.yaml
+2026-04-26 14:54:46 INFO file stream finish called
+2026-04-26 14:54:47 INFO file stream finish is done
