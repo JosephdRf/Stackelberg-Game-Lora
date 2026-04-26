@@ -152,7 +152,7 @@ class WikiTextDataset(Dataset):
         super().__init__()
         from datasets import load_dataset
 
-        ds = load_dataset(dataset_name, dataset_config, split=split)
+        ds = load_dataset(dataset_name, dataset_config, split=split, cache_dir=_DATASETS_CACHE)
         eos = tokenizer.eos_token_id
         all_ids: List[int] = []
         BATCH = 1000
