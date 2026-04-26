@@ -49,10 +49,13 @@ _DATASETS_CACHE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "datasets"
 )
 
+import sys
 import torch
 import torch.nn.functional as F
 import numpy as np
-from tqdm import tqdm
+from functools import partial
+from tqdm import tqdm as _tqdm
+tqdm = partial(_tqdm, file=sys.stderr)
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 logging.basicConfig(
