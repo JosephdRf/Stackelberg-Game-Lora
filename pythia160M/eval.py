@@ -89,7 +89,7 @@ BENCHMARKS_TO_EVALUATE = [
 def load_model(model_path: str):
     logger.info(f"Chargement du modèle depuis {model_path} ...")
 
-    is_local = os.path.isdir(model_path)
+    is_local = os.path.isabs(model_path)
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, trust_remote_code=True, local_files_only=is_local
     )

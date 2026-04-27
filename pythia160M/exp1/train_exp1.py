@@ -163,6 +163,9 @@ def train_stackelberg(
     # ── Model with eager attention ──
     model, tokenizer = build_model_eager(cfg)
     model = model.to(device)
+    if device.type == "cuda":
+        logger.info(f"VRAM après chargement modèle : {torch.cuda.memory_allocated() / 1e9:.2f} GB "
+                    f"/ {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB total")
 
     # ── Datasets & dataloaders ──
     max_train_tokens = (
@@ -345,6 +348,11 @@ def train_stackelberg(
             follower_loss.backward()
             accum_ce  += ce_loss.item() / cfg.grad_accum
             accum_div += div_loss.item() / cfg.grad_accum
+
+            if global_step == 0 and device.type == "cuda":
+                logger.info(f"VRAM pic step 0 (batch={cfg.batch_size_per_gpu}, seq={cfg.seq_len}) : "
+                            f"{torch.cuda.max_memory_allocated() / 1e9:.2f} GB "
+                            f"/ {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB total")
 
             # ==================================================================
             # Optimizer step every grad_accum micro-batches

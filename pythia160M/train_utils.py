@@ -21,8 +21,7 @@ import logging
 import itertools
 
 _DATASETS_CACHE = os.path.join(
-    os.environ.get("SCRATCH", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "datasets"
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "datasets"
 )
 from dataclasses import dataclass, field
 from typing import Optional, List
