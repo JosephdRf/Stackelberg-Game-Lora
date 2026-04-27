@@ -1,5 +1,7 @@
 sbatch simple_job.sh,soumettre un job 
 squeue -u $USER (joseph63), voir mes jobs en cours
+sq -u joseph63 --start, voir mes jobs en cours et leur date de début
+
 
 scancel 59999999, annuler un job
 scontrol show job 59999999, voir détails avancés d'un job

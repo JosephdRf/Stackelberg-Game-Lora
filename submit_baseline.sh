@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
 #SBATCH --time=3:00:00
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:a100_2g.10gb:1
 #SBATCH --output=logs/baseline_%j.out
 #SBATCH --error=logs/baseline_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -36,13 +36,14 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
-RUN_NAME=Train_stackelberg_exp1_5
-CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp1/$RUN_NAME
+RUN_NAME_TRAIN=Train_stackelberg_exp1_6
+RUN_NAME_EVAL=Eval_exp1_6
+CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp1/$RUN_NAME_TRAIN
 
 python pythia160M/exp1/train_exp1.py \
     --output_dir $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name $RUN_NAME \
-    --lr_sim 3e-4 \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name $RUN_NAME_TRAIN \
+    --lr_sim 3e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
     --lambda_lead 0 \
@@ -50,4 +51,4 @@ python pythia160M/exp1/train_exp1.py \
 
 python pythia160M/eval.py \
     --model_path $CKPT_DIR/final \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name Eval_exp1_5
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name $RUN_NAME_EVAL
