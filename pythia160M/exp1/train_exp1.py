@@ -630,6 +630,7 @@ if __name__ == "__main__":
         lr                 = args.lr,
         output_dir         = args.output_dir,
         wandb_project      = args.wandb_project,
+        wandb_group        = args.wandb_group,
         run_name           = args.run_name,
         seed               = args.seed,
         dry_run            = args.dry_run,
