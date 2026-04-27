@@ -1,0 +1,25 @@
+16:10:07 | INFO | Chargement de EleutherAI/pythia-160m (eager attention) ...
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights: 100%|██████████| 148/148 [00:00<00:00, 271.28it/s]
+W0426 16:10:36.333000 3643847 torch/utils/flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Traceback (most recent call last):
+  File "/lustre07/scratch/joseph63/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 653, in <module>
+    train_stackelberg(
+  File "/lustre07/scratch/joseph63/Stackelberg-Game-Lora/pythia160M/exp1/train_exp1.py", line 171, in train_stackelberg
+    train_ds = WikiTextDataset(
+               ^^^^^^^^^^^^^^^^
+  File "/lustre07/scratch/joseph63/Stackelberg-Game-Lora/pythia160M/train_utils.py", line 155, in __init__
+    ds = load_dataset(dataset_name, dataset_config, split=split, cache_dir=_DATASETS_CACHE)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre07/scratch/joseph63/Stackelberg-Game-Lora/.venv/lib/python3.11/site-packages/datasets/load.py", line 1688, in load_dataset
+    builder_instance = load_dataset_builder(
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre07/scratch/joseph63/Stackelberg-Game-Lora/.venv/lib/python3.11/site-packages/datasets/load.py", line 1315, in load_dataset_builder
+    dataset_module = dataset_module_factory(
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre07/scratch/joseph63/Stackelberg-Game-Lora/.venv/lib/python3.11/site-packages/datasets/load.py", line 1207, in dataset_module_factory
+    raise e1 from None
+  File "/lustre07/scratch/joseph63/Stackelberg-Game-Lora/.venv/lib/python3.11/site-packages/datasets/load.py", line 1149, in dataset_module_factory
+    raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({e.__class__.__name__})") from e
+ConnectionError: Couldn't reach 'Salesforce/wikitext' on the Hub (OfflineModeIsEnabled)
+trainable params: 884,736 || all params: 163,207,680 || trainable%: 0.5421

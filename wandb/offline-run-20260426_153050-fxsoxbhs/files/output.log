@@ -1,0 +1,30 @@
+15:30:55 | INFO | Chargement du modèle depuis EleutherAI/pythia-160m ...
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights: 100%|██████████| 148/148 [00:00<00:00, 159.00it/s]
+15:31:01 | INFO | === Évaluation Pythia-160M ===
+15:31:01 | INFO |   Ignorés : ['PTB_BPB', 'PIQA', 'ARC-Easy', 'MemoTrap']
+15:31:01 | INFO | WikiText-103 (in-domain, cible du FT) ...
+Using the latest cached version of the dataset since Salesforce/wikitext couldn't be found on the Hugging Face Hub (offline mode is enabled).
+15:31:13 | WARNING | Using the latest cached version of the dataset since Salesforce/wikitext couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'wikitext-103-raw-v1' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Salesforce___wikitext/wikitext-103-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Mon Apr 20 15:52:22 2026).
+15:31:13 | WARNING | Found the latest cached dataset configuration 'wikitext-103-raw-v1' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Salesforce___wikitext/wikitext-103-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Mon Apr 20 15:52:22 2026).
+15:31:28 | INFO |   WT103 PPL   = 28.418   BPB = 1.0779
+15:31:28 | INFO | LAMBADA ...
+Using the latest cached version of the dataset since EleutherAI/lambada_openai couldn't be found on the Hugging Face Hub (offline mode is enabled).
+15:31:28 | WARNING | Using the latest cached version of the dataset since EleutherAI/lambada_openai couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'en' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/EleutherAI___lambada_openai/en/0.0.0/900124bf3b8235c6daf21033af9948b3f07346c4 (last modified on Fri Apr 17 12:31:39 2026).
+15:31:28 | WARNING | Found the latest cached dataset configuration 'en' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/EleutherAI___lambada_openai/en/0.0.0/900124bf3b8235c6daf21033af9948b3f07346c4 (last modified on Fri Apr 17 12:31:39 2026).
+15:32:07 | INFO |   LAMBADA ppl = 14.053
+15:32:07 | INFO | HellaSwag ...
+Using the latest cached version of the dataset since Rowan/hellaswag couldn't be found on the Hugging Face Hub (offline mode is enabled).
+15:32:07 | WARNING | Using the latest cached version of the dataset since Rowan/hellaswag couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'default' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Rowan___hellaswag/default/0.0.0/218ec52e09a7e7462a5400043bb9a69a41d06b76 (last modified on Tue Apr 21 12:41:27 2026).
+15:32:07 | WARNING | Found the latest cached dataset configuration 'default' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Rowan___hellaswag/default/0.0.0/218ec52e09a7e7462a5400043bb9a69a41d06b76 (last modified on Tue Apr 21 12:41:27 2026).
+15:37:06 | INFO |   HellaSwag   acc=0.2838  acc_norm=0.3024
+15:37:06 | INFO |
+=== Résultats finaux ===
+15:37:06 | INFO |   WikiText103_PPL      = 28.4184
+15:37:06 | INFO |   WikiText103_BPB      = 1.0779
+15:37:06 | INFO |   LAMBADA_ppl          = 14.0527
+15:37:06 | INFO |   HellaSwag_acc        = 0.2838
+15:37:06 | INFO |   HellaSwag_acc_norm   = 0.3024
