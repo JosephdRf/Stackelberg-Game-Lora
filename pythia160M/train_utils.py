@@ -99,8 +99,8 @@ class TrainConfig:
     lr: float = 3e-4               # LR standard LoRA (vs 3e-5 full FT)
     weight_decay: float = 0.01
     warmup_ratio: float = 0.03
-    batch_size_per_gpu: int = 4
-    grad_accum: int = 4           # batch effectif = 16
+    batch_size_per_gpu: int = 16
+    grad_accum: int = 1           # batch effectif = 16
     grad_clip: float = 1.0
     betas: tuple = (0.9, 0.95)    # beta2=0.95 classique pour les LM
 

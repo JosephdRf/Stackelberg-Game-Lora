@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
 #SBATCH --time=3:00:00
-#SBATCH --gres=gpu:a100_2g.10gb:1
+#SBATCH --gres=gpu:a100:1
 #SBATCH --output=logs/baseline_%j.out
 #SBATCH --error=logs/baseline_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
