@@ -9,3 +9,4 @@ plots/
 
 # Ignore Hugging Face cache and datasets
 datasets/
+wandb/
