@@ -1,0 +1,35 @@
+14:49:52 | INFO | Chargement de EleutherAI/pythia-160m (eager attention) ...
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights: 100%|██████████| 148/148 [00:00<00:00, 280.47it/s]
+W0427 14:50:12.906000 1828589 torch/utils/flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+14:50:33 | INFO | VRAM après chargement modèle : 0.33 GB / 10.47 GB total
+Using the latest cached version of the dataset since Salesforce/wikitext couldn't be found on the Hugging Face Hub (offline mode is enabled).
+14:50:41 | WARNING | Using the latest cached version of the dataset since Salesforce/wikitext couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'wikitext-103-raw-v1' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Salesforce___wikitext/wikitext-103-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Mon Apr 20 15:52:22 2026).
+14:50:41 | WARNING | Found the latest cached dataset configuration 'wikitext-103-raw-v1' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Salesforce___wikitext/wikitext-103-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Mon Apr 20 15:52:22 2026).
+14:51:59 | INFO |   Dataset 'train' : 119,881,950 tokens → 116958 blocs de 1025 tokens
+Using the latest cached version of the dataset since Salesforce/wikitext couldn't be found on the Hugging Face Hub (offline mode is enabled).
+14:52:00 | WARNING | Using the latest cached version of the dataset since Salesforce/wikitext couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'wikitext-103-raw-v1' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Salesforce___wikitext/wikitext-103-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Mon Apr 20 15:52:22 2026).
+14:52:00 | WARNING | Found the latest cached dataset configuration 'wikitext-103-raw-v1' at /lustre07/scratch/joseph63/Stackelberg-Game-Lora/datasets/Salesforce___wikitext/wikitext-103-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Mon Apr 20 15:52:22 2026).
+14:52:01 | INFO |   Dataset 'validation' : 252,150 tokens → 246 blocs de 1025 tokens
+14:52:01 | INFO | Total trainable params : 884,736
+14:52:01 | INFO | Design layer           : 9  |  Leader head idx : 0
+14:52:01 | INFO | λ_lead=0.0  λ_peer=0.0  (CE only — diversity inactive)
+14:52:01 | INFO | Eval initiale ...
+14:52:11 | INFO |   [step 0] val_loss=4.7165  val_ppl=111.782
+Stackelberg Training (Pythia-160M):   0%|          | 0/6104 [00:00<?, ?step/s]14:52:11 | INFO | VRAM pic step 0 (batch=4, seq=1024) : 7.89 GB / 10.47 GB total
+Stackelberg Training (Pythia-160M):   0%|          | 1/6104 [00:04<7:41:22,  4.54s/step, ce=4.7711, div=0.0000, ema=4.7711, l_ce=4.7742, tok_s=3,611]14:52:15 | INFO | [train] step      1/6104  CE=4.7711  ema=4.7711  div=0.0000  leader_CE=4.7742  lr_L=1.63e-07  lr_F=1.63e-07  tok/s=3,611
+Stackelberg Training (Pythia-160M):   0%|          | 20/6104 [00:50<4:05:41,  2.42s/step, ce=4.8293, div=0.0000, ema=4.7691, l_ce=4.8409, tok_s=6,762]14:53:01 | INFO | [train] step     20/6104  CE=4.8293  ema=4.7691  div=0.0000  leader_CE=4.8409  lr_L=3.26e-06  lr_F=3.26e-06  tok/s=6,762
+Stackelberg Training (Pythia-160M):   1%|          | 40/6104 [01:39<4:04:39,  2.42s/step, ce=4.8507, div=0.0000, ema=4.7438, l_ce=4.8428, tok_s=6,770]14:53:50 | INFO | [train] step     40/6104  CE=4.8507  ema=4.7438  div=0.0000  leader_CE=4.8428  lr_L=6.52e-06  lr_F=6.52e-06  tok/s=6,770
+Stackelberg Training (Pythia-160M):   1%|          | 60/6104 [02:27<4:03:52,  2.42s/step, ce=4.6086, div=0.0000, ema=4.7020, l_ce=4.5976, tok_s=6,768]14:54:38 | INFO | [train] step     60/6104  CE=4.6086  ema=4.7020  div=0.0000  leader_CE=4.5976  lr_L=9.78e-06  lr_F=9.78e-06  tok/s=6,768
+Stackelberg Training (Pythia-160M):   1%|▏         | 80/6104 [03:15<4:03:02,  2.42s/step, ce=4.6230, div=0.0000, ema=4.6488, l_ce=4.6116, tok_s=6,767]14:55:26 | INFO | [train] step     80/6104  CE=4.6230  ema=4.6488  div=0.0000  leader_CE=4.6116  lr_L=1.30e-05  lr_F=1.30e-05  tok/s=6,767
+Stackelberg Training (Pythia-160M):   2%|▏         | 100/6104 [04:04<4:02:12,  2.42s/step, ce=4.4197, div=0.0000, ema=4.5655, l_ce=4.4065, tok_s=6,769]14:56:15 | INFO | [train] step    100/6104  CE=4.4197  ema=4.5655  div=0.0000  leader_CE=4.4065  lr_L=1.63e-05  lr_F=1.63e-05  tok/s=6,769
+14:56:21 | INFO | [val]   step    100  val_loss=4.4348  val_ppl=84.332
+14:56:26 | INFO |   [head matrices] layer=9  Γ(G)=0.0123  (rho sur 20 batches)
+Stackelberg Training (Pythia-160M):   2%|▏         | 120/6104 [05:04<4:01:48,  2.42s/step, ce=4.4413, div=0.0000, ema=4.4779, l_ce=4.4334, tok_s=6,767]14:57:15 | INFO | [train] step    120/6104  CE=4.4413  ema=4.4779  div=0.0000  leader_CE=4.4334  lr_L=1.96e-05  lr_F=1.96e-05  tok/s=6,767
+Stackelberg Training (Pythia-160M):   2%|▏         | 140/6104 [05:52<4:00:43,  2.42s/step, ce=4.3310, div=0.0000, ema=4.3953, l_ce=4.3314, tok_s=6,766]14:58:03 | INFO | [train] step    140/6104  CE=4.3310  ema=4.3953  div=0.0000  leader_CE=4.3314  lr_L=2.28e-05  lr_F=2.28e-05  tok/s=6,766
+Stackelberg Training (Pythia-160M):   3%|▎         | 160/6104 [06:40<3:59:51,  2.42s/step, ce=4.3297, div=0.0000, ema=4.3397, l_ce=4.3007, tok_s=6,767]14:58:51 | INFO | [train] step    160/6104  CE=4.3297  ema=4.3397  div=0.0000  leader_CE=4.3007  lr_L=2.61e-05  lr_F=2.61e-05  tok/s=6,767
+Stackelberg Training (Pythia-160M):   3%|▎         | 180/6104 [07:29<3:59:02,  2.42s/step, ce=4.2711, div=0.0000, ema=4.3120, l_ce=4.2523, tok_s=6,767]14:59:40 | INFO | [train] step    180/6104  CE=4.2711  ema=4.3120  div=0.0000  leader_CE=4.2523  lr_L=2.93e-05  lr_F=2.93e-05  tok/s=6,767
+Stackelberg Training (Pythia-160M):   3%|▎         | 191/6104 [07:55<3:58:38,  2.42s/step, ce=4.3204, div=0.0000, ema=4.2830, l_ce=4.3109, tok_s=6,765]
+trainable params: 884,736 || all params: 163,207,680 || trainable%: 0.5421
