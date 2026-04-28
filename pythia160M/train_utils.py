@@ -189,7 +189,11 @@ class WikiTextDataset(Dataset):
 # ---------------------------------------------------------------------------
 
 
-def build_model_and_tokenizer(cfg: TrainConfig):
+def build_model_and_tokenizer(
+    cfg: TrainConfig,
+    attn_implementation=None,
+    torch_dtype=torch.float32,
+):
     logger.info(f"Chargement de {cfg.model_name} ...")
 
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name, trust_remote_code=True)
@@ -201,11 +205,10 @@ def build_model_and_tokenizer(cfg: TrainConfig):
         config = AutoConfig.from_pretrained(cfg.model_name, trust_remote_code=True)
         model = AutoModelForCausalLM.from_config(config)
     else:
-        model = AutoModelForCausalLM.from_pretrained(
-            cfg.model_name,
-            torch_dtype=torch.float32,
-            trust_remote_code=True,
-        )
+        kwargs = dict(torch_dtype=torch_dtype, trust_remote_code=True)
+        if attn_implementation is not None:
+            kwargs["attn_implementation"] = attn_implementation
+        model = AutoModelForCausalLM.from_pretrained(cfg.model_name, **kwargs)
 
     lora_cfg = LoraConfig(
         task_type=TaskType.CAUSAL_LM,

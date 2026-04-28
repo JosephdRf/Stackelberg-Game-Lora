@@ -49,7 +49,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def train(cfg: TrainConfig, head_log_layer: int = 9):
+def train(cfg: TrainConfig, head_log_layer: int = 9,
+          attention_eager: bool = False, bfloat16: bool = False):
     seed_everything(cfg.seed)
 
     device = get_device()
@@ -60,7 +61,11 @@ def train(cfg: TrainConfig, head_log_layer: int = 9):
         import wandb
         wandb.init(project=cfg.wandb_project, name=cfg.run_name, group=cfg.wandb_group, config=vars(cfg))
 
-    model, tokenizer = build_model_and_tokenizer(cfg)
+    model, tokenizer = build_model_and_tokenizer(
+        cfg,
+        attn_implementation="eager" if attention_eager else None,
+        torch_dtype=torch.bfloat16 if bfloat16 else torch.float32,
+    )
     model = model.to(device)
 
     train_loader, val_loader, optimizer, scheduler, total_steps = setup_training(
@@ -278,8 +283,10 @@ def parse_args():
         description="Baseline LoRA fine-tuning — Pythia-160M sur WikiText-103 (CE seul)"
     )
     parser = add_common_args(parser)
-    parser.add_argument("--output_dir", default=os.path.join(_HERE, "checkpoints"))
-    parser.add_argument("--run_name",   default="baseline_fullft_pythia")
+    parser.add_argument("--output_dir",      default=os.path.join(_HERE, "checkpoints"))
+    parser.add_argument("--run_name",        default="baseline_fullft_pythia")
+    parser.add_argument("--attention_eager", action="store_true", default=False)
+    parser.add_argument("--bfloat16",        action="store_true", default=False)
     return parser.parse_args()
 
 
@@ -307,4 +314,6 @@ if __name__ == "__main__":
     )
 
     log_config(cfg)
-    train(cfg, head_log_layer=args.head_log_layer)
+    train(cfg, head_log_layer=args.head_log_layer,
+          attention_eager=args.attention_eager,
+          bfloat16=args.bfloat16)
