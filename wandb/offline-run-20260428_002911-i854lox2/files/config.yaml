@@ -9,7 +9,7 @@ _wandb:
     huggingface_version: 5.6.2
     is_jupyter_run: false
     is_kaggle_kernel: false
-    start_time: 1777315830
+    start_time: 1777350562
     t:
       1:
       - 1
@@ -25,6 +25,7 @@ _wandb:
       - 71
       - 98
       3:
+      - 2
       - 4
       - 13
       - 16
@@ -35,21 +36,21 @@ _wandb:
       6: 5.6.2
       13: linux-x86_64
     e:
-      uxgb5vub0uw12ebbcqp3f6nkta7ta9w5:
+      jhtl5b3k6o64hkdih5h0r8hq5tn6x337:
         os: Linux-5.14.0-611.42.1.el9_7.x86_64-x86_64-AMD_EPYC_7413_24-Core_Processor-with-glibc2.37
         python: CPython 3.11.4
-        started_at: '2026-04-27T18:50:30.490895Z'
+        started_at: '2026-04-28T04:29:11.028112Z'
         args:
         - --output_dir
-        - /lustre07/scratch/joseph63/Stackelberg-Game-Lora/checkpoints/exp1/Train_stackelberg_exp1_6
+        - /lustre07/scratch/joseph63/Stackelberg-Game-Lora/checkpoints/exp1/Train_stackelberg_exp1_7
         - --wandb_project
         - Stackelberg-Pythia160M
         - --wandb_group
         - Exp1
         - --run_name
-        - Train_stackelberg_exp1_6
+        - Train_stackelberg_exp1_7
         - --lr_sim
-        - 3e-5
+        - '0'
         - --lr_leader
         - 3e-5
         - --lr_follower
@@ -63,9 +64,9 @@ _wandb:
         code_path_local: pythia160M/exp1/train_exp1.py
         git:
           remote_url: git@github.com:JosephdRf/Stackelberg-Game-Lora.git
-          commit: a6d54a101d369047382d3853fbd38c1b6784f81c
+          commit: 4cb852e4d11563f36175d505f81a212600cf54a0
         root: /lustre07/scratch/joseph63/Stackelberg-Game-Lora
-        host: ng20502
+        host: ng10602
         executable: /lustre07/scratch/joseph63/Stackelberg-Game-Lora/.venv/bin/python
         cpu_count: 48
         cpu_count_logical: 48
@@ -74,23 +75,24 @@ _wandb:
         disk:
           /:
             total: '17179869184'
-            used: '4954337280'
+            used: '5043515392'
         memory:
-          total: '540623360000'
+          total: '540623355904'
         gpu_nvidia:
         - name: NVIDIA A100-SXM4-40GB
           memory_total: '42949672960'
+          cuda_cores: 6912
           architecture: Ampere
-          uuid: GPU-e131c37d-177c-597b-2689-bf24b5d65236
+          uuid: GPU-196d6c43-1d50-5538-2bc5-0da12ed0f7f9
         cuda_version: '12.8'
         slurm:
-          tmpdir: /localscratch/joseph63.59947442.0
+          tmpdir: /localscratch/joseph63.59971116.0
           job_account: def-omar12_gpu
           restart_count: '0'
-          submit_host: narval3
+          job_nodelist: ng10602
           conf: /etc/slurm/slurm.conf
-          job_id: '59947442'
-          job_nodelist: ng20502
+          job_id: '59971116'
+          submit_host: narval2
           job_partition: gpubase_bygpu_b1
           mpi_type: pmix
           job_num_nodes: '1'
@@ -98,33 +100,33 @@ _wandb:
           gtids: '0'
           tasks_per_node: '1'
           job_qos: normal
-          nodelist: ng20502
-          job_end_time: '1777326448'
-          task_pid: '3896344'
-          topology_addr: ihpc207u29.ihpc205u25.ng20502
+          nodelist: ng10602
+          job_end_time: '1777357336'
+          task_pid: '717367'
+          topology_addr: ihpc207u29.ihpc106u25.ng10602
           tres_per_task: cpu=10
-          job_gid: '3158629'
           prio_process: '0'
+          job_gid: '3158629'
+          job_start_time: '1777350136'
           gpus_on_node: '1'
-          job_start_time: '1777315648'
           job_cpus_per_node: '10'
           cpus_on_node: '10'
-          jobid: '59947442'
+          jobid: '59971116'
           topology_addr_pattern: switch.switch.node
           script_context: prolog_task
           oom_kill_step: '0'
           cluster_name: narval
-          job_gpus: '3'
+          job_gpus: '0'
           job_user: joseph63
           mem_per_node: '16384'
           nnodes: '1'
-          submit_dir: /lustre07/scratch/joseph63/Stackelberg-Game-Lora
+          nodeid: '0'
           procid: '0'
           job_name: joseph-stackelberg-job
-          nodeid: '0'
+          submit_dir: /lustre07/scratch/joseph63/Stackelberg-Game-Lora
           cpus_per_task: '10'
           job_uid: '3158629'
-        writer_id: uxgb5vub0uw12ebbcqp3f6nkta7ta9w5
+        writer_id: jhtl5b3k6o64hkdih5h0r8hq5tn6x337
 model_name:
   desc: null
   value: EleutherAI/pythia-160m
@@ -185,7 +187,7 @@ eval_max_batches:
   value: 50
 output_dir:
   desc: null
-  value: /lustre07/scratch/joseph63/Stackelberg-Game-Lora/checkpoints/exp1/Train_stackelberg_exp1_6
+  value: /lustre07/scratch/joseph63/Stackelberg-Game-Lora/checkpoints/exp1/Train_stackelberg_exp1_7
 log_every:
   desc: null
   value: 20
@@ -200,7 +202,7 @@ wandb_group:
   value: Exp1
 run_name:
   desc: null
-  value: Train_stackelberg_exp1_6
+  value: Train_stackelberg_exp1_7
 seed:
   desc: null
   value: 42

@@ -1,3 +1,5 @@
+
+trainable params: 884,736 || all params: 163,207,680 || trainable%: 0.5421
 14:49:52 | INFO | Chargement de EleutherAI/pythia-160m (eager attention) ...
 [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
 Loading weights: 100%|██████████| 148/148 [00:00<00:00, 280.47it/s]
@@ -32,4 +34,3 @@ Stackelberg Training (Pythia-160M):   2%|▏         | 140/6104 [05:52<4:00:43, 
 Stackelberg Training (Pythia-160M):   3%|▎         | 160/6104 [06:40<3:59:51,  2.42s/step, ce=4.3297, div=0.0000, ema=4.3397, l_ce=4.3007, tok_s=6,767]14:58:51 | INFO | [train] step    160/6104  CE=4.3297  ema=4.3397  div=0.0000  leader_CE=4.3007  lr_L=2.61e-05  lr_F=2.61e-05  tok/s=6,767
 Stackelberg Training (Pythia-160M):   3%|▎         | 180/6104 [07:29<3:59:02,  2.42s/step, ce=4.2711, div=0.0000, ema=4.3120, l_ce=4.2523, tok_s=6,767]14:59:40 | INFO | [train] step    180/6104  CE=4.2711  ema=4.3120  div=0.0000  leader_CE=4.2523  lr_L=2.93e-05  lr_F=2.93e-05  tok/s=6,767
 Stackelberg Training (Pythia-160M):   3%|▎         | 191/6104 [07:55<3:58:38,  2.42s/step, ce=4.3204, div=0.0000, ema=4.2830, l_ce=4.3109, tok_s=6,765]
-trainable params: 884,736 || all params: 163,207,680 || trainable%: 0.5421

@@ -2366,3 +2366,1490 @@ wandb.errors.errors.CommError: HTTP 409: run 2nmssiu8 was previously created and
 2026-04-27 23:02:55 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_204906-tleibu60/files/wandb-summary.json
 2026-04-27 23:02:56 INFO file stream finish called
 2026-04-27 23:02:57 INFO file stream finish is done
+2026-04-28 10:01:38 INFO open for scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260425_144522-2nmssiu8/run-2nmssiu8.wandb
+2026-04-28 10:01:39 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:01:40 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:01:42 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:01:42 INFO Retry attempt failed:
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/retry.py", line 160, in __call__
+    result = self._call_fn(*args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:01:47 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:01:58 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:02:17 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:02:52 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:09 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:09 ERROR HTTP 409: run 2nmssiu8 was previously created and deleted; try a new run id
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/apis/normalize.py", line 28, in wrapper
+    return func(*args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 1931, in upsert_run
+    response = self.gql(
+        mutation,
+    ...<2 lines>...
+        **kwargs,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 349, in gql
+    ret = self._retry_gql(
+        *args,
+        retry_cancel_event=self.context.cancel_event,
+        **kwargs,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/retry.py", line 160, in __call__
+    result = self._call_fn(*args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/sender.py", line 942, in send_run
+    server_run = self._init_run(run, config_value_dict)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/sender.py", line 1013, in _init_run
+    server_run, inserted = self._api.upsert_run(
+                           ~~~~~~~~~~~~~~~~~~~~^
+        name=run.run_id,
+        ^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+        commit=run.git.commit or None,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/apis/normalize.py", line 45, in wrapper
+    raise CommError(message, error)
+wandb.errors.errors.CommError: HTTP 409: run 2nmssiu8 was previously created and deleted; try a new run id
+2026-04-28 10:04:09 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:04:09 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:04:09 INFO saving file requirements.txt with policy now
+2026-04-28 10:04:09 INFO shutting down sender
+2026-04-28 10:04:09 INFO open for scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/run-yisom5tx.wandb
+2026-04-28 10:04:09 INFO watching files in: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files
+2026-04-28 10:04:09 INFO run started: yisom5tx with start time 1777315791.817766
+2026-04-28 10:04:10 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:04:10 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpfe7ngx8nwandb/k612ekkg-wandb-metadata.json
+2026-04-28 10:04:10 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:04:10 INFO saving file requirements.txt with policy now
+2026-04-28 10:04:10 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-metadata.json
+2026-04-28 10:04:10 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml
+2026-04-28 10:04:11 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpfe7ngx8nwandb/owlkhte0-wandb-metadata.json
+2026-04-28 10:04:11 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpfe7ngx8nwandb/0k02xl9o-requirements.txt
+2026-04-28 10:04:11 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:04:11 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file media/images/head/matrices_100_704b97b5d0a35b4878a8.png with policy now
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:04:12 INFO shutting down sender
+2026-04-28 10:04:12 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpfe7ngx8nwandb/jecet8h8-media/images/head/matrices_100_704b97b5d0a35b4878a8.png
+2026-04-28 10:04:12 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-summary.json
+2026-04-28 10:04:12 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml
+2026-04-28 10:04:13 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:04:15 INFO shutting down directory watcher
+2026-04-28 10:04:15 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:04:15 INFO scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files
+2026-04-28 10:04:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/requirements.txt requirements.txt
+2026-04-28 10:04:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log output.log
+2026-04-28 10:04:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml config.yaml
+2026-04-28 10:04:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-summary.json wandb-summary.json
+2026-04-28 10:04:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-metadata.json wandb-metadata.json
+2026-04-28 10:04:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/media/images/head/matrices_100_704b97b5d0a35b4878a8.png media/images/head/matrices_100_704b97b5d0a35b4878a8.png
+2026-04-28 10:04:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/media/images/head/matrices_200_90db3d7670bddb42a507.png media/images/head/matrices_200_90db3d7670bddb42a507.png
+2026-04-28 10:04:15 INFO shutting down file pusher
+2026-04-28 10:04:15 INFO waiting for file pusher
+2026-04-28 10:04:16 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-summary.json
+2026-04-28 10:04:16 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:04:16 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml
+2026-04-28 10:04:16 INFO file stream finish called
+2026-04-28 10:04:18 INFO file stream finish is done
+2026-04-28 10:04:18 INFO open for scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_145030-hque8z3w/run-hque8z3w.wandb
+2026-04-28 10:04:18 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:20 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:22 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:22 INFO Retry attempt failed:
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/retry.py", line 160, in __call__
+    result = self._call_fn(*args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:27 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:36 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:04:56 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:05:29 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:06:36 ERROR Error executing GraphQL.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+2026-04-28 10:06:36 ERROR HTTP 409: run hque8z3w was previously created and deleted; try a new run id
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/apis/normalize.py", line 28, in wrapper
+    return func(*args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 1931, in upsert_run
+    response = self.gql(
+        mutation,
+    ...<2 lines>...
+        **kwargs,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 349, in gql
+    ret = self._retry_gql(
+        *args,
+        retry_cancel_event=self.context.cancel_event,
+        **kwargs,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/retry.py", line 160, in __call__
+    result = self._call_fn(*args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/internal_api.py", line 379, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/lib/gql_request.py", line 71, in execute
+    request.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 409 Client Error: Conflict for url: https://api.wandb.ai/graphql
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/sender.py", line 942, in send_run
+    server_run = self._init_run(run, config_value_dict)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/sdk/internal/sender.py", line 1013, in _init_run
+    server_run, inserted = self._api.upsert_run(
+                           ~~~~~~~~~~~~~~~~~~~~^
+        name=run.run_id,
+        ^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+        commit=run.git.commit or None,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/wandb/apis/normalize.py", line 45, in wrapper
+    raise CommError(message, error)
+wandb.errors.errors.CommError: HTTP 409: run hque8z3w was previously created and deleted; try a new run id
+2026-04-28 10:06:36 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:06:36 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:06:36 INFO saving file requirements.txt with policy now
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file media/images/head/matrices_100_2e38b4ef6b64da4d8f0a.png with policy now
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:36 INFO shutting down sender
+2026-04-28 10:06:36 INFO open for scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/run-i854lox2.wandb
+2026-04-28 10:06:37 INFO watching files in: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files
+2026-04-28 10:06:37 INFO run started: i854lox2 with start time 1777350562.146184
+2026-04-28 10:06:37 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:06:38 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:06:38 INFO saving file requirements.txt with policy now
+2026-04-28 10:06:38 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/c24c22f2-wandb-metadata.json
+2026-04-28 10:06:38 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/rzt6vkgp-requirements.txt
+2026-04-28 10:06:38 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/config.yaml
+2026-04-28 10:06:38 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/wandb-metadata.json
+2026-04-28 10:06:38 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/2928zazw-wandb-metadata.json
+2026-04-28 10:06:39 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/config.yaml
+2026-04-28 10:06:39 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/output.log
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_100_190d3971abddac6ae9de.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_200_fcda6734928f937c9a45.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_300_8faacefda7f35263cc2d.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_400_f66dc2da93d791763570.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_500_c07144875f56be964298.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_600_f308d47dc468d67e6c81.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_700_532d2e65a7b44b94ab61.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_800_14abacb83926ec5b6bd5.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_900_b67c0760bcf0af0921e8.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1000_6ed4344245793e07e8a0.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1100_4c6d5930a3945635e3b4.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1200_46492c4f0e575fd60639.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1300_3e301c753ad3b0bf9428.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1400_1d6237224f9a5cd2403e.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1500_0b8dead6f4a57d21b81f.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1600_6ae9db3404a037ff392c.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1700_5acb06c2fe3d199cb968.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1800_d7d49b250b5115f63e77.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_1900_6ca149ac6755f91c13d8.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2000_16e3860f0d823f43b0d7.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2100_9855edc5cf41f53f3cb0.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2200_853fd6e3adc46e09197c.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2300_70c66fcc35f848136be8.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2400_973792fe77be3b9b885a.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2500_1494ed23574caedf533e.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2600_64e164deb9f0444c1f3f.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2700_6d8c4f5aa76ca0b3ac71.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2800_4af63b9afa33de927d9a.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_2900_f5f99dbbd6d4b20404fc.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3000_33fe1d7110927f4df72d.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3100_a6b66cfc203c8a871c28.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3200_213ed5bd0151741bef70.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3300_f2c5863dea736a2b5978.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3400_5c3a70f1133e7197c834.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3500_f0943d25852a1b3e901c.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3600_b1575aa6fe214ed96633.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3700_5a7a369960e47544e4ad.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3800_b3c191a5522bc505e5da.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_3900_79499d66de3d20295e97.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4000_056cbedd167da5cfde6b.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4100_83140c06f59e2dc5e7c9.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4200_9e76898c13db7e082a6d.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4300_9fa0e33e84dff173051b.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4400_abfab70ec7009374134a.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4500_87ab4461812779b3b447.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4600_323d2a343509a9289593.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4700_3c6629e9fc0f8a8f37ad.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4800_eb64e01eaf494c483bae.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_4900_f6278d14da2eec003d56.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5000_7114766939894bae316a.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5100_6855621ae17f9a2ae8f7.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5200_aa3721ae3b97d9b02779.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5300_d3d6d878d671efcde921.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5400_4625ab10fb8fc4213cca.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5500_82b7f22631ab636303bd.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5600_e05643fe8e242c31ef91.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5700_5ab84004d33876249147.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5800_62cba2ca3370bfaf6efb.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_5900_e6af4df92f882e15b774.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_6000_a83f19f703842ee64103.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file media/images/head/matrices_6100_d2a784805bf636f01e23.png with policy now
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:39 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/r6g1g1ud-media/images/head/matrices_300_8faacefda7f35263cc2d.png
+2026-04-28 10:06:39 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/e84u6d48-media/images/head/matrices_200_fcda6734928f937c9a45.png
+2026-04-28 10:06:40 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/fj8bv7m2-media/images/head/matrices_5500_82b7f22631ab636303bd.png
+2026-04-28 10:06:40 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/gggf8xc9-media/images/head/matrices_5700_5ab84004d33876249147.png
+2026-04-28 10:06:40 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/config.yaml
+2026-04-28 10:06:40 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/wandb-summary.json
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/sxnt2vkg-media/images/head/matrices_100_190d3971abddac6ae9de.png
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/az7ime1q-media/images/head/matrices_1800_d7d49b250b5115f63e77.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/vd579do0-media/images/head/matrices_1700_5acb06c2fe3d199cb968.png
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/js3e497f-media/images/head/matrices_400_f66dc2da93d791763570.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/v6uvrde6-media/images/head/matrices_5300_d3d6d878d671efcde921.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/05pq92d7-media/images/head/matrices_5900_e6af4df92f882e15b774.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/zuwb226b-media/images/head/matrices_5800_62cba2ca3370bfaf6efb.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/j9uu2vrj-media/images/head/matrices_2900_f5f99dbbd6d4b20404fc.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/wjmfml8x-media/images/head/matrices_5600_e05643fe8e242c31ef91.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/ohdxrihg-media/images/head/matrices_3100_a6b66cfc203c8a871c28.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/bliqs87g-media/images/head/matrices_5400_4625ab10fb8fc4213cca.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/27aaimpz-media/images/head/matrices_700_532d2e65a7b44b94ab61.png
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/h3o6sxo8-media/images/head/matrices_2800_4af63b9afa33de927d9a.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/htpe2s2k-media/images/head/matrices_600_f308d47dc468d67e6c81.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/amx1il0h-media/images/head/matrices_500_c07144875f56be964298.png
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10
+2026-04-28 10:06:41 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/output.log
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/9wu94jzo-media/images/head/matrices_3500_f0943d25852a1b3e901c.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/o1ox7bjm-media/images/head/matrices_3700_5a7a369960e47544e4ad.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/nf6ui47p-media/images/head/matrices_4200_9e76898c13db7e082a6d.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/hezfq0tw-media/images/head/matrices_4300_9fa0e33e84dff173051b.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/vao5zud0-media/images/head/matrices_3900_79499d66de3d20295e97.png
+2026-04-28 10:06:41 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/zgepxaek-media/images/head/matrices_5000_7114766939894bae316a.png
+2026-04-28 10:06:41 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/vnqijtd3-media/images/head/matrices_4700_3c6629e9fc0f8a8f37ad.png
+2026-04-28 10:06:41 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:41 INFO shutting down sender
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/g798cu6s-media/images/head/matrices_5200_aa3721ae3b97d9b02779.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/qcekzndw-media/images/head/matrices_4500_87ab4461812779b3b447.png
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/88ivdtq0-media/images/head/matrices_4600_323d2a343509a9289593.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/r2av9k7b-media/images/head/matrices_4900_f6278d14da2eec003d56.png
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/jq906wfq-media/images/head/matrices_6000_a83f19f703842ee64103.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/ahpta13u-media/images/head/matrices_4000_056cbedd167da5cfde6b.png
+2026-04-28 10:06:41 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/9n1zymgz-media/images/head/matrices_4800_eb64e01eaf494c483bae.png
+2026-04-28 10:06:41 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/zs4krk62-media/images/head/matrices_5100_6855621ae17f9a2ae8f7.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/edz01iih-media/images/head/matrices_3800_b3c191a5522bc505e5da.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/wort8jhs-media/images/head/matrices_900_b67c0760bcf0af0921e8.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/1con3i72-media/images/head/matrices_2000_16e3860f0d823f43b0d7.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/4tapcjy8-media/images/head/matrices_2100_9855edc5cf41f53f3cb0.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/8groj4p2-media/images/head/matrices_1900_6ca149ac6755f91c13d8.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/q4f95f8g-media/images/head/matrices_1400_1d6237224f9a5cd2403e.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/yb7sgk5u-media/images/head/matrices_1000_6ed4344245793e07e8a0.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/41pnzy5m-media/images/head/matrices_800_14abacb83926ec5b6bd5.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/4s0izmc7-media/images/head/matrices_1600_6ae9db3404a037ff392c.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/zjrq4451-media/images/head/matrices_1300_3e301c753ad3b0bf9428.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/crny11xm-media/images/head/matrices_2400_973792fe77be3b9b885a.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/bfvkq5hv-media/images/head/matrices_1500_0b8dead6f4a57d21b81f.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/ugwxn2a4-media/images/head/matrices_2500_1494ed23574caedf533e.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/1my7s0yr-media/images/head/matrices_1100_4c6d5930a3945635e3b4.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/ulh8idkt-media/images/head/matrices_2200_853fd6e3adc46e09197c.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/xr90d4eu-media/images/head/matrices_3400_5c3a70f1133e7197c834.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/gp38vnv0-media/images/head/matrices_1200_46492c4f0e575fd60639.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/51y77d18-media/images/head/matrices_2700_6d8c4f5aa76ca0b3ac71.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/1vauwshp-media/images/head/matrices_4400_abfab70ec7009374134a.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/189wrz7n-media/images/head/matrices_3300_f2c5863dea736a2b5978.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/buiatq97-media/images/head/matrices_4100_83140c06f59e2dc5e7c9.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/sifoklmf-media/images/head/matrices_3200_213ed5bd0151741bef70.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/qbkca0du-media/images/head/matrices_3600_b1575aa6fe214ed96633.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/mdid1nj9-media/images/head/matrices_2300_70c66fcc35f848136be8.png
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/qbo5ptle-media/images/head/matrices_2600_64e164deb9f0444c1f3f.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/gv35ro6m-media/images/head/matrices_3000_33fe1d7110927f4df72d.png
+2026-04-28 10:06:42 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-04-28 10:06:42 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp4iwrv4a0wandb/38di1z11-media/images/head/matrices_6100_d2a784805bf636f01e23.png
+2026-04-28 10:06:42 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/wandb-summary.json
+2026-04-28 10:06:42 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/output.log
+2026-04-28 10:06:42 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/config.yaml
+2026-04-28 10:06:42 INFO shutting down directory watcher
+2026-04-28 10:06:43 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/output.log
+2026-04-28 10:06:43 INFO scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/requirements.txt requirements.txt
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/output.log output.log
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/config.yaml config.yaml
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/wandb-summary.json wandb-summary.json
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/wandb-metadata.json wandb-metadata.json
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3400_5c3a70f1133e7197c834.png media/images/head/matrices_3400_5c3a70f1133e7197c834.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4400_abfab70ec7009374134a.png media/images/head/matrices_4400_abfab70ec7009374134a.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3000_33fe1d7110927f4df72d.png media/images/head/matrices_3000_33fe1d7110927f4df72d.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1700_5acb06c2fe3d199cb968.png media/images/head/matrices_1700_5acb06c2fe3d199cb968.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4500_87ab4461812779b3b447.png media/images/head/matrices_4500_87ab4461812779b3b447.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_400_f66dc2da93d791763570.png media/images/head/matrices_400_f66dc2da93d791763570.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_500_c07144875f56be964298.png media/images/head/matrices_500_c07144875f56be964298.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5700_5ab84004d33876249147.png media/images/head/matrices_5700_5ab84004d33876249147.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5800_62cba2ca3370bfaf6efb.png media/images/head/matrices_5800_62cba2ca3370bfaf6efb.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5200_aa3721ae3b97d9b02779.png media/images/head/matrices_5200_aa3721ae3b97d9b02779.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1300_3e301c753ad3b0bf9428.png media/images/head/matrices_1300_3e301c753ad3b0bf9428.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_800_14abacb83926ec5b6bd5.png media/images/head/matrices_800_14abacb83926ec5b6bd5.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1800_d7d49b250b5115f63e77.png media/images/head/matrices_1800_d7d49b250b5115f63e77.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5900_e6af4df92f882e15b774.png media/images/head/matrices_5900_e6af4df92f882e15b774.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2000_16e3860f0d823f43b0d7.png media/images/head/matrices_2000_16e3860f0d823f43b0d7.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3900_79499d66de3d20295e97.png media/images/head/matrices_3900_79499d66de3d20295e97.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4700_3c6629e9fc0f8a8f37ad.png media/images/head/matrices_4700_3c6629e9fc0f8a8f37ad.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5100_6855621ae17f9a2ae8f7.png media/images/head/matrices_5100_6855621ae17f9a2ae8f7.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3600_b1575aa6fe214ed96633.png media/images/head/matrices_3600_b1575aa6fe214ed96633.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5500_82b7f22631ab636303bd.png media/images/head/matrices_5500_82b7f22631ab636303bd.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4900_f6278d14da2eec003d56.png media/images/head/matrices_4900_f6278d14da2eec003d56.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4300_9fa0e33e84dff173051b.png media/images/head/matrices_4300_9fa0e33e84dff173051b.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5300_d3d6d878d671efcde921.png media/images/head/matrices_5300_d3d6d878d671efcde921.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3700_5a7a369960e47544e4ad.png media/images/head/matrices_3700_5a7a369960e47544e4ad.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_600_f308d47dc468d67e6c81.png media/images/head/matrices_600_f308d47dc468d67e6c81.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1400_1d6237224f9a5cd2403e.png media/images/head/matrices_1400_1d6237224f9a5cd2403e.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2400_973792fe77be3b9b885a.png media/images/head/matrices_2400_973792fe77be3b9b885a.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5600_e05643fe8e242c31ef91.png media/images/head/matrices_5600_e05643fe8e242c31ef91.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3300_f2c5863dea736a2b5978.png media/images/head/matrices_3300_f2c5863dea736a2b5978.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_900_b67c0760bcf0af0921e8.png media/images/head/matrices_900_b67c0760bcf0af0921e8.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3800_b3c191a5522bc505e5da.png media/images/head/matrices_3800_b3c191a5522bc505e5da.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4800_eb64e01eaf494c483bae.png media/images/head/matrices_4800_eb64e01eaf494c483bae.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_6100_d2a784805bf636f01e23.png media/images/head/matrices_6100_d2a784805bf636f01e23.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2200_853fd6e3adc46e09197c.png media/images/head/matrices_2200_853fd6e3adc46e09197c.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2700_6d8c4f5aa76ca0b3ac71.png media/images/head/matrices_2700_6d8c4f5aa76ca0b3ac71.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3100_a6b66cfc203c8a871c28.png media/images/head/matrices_3100_a6b66cfc203c8a871c28.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1100_4c6d5930a3945635e3b4.png media/images/head/matrices_1100_4c6d5930a3945635e3b4.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1900_6ca149ac6755f91c13d8.png media/images/head/matrices_1900_6ca149ac6755f91c13d8.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2500_1494ed23574caedf533e.png media/images/head/matrices_2500_1494ed23574caedf533e.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1500_0b8dead6f4a57d21b81f.png media/images/head/matrices_1500_0b8dead6f4a57d21b81f.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_100_190d3971abddac6ae9de.png media/images/head/matrices_100_190d3971abddac6ae9de.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_300_8faacefda7f35263cc2d.png media/images/head/matrices_300_8faacefda7f35263cc2d.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4100_83140c06f59e2dc5e7c9.png media/images/head/matrices_4100_83140c06f59e2dc5e7c9.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2100_9855edc5cf41f53f3cb0.png media/images/head/matrices_2100_9855edc5cf41f53f3cb0.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1200_46492c4f0e575fd60639.png media/images/head/matrices_1200_46492c4f0e575fd60639.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_6000_a83f19f703842ee64103.png media/images/head/matrices_6000_a83f19f703842ee64103.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4200_9e76898c13db7e082a6d.png media/images/head/matrices_4200_9e76898c13db7e082a6d.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_700_532d2e65a7b44b94ab61.png media/images/head/matrices_700_532d2e65a7b44b94ab61.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4000_056cbedd167da5cfde6b.png media/images/head/matrices_4000_056cbedd167da5cfde6b.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1000_6ed4344245793e07e8a0.png media/images/head/matrices_1000_6ed4344245793e07e8a0.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_1600_6ae9db3404a037ff392c.png media/images/head/matrices_1600_6ae9db3404a037ff392c.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2600_64e164deb9f0444c1f3f.png media/images/head/matrices_2600_64e164deb9f0444c1f3f.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2900_f5f99dbbd6d4b20404fc.png media/images/head/matrices_2900_f5f99dbbd6d4b20404fc.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_200_fcda6734928f937c9a45.png media/images/head/matrices_200_fcda6734928f937c9a45.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5400_4625ab10fb8fc4213cca.png media/images/head/matrices_5400_4625ab10fb8fc4213cca.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2300_70c66fcc35f848136be8.png media/images/head/matrices_2300_70c66fcc35f848136be8.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3200_213ed5bd0151741bef70.png media/images/head/matrices_3200_213ed5bd0151741bef70.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_3500_f0943d25852a1b3e901c.png media/images/head/matrices_3500_f0943d25852a1b3e901c.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_2800_4af63b9afa33de927d9a.png media/images/head/matrices_2800_4af63b9afa33de927d9a.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_4600_323d2a343509a9289593.png media/images/head/matrices_4600_323d2a343509a9289593.png
+2026-04-28 10:06:43 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/media/images/head/matrices_5000_7114766939894bae316a.png media/images/head/matrices_5000_7114766939894bae316a.png
+2026-04-28 10:06:43 INFO shutting down file pusher
+2026-04-28 10:06:43 INFO waiting for file pusher
+2026-04-28 10:06:43 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/config.yaml
+2026-04-28 10:06:43 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/wandb-summary.json
+2026-04-28 10:06:43 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_002911-i854lox2/files/output.log
+2026-04-28 10:06:44 INFO file stream finish called
+2026-04-28 10:06:46 INFO file stream finish is done
+2026-04-28 10:06:46 INFO open for scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/run-zfl7vahg.wandb
+2026-04-28 10:06:47 INFO watching files in: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files
+2026-04-28 10:06:47 INFO run started: zfl7vahg with start time 1777355176.471229
+2026-04-28 10:06:48 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:06:48 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml
+2026-04-28 10:06:48 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/wandb-metadata.json
+2026-04-28 10:06:48 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:06:48 INFO saving file requirements.txt with policy now
+2026-04-28 10:06:48 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpji9wur7bwandb/s20eu2na-wandb-metadata.json
+2026-04-28 10:06:49 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpji9wur7bwandb/27ysjybo-requirements.txt
+2026-04-28 10:06:49 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmpji9wur7bwandb/z0n12d3b-wandb-metadata.json
+2026-04-28 10:06:49 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/wandb-metadata.json
+2026-04-28 10:06:49 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml
+2026-04-28 10:06:49 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/output.log
+2026-04-28 10:06:50 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml
+2026-04-28 10:06:51 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/output.log
+2026-04-28 10:06:51 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml
+2026-04-28 10:06:52 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:52 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:52 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:52 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:52 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:52 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml
+2026-04-28 10:06:52 INFO file/dir created: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/wandb-summary.json
+2026-04-28 10:06:52 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:06:52 INFO shutting down sender
+2026-04-28 10:06:53 INFO shutting down directory watcher
+2026-04-28 10:06:53 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/wandb-summary.json
+2026-04-28 10:06:53 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/output.log
+2026-04-28 10:06:53 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml
+2026-04-28 10:06:53 INFO scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files
+2026-04-28 10:06:53 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/requirements.txt requirements.txt
+2026-04-28 10:06:53 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/output.log output.log
+2026-04-28 10:06:53 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml config.yaml
+2026-04-28 10:06:53 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/wandb-summary.json wandb-summary.json
+2026-04-28 10:06:53 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/wandb-metadata.json wandb-metadata.json
+2026-04-28 10:06:53 INFO shutting down file pusher
+2026-04-28 10:06:53 INFO waiting for file pusher
+2026-04-28 10:06:54 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/output.log
+2026-04-28 10:06:54 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/wandb-summary.json
+2026-04-28 10:06:54 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260428_014611-zfl7vahg/files/config.yaml
+2026-04-28 10:06:54 INFO file stream finish called
+2026-04-28 10:06:56 INFO file stream finish is done
+2026-04-28 10:08:09 INFO open for scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/run-yisom5tx.wandb
+2026-04-28 10:08:10 INFO watching files in: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files
+2026-04-28 10:08:10 INFO run started: yisom5tx with start time 1777315791.817766
+2026-04-28 10:08:10 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:08:10 INFO saving file wandb-metadata.json with policy now
+2026-04-28 10:08:10 INFO saving file requirements.txt with policy now
+2026-04-28 10:08:10 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp3a72gl87wandb/lg1mbxly-wandb-metadata.json
+2026-04-28 10:08:11 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp3a72gl87wandb/fyzwbjir-requirements.txt
+2026-04-28 10:08:11 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml
+2026-04-28 10:08:11 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:08:11 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-metadata.json
+2026-04-28 10:08:11 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp3a72gl87wandb/insi9dtt-wandb-metadata.json
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file media/images/head/matrices_100_704b97b5d0a35b4878a8.png with policy now
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO saving file wandb-summary.json with policy end
+2026-04-28 10:08:11 INFO shutting down sender
+2026-04-28 10:08:11 INFO Uploaded file /var/folders/8j/gj38fw8d6v75fz0bbpd19sbm0000gn/T/tmp3a72gl87wandb/y8uv6rat-media/images/head/matrices_100_704b97b5d0a35b4878a8.png
+2026-04-28 10:08:12 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-summary.json
+2026-04-28 10:08:12 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml
+2026-04-28 10:08:13 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:08:14 INFO shutting down directory watcher
+2026-04-28 10:08:15 INFO file/dir modified: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:08:15 INFO scan: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files
+2026-04-28 10:08:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/requirements.txt requirements.txt
+2026-04-28 10:08:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log output.log
+2026-04-28 10:08:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml config.yaml
+2026-04-28 10:08:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-summary.json wandb-summary.json
+2026-04-28 10:08:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-metadata.json wandb-metadata.json
+2026-04-28 10:08:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/media/images/head/matrices_100_704b97b5d0a35b4878a8.png media/images/head/matrices_100_704b97b5d0a35b4878a8.png
+2026-04-28 10:08:15 INFO scan save: /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/media/images/head/matrices_200_90db3d7670bddb42a507.png media/images/head/matrices_200_90db3d7670bddb42a507.png
+2026-04-28 10:08:15 INFO shutting down file pusher
+2026-04-28 10:08:15 INFO waiting for file pusher
+2026-04-28 10:08:15 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/output.log
+2026-04-28 10:08:15 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/config.yaml
+2026-04-28 10:08:15 INFO Uploaded file /Users/josephderoffignac/Library/CloudStorage/OneDrive-EcolePolytechnique/stage3A/Stackelberg-Game-Lora/wandb/offline-run-20260427_144945-yisom5tx/files/wandb-summary.json
+2026-04-28 10:08:16 INFO file stream finish called
+2026-04-28 10:08:17 INFO file stream finish is done
