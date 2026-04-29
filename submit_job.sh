@@ -5,8 +5,8 @@
 #SBATCH --mem=16G
 #SBATCH --time=2:00:00
 #SBATCH --gres=gpu:a100:1
-#SBATCH --output=logs/baseline_%j.out
-#SBATCH --error=logs/baseline_%j.err
+#SBATCH --output=logs/%j.out
+#SBATCH --error=logs/%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
 
@@ -23,8 +23,8 @@ module load arrow/21.0.0
 cd "$SLURM_SUBMIT_DIR"
 
 # Purge des anciens logs (garder les 10 derniers)
-ls -t logs/baseline_*.out 2>/dev/null | tail -n +11 | xargs -r rm --
-ls -t logs/baseline_*.err 2>/dev/null | tail -n +11 | xargs -r rm --
+ls -t logs/*.out 2>/dev/null | tail -n +11 | xargs -r rm --
+ls -t logs/*.err 2>/dev/null | tail -n +11 | xargs -r rm --
 
 
 # Virtualenv
@@ -37,7 +37,7 @@ export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
 RUN_NAME_TRAIN=Train_stackelberg_exp1_8
-RUN_NAME_EVAL=Eval_exp1_4_other_test
+RUN_NAME_EVAL=Eval_exp1_8
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp1/$RUN_NAME_TRAIN
 
 python pythia160M/exp1/train_exp1.py \
