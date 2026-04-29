@@ -1,17 +1,11 @@
 """
-Stackelberg Attention Diversity — loss functions and utilities (Pythia-160M / GPT-NeoX).
+Stackelberg — gradient utilities (Pythia-160M / GPT-NeoX).
 
 Multi-head attention heads are modeled as Stackelberg game players:
   - Leader   : dense LoRA (output projection) — optimises L_CE only
-  - Followers : query_key_value LoRA           — optimise L_CE + diversity penalty
-
-Follower i's diversity loss:
-  L_div = λ_lead · sim(A_i, A_0) + λ_peer · Σ_{j≠i, j≠0} sim(A_i, A_j)
-
-where sim(A_i, A_j) = ⟨A_i, A_j⟩_F / (‖A_i‖_F · ‖A_j‖_F)
+  - Followers : query_key_value LoRA           — optimise L_CE only (diversity inactive)
 
 Contains:
-  - compute_diversity_loss      : vectorized diversity penalty from attention weights
   - collect_lora_params         : gather all trainable LoRA params for a single optimizer
   - build_grad_assembly         : build the GradAssembly descriptor for manual gradient routing
   - assemble_gradients          : combine follower + leader gradients before optimizer.step()
@@ -44,56 +38,8 @@ Note: Pythia/GPT-NeoX specifics vs Qwen version:
 """
 
 import torch
-import torch.nn.functional as F
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Dict
-
-
-# ---------------------------------------------------------------------------
-# Attention similarity & diversity loss
-# ---------------------------------------------------------------------------
-
-
-def compute_diversity_loss(
-    attn_weights: torch.Tensor,
-    leader_idx: int = 0,
-    lambda_lead: float = 0.1,
-    lambda_peer: float = 0.01,
-) -> torch.Tensor:
-    """
-    Vectorized diversity loss over all follower heads.
-
-    Args:
-        attn_weights: (B, H, L, L) — attention weights from one layer
-        leader_idx:  which head is the leader
-        lambda_lead: penalty weight for similarity with leader
-        lambda_peer: penalty weight for similarity between followers
-    Returns:
-        Scalar diversity loss
-    """
-    B, H, L, _ = attn_weights.shape
-
-    # Flatten & normalise per head: (B, H, L²)
-    A = attn_weights.reshape(B, H, -1).float()
-    norms = A.norm(dim=2, keepdim=True).clamp(min=1e-8)
-    A_n = A / norms
-
-    # Pairwise cosine similarity: (B, H, H) → mean over batch → (H, H)
-    S = torch.bmm(A_n, A_n.transpose(1, 2)).mean(0)
-
-    # Follower indices
-    fi = [i for i in range(H) if i != leader_idx]
-    fi_t = torch.tensor(fi, device=attn_weights.device)
-
-    # Leader-follower similarities: Σ_i sim(A_i, A_leader)
-    lf = S[fi_t, leader_idx].sum()
-
-    # Peer similarities (off-diagonal among followers)
-    S_peer = S[fi_t][:, fi_t]
-    mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
-    pp = S_peer[mask].sum()
-
-    return lambda_lead * lf + lambda_peer * pp
 
 
 # ---------------------------------------------------------------------------

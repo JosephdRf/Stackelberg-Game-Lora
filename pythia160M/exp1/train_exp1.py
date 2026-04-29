@@ -1,18 +1,17 @@
 """
-Experiment 1 — Stackelberg Attention Diversity LoRA (Pythia-160M)
-==================================================================
+Experiment 1 — Stackelberg LoRA (Pythia-160M)
+==============================================
 
 Principle
 ---------
 Multi-head attention heads are modeled as players in a Stackelberg game.
-The leader (dense / output projection LoRA) optimises purely for cross-entropy.
-The followers (query_key_value LoRA) optimise for cross-entropy plus a
-diversity penalty that discourages redundant attention patterns.
+Leader (dense / output projection LoRA) and followers (query_key_value LoRA)
+both optimise purely for cross-entropy.
 
 The bilevel (K=1 Stackelberg) update per optimizer step:
 
   Phase 1 — Accumulate follower gradients
-      Forward → CE + diversity loss → backward (accumulated over micro-batches)
+      Forward → CE → backward (accumulated over micro-batches)
       mask_follower_grad() zeros the leader slice in .grad
 
   Phase 2 — Leader looks ahead
@@ -31,18 +30,10 @@ Parameter split (LoRA):
   Leader   = dense LoRA           (head output mixing, output projection)
   Follower = query_key_value LoRA (attention computation, fused QKV)
 
-Loss structure (current):
-  Leader:   L_1 = L_CE
-  Follower: L_i = L_CE                              (λ_lead = λ_peer = 0 for now)
-
-  → Set --lambda_lead / --lambda_peer > 0 to activate the diversity penalty:
-  Follower: L_i = L_CE + λ_lead·sim(A_i, A_0) + λ_peer·Σ_{j≠i,j≠0} sim(A_i, A_j)
-
 Usage:
     python pythia160M/exp1/train_exp1.py --dry_run
     python pythia160M/exp1/train_exp1.py --design_layer 9
     python pythia160M/exp1/train_exp1.py --wandb_project my_project --run_name stackelberg_v1
-    python pythia160M/exp1/train_exp1.py --lambda_lead 0.1 --lambda_peer 0.01
 """
 
 import os
@@ -52,25 +43,20 @@ import argparse
 import logging
 import time
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-_HERE  = os.path.dirname(os.path.abspath(__file__))   # pythia160M/exp1/
-_MODEL = os.path.dirname(_HERE)                        # pythia160M/
-sys.path.insert(0, _MODEL)   # pour importer train_utils.py
-sys.path.insert(0, _HERE)    # pour importer stackelberg_losses.py
+_HERE = os.path.dirname(os.path.abspath(__file__))  # pythia160M/exp1/
+_MODEL = os.path.dirname(_HERE)  # pythia160M/
+sys.path.insert(0, _MODEL)  # pour importer train_utils.py
+sys.path.insert(0, _HERE)  # pour importer stackelberg_losses.py
 
 import torch
 import numpy as np
 from tqdm import tqdm
 
-from transformers import (
-    AutoConfig,
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    get_cosine_schedule_with_warmup,
-)
-from peft import LoraConfig, get_peft_model, TaskType
+from transformers import get_cosine_schedule_with_warmup
 from torch.utils.data import DataLoader
 
 from train_utils import (
@@ -83,56 +69,16 @@ from train_utils import (
     seed_everything,
     evaluate,
     log_head_matrices,
+    build_model_and_tokenizer,
 )
 from stackelberg_losses import (
-    compute_diversity_loss,
     collect_lora_params,
     mask_follower_grad,
     mask_leader_grad,
     assemble_gradients,
-    AttentionWeightCapture,
 )
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Model builder (eager attention required for weight extraction)
-# ---------------------------------------------------------------------------
-
-
-def build_model_eager(cfg: TrainConfig):
-    """Build Pythia-160M + LoRA with attn_implementation='eager'."""
-    logger.info(f"Chargement de {cfg.model_name} (eager attention) ...")
-
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model_name, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    if cfg.random_init:
-        logger.info("Initialisation ALÉATOIRE des poids (pas de préentraînement)")
-        config = AutoConfig.from_pretrained(cfg.model_name, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_config(config)
-    else:
-        model = AutoModelForCausalLM.from_pretrained(
-            cfg.model_name,
-            torch_dtype=torch.bfloat16,
-            attn_implementation="eager",
-            trust_remote_code=True,
-        )
-
-    lora_cfg = LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        r=cfg.lora_rank,
-        lora_alpha=cfg.lora_alpha,
-        lora_dropout=cfg.lora_dropout,
-        target_modules=cfg.lora_target_modules,
-        bias="none",
-    )
-    model = get_peft_model(model, lora_cfg)
-    model.print_trainable_parameters()
-
-    return model, tokenizer
 
 
 # ---------------------------------------------------------------------------
@@ -146,8 +92,6 @@ def train_stackelberg(
     lr_leader: float = 1e-4,
     lr_follower: float = 3e-4,
     lr_sim: float = 1e-3,
-    lambda_lead: float = 0.0,
-    lambda_peer: float = 0.0,
     leader_idx: int = 0,
 ):
     seed_everything(cfg.seed)
@@ -158,27 +102,41 @@ def train_stackelberg(
     use_wandb = cfg.wandb_project is not None
     if use_wandb:
         import wandb
-        wandb.init(project=cfg.wandb_project, name=cfg.run_name, group=cfg.wandb_group, config=vars(cfg))
 
-    # ── Model with eager attention ──
-    model, tokenizer = build_model_eager(cfg)
+        wandb.init(
+            project=cfg.wandb_project,
+            name=cfg.run_name,
+            group=cfg.wandb_group,
+            config=vars(cfg),
+        )
+
+    # ── Model (float32, SDPA) ──
+    model, tokenizer = build_model_and_tokenizer(cfg)
     model = model.to(device)
     if device.type == "cuda":
-        logger.info(f"VRAM après chargement modèle : {torch.cuda.memory_allocated() / 1e9:.2f} GB "
-                    f"/ {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB total")
+        logger.info(
+            f"VRAM après chargement modèle : {torch.cuda.memory_allocated() / 1e9:.2f} GB "
+            f"/ {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB total"
+        )
 
     # ── Datasets & dataloaders ──
     max_train_tokens = (
         100 * cfg.seq_len * cfg.effective_batch_size if cfg.dry_run else None
     )
     train_ds = WikiTextDataset(
-        tokenizer, cfg.seq_len, split="train",
-        dataset_name=cfg.dataset_name, dataset_config=cfg.dataset_config,
+        tokenizer,
+        cfg.seq_len,
+        split="train",
+        dataset_name=cfg.dataset_name,
+        dataset_config=cfg.dataset_config,
         max_tokens=max_train_tokens,
     )
     val_ds = WikiTextDataset(
-        tokenizer, cfg.seq_len, split="validation",
-        dataset_name=cfg.dataset_name, dataset_config=cfg.dataset_config,
+        tokenizer,
+        cfg.seq_len,
+        split="validation",
+        dataset_name=cfg.dataset_name,
+        dataset_config=cfg.dataset_config,
     )
     g = make_generator(cfg.seed)
     train_loader = DataLoader(
@@ -211,27 +169,32 @@ def train_stackelberg(
         leader_idx=leader_idx,
     )
 
-    n_leader_params   = sum(
-        p.numel() for r in grad_assembly.roles
+    n_leader_params = sum(
+        p.numel()
+        for r in grad_assembly.roles
         if r.kind in ("qkv_lora_B", "dense_lora_A", "dense_lora_B")
         for p in [r.param]
     )
     n_follower_params = sum(
-        p.numel() for r in grad_assembly.roles
+        p.numel()
+        for r in grad_assembly.roles
         if r.kind in ("qkv_lora_B", "qkv_lora_A", "other")
         for p in [r.param]
     )
     logger.info(f"Total trainable params : {sum(p.numel() for p in all_params):,}")
-    logger.info(f"Design layer           : {design_layer}  |  Leader head idx : {leader_idx}")
-    logger.info(f"λ_lead={lambda_lead}  λ_peer={lambda_peer}"
-                + ("  (CE only — diversity inactive)" if lambda_lead == 0 and lambda_peer == 0 else ""))
-
+    logger.info(
+        f"Design layer           : {design_layer}  |  Leader head idx : {leader_idx}"
+    )
+    logger.info(
+        f"Leader params          : {n_leader_params:,}  |  Follower params : {n_follower_params:,}"
+    )
     # lr_follower is the reference lr; leader uses lr_leader.
     # Since there is a single optimizer we use lr_follower as base and apply
     # a per-param-group lr_leader for the leader-only parameters.
     # We split into two param groups for lr scheduling but share Adam state.
     leader_param_ids = {
-        id(r.param) for r in grad_assembly.roles
+        id(r.param)
+        for r in grad_assembly.roles
         if r.kind in ("dense_lora_A", "dense_lora_B")
     }
     # qkv_lora_B and shared params go at follower lr; pure-leader dense params at leader lr.
@@ -259,30 +222,26 @@ def train_stackelberg(
         num_training_steps=total_steps,
     )
 
-    # ── Attention hook on design layer ──
-    need_attn = lambda_lead > 0 or lambda_peer > 0
-    attn_capture = AttentionWeightCapture()
-    if need_attn:
-        attn_capture.register(model, layer_idx=design_layer)
-
     # ── Directories & history ──
     os.makedirs(cfg.output_dir, exist_ok=True)
-    _exp_dir  = os.path.dirname(os.path.abspath(cfg.output_dir))
-    logs_dir  = os.path.join(_exp_dir, "logs")
+    _exp_dir = os.path.dirname(os.path.abspath(cfg.output_dir))
+    logs_dir = os.path.join(_exp_dir, "logs")
     plots_dir = os.path.join(_exp_dir, "plots")
-    os.makedirs(logs_dir,  exist_ok=True)
+    os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
 
     history = {
-        "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "leader_ce": []},
-        "val":   {"step": [], "loss": [], "ppl": []},
+        "train": {"step": [], "ce": [], "ce_ema": [], "leader_ce": []},
+        "val": {"step": [], "loss": [], "ppl": []},
     }
-    _ema_ce    = None
+    _ema_ce = None
     _ema_alpha = 0.05
 
     # ── Eval initiale ──
     logger.info("Eval initiale ...")
-    v_loss, v_ppl = evaluate(model, val_loader, device, max_batches=cfg.eval_max_batches)
+    v_loss, v_ppl = evaluate(
+        model, val_loader, device, max_batches=cfg.eval_max_batches
+    )
     history["val"]["step"].append(0)
     history["val"]["loss"].append(v_loss)
     history["val"]["ppl"].append(v_ppl)
@@ -292,14 +251,15 @@ def train_stackelberg(
 
     # ── Training state ──
     model.train()
-    global_step     = 0
-    accum_ce        = 0.0
-    accum_div       = 0.0
+    global_step = 0
+    accum_ce = 0.0
     accum_leader_ce = 0.0
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
-    pbar = tqdm(total=total_steps, desc="Stackelberg Training (Pythia-160M)", unit="step")
+    pbar = tqdm(
+        total=total_steps, desc="Stackelberg Training (Pythia-160M)", unit="step"
+    )
 
     accum_inputs: list = []
     accum_labels: list = []
@@ -308,7 +268,7 @@ def train_stackelberg(
     while not done:
         for batch in train_loader:
             input_ids = batch["input_ids"].to(device)
-            labels    = batch["labels"].to(device)
+            labels = batch["labels"].to(device)
             accum_inputs.append(input_ids)
             accum_labels.append(labels)
 
@@ -321,38 +281,19 @@ def train_stackelberg(
                 dtype=torch.bfloat16,
                 enabled=(device.type in ("cuda", "cpu")),
             ):
-                out = model(
-                    input_ids=input_ids,
-                    labels=labels,
-                    output_attentions=need_attn,
-                )
+                out = model(input_ids=input_ids, labels=labels)
                 ce_loss = out.loss
-
-                if need_attn:
-                    attn_w = attn_capture.get()
-                    div_loss = (
-                        compute_diversity_loss(
-                            attn_w,
-                            leader_idx=leader_idx,
-                            lambda_lead=lambda_lead,
-                            lambda_peer=lambda_peer,
-                        )
-                        if attn_w is not None
-                        else torch.tensor(0.0, device=device)
-                    )
-                else:
-                    div_loss = torch.tensor(0.0, device=device)
-
-                follower_loss = (ce_loss + div_loss) / cfg.grad_accum
+                follower_loss = ce_loss / cfg.grad_accum
 
             follower_loss.backward()
-            accum_ce  += ce_loss.item() / cfg.grad_accum
-            accum_div += div_loss.item() / cfg.grad_accum
+            accum_ce += ce_loss.item() / cfg.grad_accum
 
             if global_step == 0 and device.type == "cuda":
-                logger.info(f"VRAM pic step 0 (batch={cfg.batch_size_per_gpu}, seq={cfg.seq_len}) : "
-                            f"{torch.cuda.max_memory_allocated() / 1e9:.2f} GB "
-                            f"/ {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB total")
+                logger.info(
+                    f"VRAM pic step 0 (batch={cfg.batch_size_per_gpu}, seq={cfg.seq_len}) : "
+                    f"{torch.cuda.max_memory_allocated() / 1e9:.2f} GB "
+                    f"/ {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB total"
+                )
 
             # ==================================================================
             # Optimizer step every grad_accum micro-batches
@@ -378,9 +319,11 @@ def train_stackelberg(
                 # ==============================================================
 
                 # Clip before simulated step to match Phase 3 clipping
-                sim_gnorm = torch.norm(torch.stack([
-                    g.norm() for g in g_follower.values() if g.numel() > 0
-                ]))
+                sim_gnorm = torch.norm(
+                    torch.stack(
+                        [g.norm() for g in g_follower.values() if g.numel() > 0]
+                    )
+                )
                 sim_clip = min(1.0, cfg.grad_clip / (sim_gnorm.item() + 1e-8))
 
                 design_roles = [r for r in grad_assembly.roles if r.kind != "other"]
@@ -401,8 +344,6 @@ def train_stackelberg(
                     ):
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
-                    if need_attn:
-                        attn_capture.get()  # discard
                     leader_ce_mb.backward()
                     leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
 
@@ -438,19 +379,19 @@ def train_stackelberg(
 
                 # EMA
                 _ema_ce = (
-                    accum_ce if _ema_ce is None
+                    accum_ce
+                    if _ema_ce is None
                     else _ema_alpha * accum_ce + (1 - _ema_alpha) * _ema_ce
                 )
 
-                step_time      = time.perf_counter() - _step_start
+                step_time = time.perf_counter() - _step_start
                 tokens_per_sec = int(cfg.seq_len * cfg.effective_batch_size / step_time)
-                _step_start    = time.perf_counter()
+                _step_start = time.perf_counter()
 
                 pbar.update(1)
                 pbar.set_postfix(
                     ce=f"{accum_ce:.4f}",
                     ema=f"{_ema_ce:.4f}",
-                    div=f"{accum_div:.4f}",
                     l_ce=f"{accum_leader_ce:.4f}",
                     tok_s=f"{tokens_per_sec:,}",
                 )
@@ -458,40 +399,55 @@ def train_stackelberg(
                 # ── Log train ──
                 if opt_step % cfg.log_every == 0 or opt_step == 1:
                     lr_f = scheduler.get_last_lr()[0]
-                    lr_l = scheduler.get_last_lr()[1] if len(scheduler.get_last_lr()) > 1 else lr_f
+                    lr_l = (
+                        scheduler.get_last_lr()[1]
+                        if len(scheduler.get_last_lr()) > 1
+                        else lr_f
+                    )
                     logger.info(
                         f"[train] step {opt_step:>6d}/{total_steps}"
                         f"  CE={accum_ce:.4f}  ema={_ema_ce:.4f}"
-                        f"  div={accum_div:.4f}  leader_CE={accum_leader_ce:.4f}"
+                        f"  leader_CE={accum_leader_ce:.4f}"
                         f"  lr_L={lr_l:.2e}  lr_F={lr_f:.2e}"
                         f"  tok/s={tokens_per_sec:,}"
                     )
                     if use_wandb:
-                        wandb.log({
-                            "train/ce_loss":     accum_ce,
-                            "train/ce_ema":      _ema_ce,
-                            "train/div_loss":    accum_div,
-                            "train/leader_ce":   accum_leader_ce,
-                            "train/lr_leader":   lr_l,
-                            "train/lr_follower": lr_f,
-                            "train/tokens":      opt_step * cfg.seq_len * cfg.effective_batch_size,
-                        }, step=opt_step)
+                        wandb.log(
+                            {
+                                "train/ce_loss": accum_ce,
+                                "train/ce_ema": _ema_ce,
+                                "train/leader_ce": accum_leader_ce,
+                                "train/lr_leader": lr_l,
+                                "train/lr_follower": lr_f,
+                                "train/tokens": opt_step
+                                * cfg.seq_len
+                                * cfg.effective_batch_size,
+                            },
+                            step=opt_step,
+                        )
                     history["train"]["step"].append(opt_step)
                     history["train"]["ce"].append(accum_ce)
                     history["train"]["ce_ema"].append(_ema_ce)
-                    history["train"]["div"].append(accum_div)
                     history["train"]["leader_ce"].append(accum_leader_ce)
 
                 # ── Eval périodique ──
                 if opt_step % cfg.eval_every == 0:
                     v_loss, v_ppl = evaluate(
-                        model, val_loader, device,
+                        model,
+                        val_loader,
+                        device,
                         max_batches=cfg.eval_max_batches,
                         autocast_dtype=torch.bfloat16,
                     )
-                    logger.info(f"[val]   step {opt_step:>6d}  val_loss={v_loss:.4f}  val_ppl={v_ppl:.3f}")
+                    logger.info(
+                        f"[val]   step {opt_step:>6d}  val_loss={v_loss:.4f}  val_ppl={v_ppl:.3f}"
+                    )
                     log_head_matrices(
-                        model, device, design_layer, opt_step, val_loader,
+                        model,
+                        device,
+                        design_layer,
+                        opt_step,
+                        val_loader,
                         wandb_mod=wandb if use_wandb else None,
                     )
                     if use_wandb:
@@ -501,17 +457,18 @@ def train_stackelberg(
                     history["val"]["ppl"].append(v_ppl)
 
                 # ── JSON ──
-                if (opt_step % cfg.log_every == 0
-                        or opt_step % cfg.eval_every == 0
-                        or opt_step == 1):
+                if (
+                    opt_step % cfg.log_every == 0
+                    or opt_step % cfg.eval_every == 0
+                    or opt_step == 1
+                ):
                     with open(os.path.join(logs_dir, "history.json"), "w") as _f:
                         json.dump(history, _f, indent=2)
 
-                accum_ce        = 0.0
-                accum_div       = 0.0
+                accum_ce = 0.0
                 accum_leader_ce = 0.0
-                accum_inputs    = []
-                accum_labels    = []
+                accum_inputs = []
+                accum_labels = []
 
                 # ── Checkpoint ──
                 if opt_step % cfg.save_every == 0:
@@ -530,11 +487,12 @@ def train_stackelberg(
             logger.info("Fin d'epoch — on recommence un passage sur le dataset.")
 
     pbar.close()
-    attn_capture.remove()
 
     # ── Eval finale ──
     logger.info("Eval finale ...")
-    v_loss, v_ppl = evaluate(model, val_loader, device, max_batches=cfg.eval_max_batches)
+    v_loss, v_ppl = evaluate(
+        model, val_loader, device, max_batches=cfg.eval_max_batches
+    )
     history["val"]["step"].append(opt_step)
     history["val"]["loss"].append(v_loss)
     history["val"]["ppl"].append(v_ppl)
@@ -553,17 +511,34 @@ def train_stackelberg(
 
     # ── Plots ──
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(history["train"]["step"], history["train"]["ce"],
-            alpha=0.25, color="darkorange", label="CE (raw)")
-    ax.plot(history["train"]["step"], history["train"]["ce_ema"],
-            color="darkorange", label="CE (EMA)")
-    ax.plot(history["train"]["step"], history["train"]["leader_ce"],
-            color="purple", alpha=0.6, label="leader CE (lookahead)")
-    if any(v > 0 for v in history["train"]["div"]):
-        ax.plot(history["train"]["step"], history["train"]["div"],
-                color="green", alpha=0.6, label="diversity loss")
-    ax.plot(history["val"]["step"], history["val"]["loss"],
-            color="steelblue", marker="o", markersize=4, label="val loss")
+    ax.plot(
+        history["train"]["step"],
+        history["train"]["ce"],
+        alpha=0.25,
+        color="darkorange",
+        label="CE (raw)",
+    )
+    ax.plot(
+        history["train"]["step"],
+        history["train"]["ce_ema"],
+        color="darkorange",
+        label="CE (EMA)",
+    )
+    ax.plot(
+        history["train"]["step"],
+        history["train"]["leader_ce"],
+        color="purple",
+        alpha=0.6,
+        label="leader CE (lookahead)",
+    )
+    ax.plot(
+        history["val"]["step"],
+        history["val"]["loss"],
+        color="steelblue",
+        marker="o",
+        markersize=4,
+        label="val loss",
+    )
     ax.set_xlabel("optimizer step")
     ax.set_ylabel("Loss")
     ax.set_title("Training — Pythia-160M Stackelberg exp1")
@@ -574,8 +549,13 @@ def train_stackelberg(
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(history["val"]["step"], history["val"]["ppl"],
-            color="steelblue", marker="o", markersize=4)
+    ax.plot(
+        history["val"]["step"],
+        history["val"]["ppl"],
+        color="steelblue",
+        marker="o",
+        markersize=4,
+    )
     ax.set_xlabel("optimizer step")
     ax.set_ylabel("Validation perplexity")
     ax.set_title("Validation perplexity — WikiText-103 (Stackelberg exp1)")
@@ -601,53 +581,49 @@ def parse_args():
     )
     parser = add_common_args(parser)
     parser.add_argument("--output_dir", default=os.path.join(_HERE, "checkpoints"))
-    parser.add_argument("--run_name",   default="stackelberg_exp1_pythia")
+    parser.add_argument("--run_name", default="stackelberg_exp1_pythia")
     parser.add_argument(
-        "--design_layer", type=int, default=9,
-        help="Attention layer for diversity loss and head matrix logging "
-             "(Pythia-160M has 12 layers; layer 9 ≈ 79%%)",
+        "--design_layer",
+        type=int,
+        default=9,
+        help="Attention layer for head matrix logging (Pythia-160M has 12 layers; layer 9 ≈ 79%%)",
     )
-    parser.add_argument("--lr_leader",   type=float, default=1e-4)
+    parser.add_argument("--lr_leader", type=float, default=1e-4)
     parser.add_argument("--lr_follower", type=float, default=3e-4)
     parser.add_argument(
-        "--lr_sim", type=float, default=1e-3,
+        "--lr_sim",
+        type=float,
+        default=1e-3,
         help="LR for simulated follower step (vanilla SGD, no momentum)",
     )
     parser.add_argument(
-        "--lambda_lead", type=float, default=0.1,
-        help="Penalty weight for leader-follower similarity (0 = CE only)",
+        "--leader_idx", type=int, default=0, help="Index of the leader head"
     )
-    parser.add_argument(
-        "--lambda_peer", type=float, default=0.01,
-        help="Penalty weight for peer-follower similarity (0 = CE only)",
-    )
-    parser.add_argument("--leader_idx", type=int, default=0,
-                        help="Index of the leader head")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     cfg = TrainConfig(
-        model_name         = args.model_name,
-        dataset_name       = args.dataset_name,
-        dataset_config     = args.dataset_config,
-        total_tokens       = args.total_tokens,
-        batch_size_per_gpu = args.batch_size_per_gpu,
-        grad_accum         = args.grad_accum,
-        lr                 = args.lr,
-        output_dir         = args.output_dir,
-        wandb_project      = args.wandb_project,
-        wandb_group        = args.wandb_group,
-        run_name           = args.run_name,
-        seed               = args.seed,
-        dry_run            = args.dry_run,
-        log_every          = args.log_every,
-        eval_every         = args.eval_every,
-        eval_max_batches   = args.eval_max_batches,
-        save_every         = args.save_every,
-        num_workers        = args.num_workers,
-        random_init        = args.random_init,
+        model_name=args.model_name,
+        dataset_name=args.dataset_name,
+        dataset_config=args.dataset_config,
+        total_tokens=args.total_tokens,
+        batch_size_per_gpu=args.batch_size_per_gpu,
+        grad_accum=args.grad_accum,
+        lr=args.lr,
+        output_dir=args.output_dir,
+        wandb_project=args.wandb_project,
+        wandb_group=args.wandb_group,
+        run_name=args.run_name,
+        seed=args.seed,
+        dry_run=args.dry_run,
+        log_every=args.log_every,
+        eval_every=args.eval_every,
+        eval_max_batches=args.eval_max_batches,
+        save_every=args.save_every,
+        num_workers=args.num_workers,
+        random_init=args.random_init,
     )
 
     log_config(cfg)
@@ -655,17 +631,13 @@ if __name__ == "__main__":
     logger.info(f"  LR leader     : {args.lr_leader}")
     logger.info(f"  LR follower   : {args.lr_follower}")
     logger.info(f"  LR sim step   : {args.lr_sim}")
-    logger.info(f"  λ_lead        : {args.lambda_lead}")
-    logger.info(f"  λ_peer        : {args.lambda_peer}")
     logger.info(f"  Leader head   : {args.leader_idx}")
 
     train_stackelberg(
         cfg,
-        design_layer = args.design_layer,
-        lr_leader    = args.lr_leader,
-        lr_follower  = args.lr_follower,
-        lr_sim       = args.lr_sim,
-        lambda_lead  = args.lambda_lead,
-        lambda_peer  = args.lambda_peer,
-        leader_idx   = args.leader_idx,
+        design_layer=args.design_layer,
+        lr_leader=args.lr_leader,
+        lr_follower=args.lr_follower,
+        lr_sim=args.lr_sim,
+        leader_idx=args.leader_idx,
     )
