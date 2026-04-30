@@ -367,8 +367,8 @@ def add_common_args(parser):
     parser.add_argument("--dataset_name", default="Salesforce/wikitext")
     parser.add_argument("--dataset_config", default="wikitext-103-raw-v1")
     parser.add_argument("--total_tokens", type=int, default=100_000_000)
-    parser.add_argument("--batch_size_per_gpu", type=int, default=4)
-    parser.add_argument("--grad_accum", type=int, default=4)
+    parser.add_argument("--batch_size_per_gpu", type=int, default=16)
+    parser.add_argument("--grad_accum", type=int, default=1)
     parser.add_argument("--lr", type=float, default=3e-5)
     parser.add_argument("--wandb_project", default="Stackelberg-Pythia160M")
     parser.add_argument("--wandb_group",   default=None,

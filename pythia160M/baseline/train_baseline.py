@@ -72,6 +72,10 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
         cfg, model, tokenizer
     )
     logger.info(f"Total steps : {total_steps}  |  Warmup : {cfg.warmup_steps}")
+    logger.info(
+        f"Batch size / GPU       : {cfg.batch_size_per_gpu}  |  Grad accum : {cfg.grad_accum}"
+        f"  |  Effective batch : {cfg.effective_batch_size}"
+    )
 
     # Répertoires
     os.makedirs(cfg.output_dir, exist_ok=True)

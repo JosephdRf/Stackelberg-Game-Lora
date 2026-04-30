@@ -201,6 +201,10 @@ def train_stackelberg(
     )
     logger.info(f"Total trainable params : {sum(p.numel() for p in all_params):,}")
     logger.info(
+        f"Batch size / GPU       : {cfg.batch_size_per_gpu}  |  Grad accum : {cfg.grad_accum}"
+        f"  |  Effective batch : {cfg.effective_batch_size}"
+    )
+    logger.info(
         f"Design layer           : {design_layer}  |  Leader head idx : {leader_idx}"
     )
     logger.info(
