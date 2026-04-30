@@ -76,6 +76,8 @@ from stackelberg_losses import (
     mask_follower_grad,
     mask_leader_grad,
     assemble_gradients,
+    HiddenStateCapture,
+    compute_diversity_loss,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,6 +94,8 @@ def train_stackelberg(
     lr_leader: float = 1e-4,
     lr_follower: float = 3e-4,
     lr_sim: float = 1e-3,
+    lambda_lead: float = 0.0,
+    lambda_peer: float = 0.0,
     leader_idx: int = 0,
 ):
     seed_everything(cfg.seed)
@@ -222,6 +226,20 @@ def train_stackelberg(
         num_training_steps=total_steps,
     )
 
+    # ── Diversity hook (only when λ > 0) ──
+    need_div = lambda_lead > 0 or lambda_peer > 0
+    d_head   = 768 // 12   # 64
+    if need_div:
+        _qkv_target = f"gpt_neox.layers.{design_layer}.attention.query_key_value"
+        qkv_module = next(
+            mod for name, mod in model.named_modules() if name.endswith(_qkv_target)
+        )
+        capture = HiddenStateCapture()
+        capture.register(model, design_layer - 1)
+        logger.info(f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  — diversity active (hook on layer {design_layer - 1})")
+    else:
+        logger.info("λ_lead=0  λ_peer=0  — CE only (no hook, identical to baseline)")
+
     # ── Directories & history ──
     os.makedirs(cfg.output_dir, exist_ok=True)
     _exp_dir = os.path.dirname(os.path.abspath(cfg.output_dir))
@@ -231,8 +249,8 @@ def train_stackelberg(
     os.makedirs(plots_dir, exist_ok=True)
 
     history = {
-        "train": {"step": [], "ce": [], "ce_ema": [], "leader_ce": []},
-        "val": {"step": [], "loss": [], "ppl": []},
+        "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "leader_ce": []},
+        "val":   {"step": [], "loss": [], "ppl": []},
     }
     _ema_ce = None
     _ema_alpha = 0.05
@@ -251,8 +269,9 @@ def train_stackelberg(
 
     # ── Training state ──
     model.train()
-    global_step = 0
-    accum_ce = 0.0
+    global_step     = 0
+    accum_ce        = 0.0
+    accum_div       = 0.0
     accum_leader_ce = 0.0
     optimizer.zero_grad()
 
@@ -274,7 +293,7 @@ def train_stackelberg(
 
             # ==================================================================
             # Phase 1: Follower forward — accumulate follower gradients
-            # L_F = L_CE + L_diversity (scaled by 1/grad_accum)
+            # L_F = L_CE  [+ L_div if λ > 0]  scaled by 1/grad_accum
             # ==================================================================
             with torch.autocast(
                 device_type=device.type if device.type != "mps" else "cpu",
@@ -283,6 +302,19 @@ def train_stackelberg(
             ):
                 out = model(input_ids=input_ids, labels=labels)
                 ce_loss = out.loss
+
+            if need_div:
+                # hidden still in graph (hook captured output[0] of layer design_layer-1)
+                hidden   = capture.get()
+                div_loss = compute_diversity_loss(
+                    hidden, qkv_module,
+                    n_heads=12, d_head=d_head,
+                    leader_idx=leader_idx,
+                    lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                )
+                follower_loss = (ce_loss + div_loss) / cfg.grad_accum
+                accum_div += div_loss.item()
+            else:
                 follower_loss = ce_loss / cfg.grad_accum
 
             follower_loss.backward()
@@ -392,6 +424,7 @@ def train_stackelberg(
                 pbar.set_postfix(
                     ce=f"{accum_ce:.4f}",
                     ema=f"{_ema_ce:.4f}",
+                    div=f"{accum_div:.4f}",
                     l_ce=f"{accum_leader_ce:.4f}",
                     tok_s=f"{tokens_per_sec:,}",
                 )
@@ -407,27 +440,27 @@ def train_stackelberg(
                     logger.info(
                         f"[train] step {opt_step:>6d}/{total_steps}"
                         f"  CE={accum_ce:.4f}  ema={_ema_ce:.4f}"
-                        f"  leader_CE={accum_leader_ce:.4f}"
+                        f"  div={accum_div:.4f}  leader_CE={accum_leader_ce:.4f}"
                         f"  lr_L={lr_l:.2e}  lr_F={lr_f:.2e}"
                         f"  tok/s={tokens_per_sec:,}"
                     )
                     if use_wandb:
                         wandb.log(
                             {
-                                "train/ce_loss": accum_ce,
-                                "train/ce_ema": _ema_ce,
-                                "train/leader_ce": accum_leader_ce,
-                                "train/lr_leader": lr_l,
+                                "train/ce_loss":     accum_ce,
+                                "train/ce_ema":      _ema_ce,
+                                "train/div_loss":    accum_div,
+                                "train/leader_ce":   accum_leader_ce,
+                                "train/lr_leader":   lr_l,
                                 "train/lr_follower": lr_f,
-                                "train/tokens": opt_step
-                                * cfg.seq_len
-                                * cfg.effective_batch_size,
+                                "train/tokens":      opt_step * cfg.seq_len * cfg.effective_batch_size,
                             },
                             step=opt_step,
                         )
                     history["train"]["step"].append(opt_step)
                     history["train"]["ce"].append(accum_ce)
                     history["train"]["ce_ema"].append(_ema_ce)
+                    history["train"]["div"].append(accum_div)
                     history["train"]["leader_ce"].append(accum_leader_ce)
 
                 # ── Eval périodique ──
@@ -465,7 +498,8 @@ def train_stackelberg(
                     with open(os.path.join(logs_dir, "history.json"), "w") as _f:
                         json.dump(history, _f, indent=2)
 
-                accum_ce = 0.0
+                accum_ce        = 0.0
+                accum_div       = 0.0
                 accum_leader_ce = 0.0
                 accum_inputs = []
                 accum_labels = []
@@ -487,6 +521,9 @@ def train_stackelberg(
             logger.info("Fin d'epoch — on recommence un passage sur le dataset.")
 
     pbar.close()
+
+    if need_div:
+        capture.remove()
 
     # ── Eval finale ──
     logger.info("Eval finale ...")
@@ -531,6 +568,14 @@ def train_stackelberg(
         alpha=0.6,
         label="leader CE (lookahead)",
     )
+    if any(v > 0 for v in history["train"]["div"]):
+        ax.plot(
+            history["train"]["step"],
+            history["train"]["div"],
+            color="green",
+            alpha=0.6,
+            label="diversity loss",
+        )
     ax.plot(
         history["val"]["step"],
         history["val"]["loss"],
@@ -597,6 +642,14 @@ def parse_args():
         help="LR for simulated follower step (vanilla SGD, no momentum)",
     )
     parser.add_argument(
+        "--lambda_lead", type=float, default=0.0,
+        help="Penalty weight for leader-follower similarity (0 = CE only)",
+    )
+    parser.add_argument(
+        "--lambda_peer", type=float, default=0.0,
+        help="Penalty weight for peer-follower similarity (0 = CE only)",
+    )
+    parser.add_argument(
         "--leader_idx", type=int, default=0, help="Index of the leader head"
     )
     return parser.parse_args()
@@ -631,13 +684,17 @@ if __name__ == "__main__":
     logger.info(f"  LR leader     : {args.lr_leader}")
     logger.info(f"  LR follower   : {args.lr_follower}")
     logger.info(f"  LR sim step   : {args.lr_sim}")
+    logger.info(f"  λ_lead        : {args.lambda_lead}")
+    logger.info(f"  λ_peer        : {args.lambda_peer}")
     logger.info(f"  Leader head   : {args.leader_idx}")
 
     train_stackelberg(
         cfg,
-        design_layer=args.design_layer,
-        lr_leader=args.lr_leader,
-        lr_follower=args.lr_follower,
-        lr_sim=args.lr_sim,
-        leader_idx=args.leader_idx,
+        design_layer  = args.design_layer,
+        lr_leader     = args.lr_leader,
+        lr_follower   = args.lr_follower,
+        lr_sim        = args.lr_sim,
+        lambda_lead   = args.lambda_lead,
+        lambda_peer   = args.lambda_peer,
+        leader_idx    = args.leader_idx,
     )

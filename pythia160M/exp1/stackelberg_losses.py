@@ -2,42 +2,34 @@
 Stackelberg — gradient utilities (Pythia-160M / GPT-NeoX).
 
 Multi-head attention heads are modeled as Stackelberg game players:
-  - Leader   : dense LoRA (output projection) — optimises L_CE only
-  - Followers : query_key_value LoRA           — optimise L_CE only (diversity inactive)
+  - Leader   : dense LoRA (output projection) — optimises L_CE
+  - Followers : query_key_value LoRA          — optimise L_CE + optional L_div
 
 Contains:
-  - collect_lora_params         : gather all trainable LoRA params for a single optimizer
-  - build_grad_assembly         : build the GradAssembly descriptor for manual gradient routing
-  - assemble_gradients          : combine follower + leader gradients before optimizer.step()
-  - AttentionWeightCapture      : hook-based extraction of attention matrices (B, H, L, L)
-
-Design (single-optimizer):
-  One AdamW over all trainable params.  Per optimizer step:
-    Phase 1 — follower backward  → accumulate grad into p.grad
-    Phase 2 — leader lookahead   → save g_leader per param
-    assemble_gradients()         → write final .grad = f(g_follower, g_leader)
-    optimizer.step()             → single Adam step, single t counter
+  - collect_lora_params   : gather all trainable LoRA params for a single optimizer
+  - assemble_gradients    : combine follower + leader gradients before optimizer.step()
+  - HiddenStateCapture    : forward hook on a GPTNeoXLayer to capture hidden states
+  - compute_diversity_loss: L_div from hidden states, no eager / no output_attentions
 
 Gradient assembly rules per param kind:
   - lora_B of query_key_value (design layer):
       rows are disjoint between leader (h0) and followers (h1-11)
       → g_final = g_follower (follower rows) + g_leader (leader rows)
-        (both are already zeroed on the other side by the mask fns)
-  - lora_A of query_key_value, lora_B of dense (shared, not decomposable):
+  - lora_A of query_key_value, lora_B of dense (shared):
       → g_final = (g_follower + g_leader) / 2   (avoid double lr)
   - lora_A of dense (design layer, decomposable by columns):
       cols are disjoint → g_final = g_follower + g_leader
   - all other params (non design-layer):
       → g_final = g_follower   (leader does not own these)
 
-Note: Pythia/GPT-NeoX specifics vs Qwen version:
-  - Leader param key : "dense"             (vs "o_proj")
-  - Follower param key : "query_key_value" (vs "q/k/v_proj")
-  - Attn module path : "gpt_neox.layers.{l}.attention"
-  - Attn weights at output[1] when output_attentions=True
+Note: Pythia/GPT-NeoX specifics:
+  - Leader param key   : "dense"             (output projection)
+  - Follower param key : "query_key_value"   (fused QKV)
+  - QKV layout         : interleaved [Q0,K0,V0,Q1,K1,V1,...] — same as modeling_gpt_neox.py
 """
 
 import torch
+import torch.nn.functional as F
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Dict
 
@@ -254,54 +246,99 @@ def assemble_gradients(
 
 
 # ---------------------------------------------------------------------------
-# Attention weight capture (hook-based, single layer)
+# Hidden state capture + diversity loss (no eager, no output_attentions)
 # ---------------------------------------------------------------------------
 
 
-class AttentionWeightCapture:
+class HiddenStateCapture:
     """
-    Hook-based capture of attention weights from a single attention layer.
+    Forward hook on a GPTNeoXLayer to capture hidden states (B, L, d_model).
 
-    Registers a forward hook on ``model.gpt_neox.layers[layer_idx].attention``.
-
-    Important:
-    - The model must be called with ``output_attentions=True`` to materialise weights.
-    - GPTNeoXAttention returns (attn_output, attn_weights) when output_attentions=True.
-    - PEFT-wrapped models expose gpt_neox via attribute delegation.
+    Register on layer design_layer-1 to get the input of the design layer.
+    GPTNeoXLayer output is a tuple; output[0] is the hidden state tensor.
+    The captured tensor stays in the autograd graph — gradients flow through it.
     """
 
     def __init__(self):
-        self._weights: Optional[torch.Tensor] = None
-        self._hooks: list = []
+        self._hidden: Optional[torch.Tensor] = None
+        self._hook = None
 
     def register(self, model, layer_idx: int):
-        """Register a forward hook on the attention module at *layer_idx*."""
-        target_suffix = f"gpt_neox.layers.{layer_idx}.attention"
-        attn_module = None
-        for name, module in model.named_modules():
-            if name.endswith(target_suffix):
-                attn_module = module
+        target = f"gpt_neox.layers.{layer_idx}"
+        module = None
+        for name, mod in model.named_modules():
+            if name == target:
+                module = mod
                 break
-        if attn_module is None:
+        if module is None:
             raise RuntimeError(
-                f"Could not find attention module ending with '{target_suffix}'. "
+                f"Layer '{target}' not found. "
                 "Check that layer_idx is valid for Pythia-160M (0–11)."
             )
 
-        def hook_fn(module, args, output):
-            if isinstance(output, tuple) and len(output) >= 2 and output[1] is not None:
-                self._weights = output[1]  # (B, H, L, L)
+        def hook_fn(mod, args, output):
+            self._hidden = output[0]   # (B, L, d_model), in computation graph
 
-        self._hooks.append(attn_module.register_forward_hook(hook_fn))
+        self._hook = module.register_forward_hook(hook_fn)
 
     def get(self) -> Optional[torch.Tensor]:
-        """Return captured attention weights (B, H, L, L) and reset buffer."""
-        w = self._weights
-        self._weights = None
-        return w
+        """Return captured hidden states and reset buffer."""
+        h, self._hidden = self._hidden, None
+        return h
 
     def remove(self):
-        """Remove all registered hooks."""
-        for h in self._hooks:
-            h.remove()
-        self._hooks.clear()
+        if self._hook is not None:
+            self._hook.remove()
+            self._hook = None
+
+
+def compute_diversity_loss(
+    hidden: torch.Tensor,
+    qkv_module,
+    n_heads: int,
+    d_head: int,
+    leader_idx: int,
+    lambda_lead: float,
+    lambda_peer: float,
+) -> torch.Tensor:
+    """
+    L_div = λ_lead·Σ_i sim(A_i, A_leader) + λ_peer·Σ_{i≠j, i,j≠leader} sim(A_i, A_j)
+
+    hidden     : (B, L, d_model) captured from the layer before the design layer.
+    qkv_module : PEFT-wrapped query_key_value Linear of the design layer.
+
+    W_eff = W_frozen + lora_B @ lora_A * scale — gradients flow through lora_A/B only.
+    RoPE not applied: same rotation for all heads, relative diversity is preserved.
+    No eager attention, no output_attentions=True required.
+    """
+    W_base = qkv_module.weight                        # (3*d_model, d_model), frozen
+    lora_A = qkv_module.lora_A['default'].weight      # (r, d_model)
+    lora_B = qkv_module.lora_B['default'].weight      # (3*d_model, r)
+    scale  = qkv_module.scaling['default']
+    W_eff  = W_base + lora_B @ lora_A * scale         # (3*d_model, d_model)
+
+    bias = getattr(qkv_module, 'bias', None)
+    qkv_out = F.linear(hidden, W_eff, bias)           # (B, L, 3*d_model)
+
+    B, L, _ = qkv_out.shape
+    # Same reshape as GPTNeoXAttention.forward (interleaved QKV layout)
+    qkv_out = qkv_out.view(B, L, n_heads, 3 * d_head).transpose(1, 2)  # (B, n_heads, L, 3*d_head)
+    Q, K, _ = qkv_out.chunk(3, dim=-1)               # each (B, n_heads, L, d_head)
+
+    scores = Q @ K.transpose(-2, -1) * (d_head ** -0.5)   # (B, n_heads, L, L)
+    A = torch.softmax(scores.float(), dim=-1)              # float32 for numerical stability
+
+    # Cosine similarity between per-head attention maps, averaged over batch
+    A_flat = A.view(B, n_heads, L * L)                     # (B, n_heads, L²)
+    A_norm = F.normalize(A_flat, dim=-1)
+    S = torch.bmm(A_norm, A_norm.transpose(1, 2)).mean(0)  # (n_heads, n_heads)
+
+    fi   = [i for i in range(n_heads) if i != leader_idx]
+    fi_t = torch.tensor(fi, device=S.device)
+
+    lf     = S[fi_t, leader_idx].sum()
+    S_peer = S[fi_t][:, fi_t]
+    mask   = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
+    pp     = S_peer[mask].sum()
+
+    return lambda_lead * lf + lambda_peer * pp
