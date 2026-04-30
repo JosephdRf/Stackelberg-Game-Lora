@@ -1,31 +1,37 @@
 """
 Stackelberg — gradient utilities (Pythia-160M / GPT-NeoX).
 
-Multi-head attention heads are modeled as Stackelberg game players:
-  - Leader   : dense LoRA (output projection) — optimises L_CE
-  - Followers : query_key_value LoRA          — optimise L_CE + optional L_div
+One attention layer (design_layer) is treated as a Stackelberg game:
+  - Leader  (head h0) : commits first by anticipating the followers' best response.
+  - Followers (h1–11) : best-respond to the leader's announced strategy.
 
-Contains:
-  - collect_lora_params   : gather all trainable LoRA params for a single optimizer
-  - assemble_gradients    : combine follower + leader gradients before optimizer.step()
-  - HiddenStateCapture    : forward hook on a GPTNeoXLayer to capture hidden states
-  - compute_diversity_loss: L_div from hidden states, no eager / no output_attentions
+LoRA matrices of the design layer and their decomposability:
+  - qkv_lora_B  ∈ ℝ^(3d×r) : decomposable by rows — Q/K/V block per head.
+                               Leader owns rows lq, lk, lv ; followers own the rest.
+  - qkv_lora_A  ∈ ℝ^(r×d)  : shared (input dimension has no per-head structure).
+  - dense_lora_A ∈ ℝ^(r×d) : decomposable by columns — cols lo correspond to the
+                               d_head input features from head h0's output in the
+                               concatenated attention output.
+                               Leader owns cols lo ; followers own the rest.
+  - dense_lora_B ∈ ℝ^(d×r) : shared (output dimension not decomposable by head).
 
-Gradient assembly rules per param kind:
-  - lora_B of query_key_value (design layer):
-      rows are disjoint between leader (h0) and followers (h1-11)
-      → g_final = g_follower (follower rows) + g_leader (leader rows)
-  - lora_A of query_key_value, lora_B of dense (shared):
-      → g_final = (g_follower + g_leader) / 2   (avoid double lr)
-  - lora_A of dense (design layer, decomposable by columns):
-      cols are disjoint → g_final = g_follower + g_leader
-  - all other params (non design-layer):
-      → g_final = g_follower   (leader does not own these)
+Gradient assembly rules:
+  qkv_lora_B, dense_lora_A : disjoint slices (θ_L ∪ θ_F) → g_final = g_F + g_L
+  qkv_lora_A, dense_lora_B : θ_S — g_L zeroed in mask_leader_grad → g_final = g_F
+  other (non-design-layer)  : θ_S — follower only → g_final = g_F
 
-Note: Pythia/GPT-NeoX specifics:
-  - Leader param key   : "dense"             (output projection)
-  - Follower param key : "query_key_value"   (fused QKV)
-  - QKV layout         : interleaved [Q0,K0,V0,Q1,K1,V1,...] — same as modeling_gpt_neox.py
+Contents:
+  collect_lora_params    : classify all trainable LoRA params; return flat list + GradAssembly
+  mask_follower_grad     : zero leader slices (θ_L) in p.grad after follower backward
+  mask_leader_grad       : keep only leader slices (θ_L) in p.grad; zero everything else
+  assemble_gradients     : write final p.grad from g_F + g_L
+  HiddenStateCapture     : forward hook on a GPTNeoXLayer to capture hidden states
+  compute_diversity_loss : L_div from per-head attention maps; no eager / no output_attentions
+
+GPT-NeoX specifics:
+  QKV layout    : interleaved [Q0,K0,V0, Q1,K1,V1, …] — same as modeling_gpt_neox.py
+  dense_lora_A cols lo = [leader_idx·d_head : (leader_idx+1)·d_head]
+    (the d_head input features supplied by head h0's output in the concatenated input)
 """
 
 import torch
@@ -79,6 +85,7 @@ def _keep_leader_cols(grad: torch.Tensor, leader_o) -> torch.Tensor:
 @dataclass
 class ParamRole:
     """Describes how the gradient of a single param should be assembled."""
+
     param: torch.nn.Parameter
     name: str
     kind: str  # "qkv_lora_B" | "qkv_lora_A" | "dense_lora_A" | "dense_lora_B" | "other"
@@ -90,6 +97,7 @@ class GradAssembly:
     Holds all ParamRole descriptors and the slice info needed for assembly.
     Built once before training, reused every step.
     """
+
     roles: List[ParamRole]
     leader_q: slice
     leader_k: slice
@@ -112,10 +120,12 @@ def collect_lora_params(
     """
     d_head = d_model // n_heads  # 64
 
-    leader_q = slice(leader_idx * d_head,           (leader_idx + 1) * d_head)
-    leader_k = slice(d_model   + leader_idx * d_head, d_model   + (leader_idx + 1) * d_head)
-    leader_v = slice(2*d_model + leader_idx * d_head, 2*d_model + (leader_idx + 1) * d_head)
-    leader_o = slice(leader_idx * d_head,           (leader_idx + 1) * d_head)
+    leader_q = slice(leader_idx * d_head, (leader_idx + 1) * d_head)
+    leader_k = slice(d_model + leader_idx * d_head, d_model + (leader_idx + 1) * d_head)
+    leader_v = slice(
+        2 * d_model + leader_idx * d_head, 2 * d_model + (leader_idx + 1) * d_head
+    )
+    leader_o = slice(leader_idx * d_head, (leader_idx + 1) * d_head)
 
     layer_prefix = f"layers.{design_layer}."
 
@@ -132,8 +142,8 @@ def collect_lora_params(
         all_params.append(p)
 
         is_design = layer_prefix in name
-        is_qkv    = "query_key_value" in name
-        is_dense  = "dense" in name and "dense_h_to_4h" not in name
+        is_qkv = "query_key_value" in name
+        is_dense = "dense" in name and "dense_h_to_4h" not in name
 
         if is_design and is_qkv and "lora_B" in name:
             kind = "qkv_lora_B"
@@ -165,7 +175,12 @@ def mask_follower_grad(assembly: GradAssembly) -> None:
     the saved follower gradient contains zero on the leader slice.
     Works in-place on p.grad.
     """
-    lq, lk, lv, lo = assembly.leader_q, assembly.leader_k, assembly.leader_v, assembly.leader_o
+    lq, lk, lv, lo = (
+        assembly.leader_q,
+        assembly.leader_k,
+        assembly.leader_v,
+        assembly.leader_o,
+    )
     for role in assembly.roles:
         p = role.param
         if p.grad is None:
@@ -185,28 +200,36 @@ def mask_leader_grad(assembly: GradAssembly) -> None:
     and zeros the entire grad for "other" params (leader doesn't own them).
     Works in-place on p.grad.
     """
-    lq, lk, lv, lo = assembly.leader_q, assembly.leader_k, assembly.leader_v, assembly.leader_o
+    lq, lk, lv, lo = (
+        assembly.leader_q,
+        assembly.leader_k,
+        assembly.leader_v,
+        assembly.leader_o,
+    )
     for role in assembly.roles:
         p = role.param
         if p.grad is None:
             continue
         if role.kind == "qkv_lora_B":
             mask = torch.zeros_like(p.grad)
-            mask[lq, :] = 1; mask[lk, :] = 1; mask[lv, :] = 1
+            mask[lq, :] = 1
+            mask[lk, :] = 1
+            mask[lv, :] = 1
             p.grad.mul_(mask)
         elif role.kind == "dense_lora_A":
             mask = torch.zeros_like(p.grad)
             mask[:, lo] = 1
             p.grad.mul_(mask)
+        elif role.kind in ("qkv_lora_A", "dense_lora_B"):
+            p.grad.zero_()  # θ_S: g_L contribution is zero, update comes from g_F only
         elif role.kind == "other":
             p.grad.zero_()
-        # qkv_lora_A and dense_lora_B: shared, keep grad as-is (will be averaged)
 
 
 def assemble_gradients(
     assembly: GradAssembly,
     g_follower: Dict[int, torch.Tensor],
-    g_leader:   Dict[int, torch.Tensor],
+    g_leader: Dict[int, torch.Tensor],
 ) -> None:
     """
     Writes the final assembled gradient into p.grad for optimizer.step().
@@ -215,17 +238,15 @@ def assemble_gradients(
         mask_follower_grad / mask_leader_grad respectively.
 
     Assembly rules:
-      qkv_lora_B  : disjoint slices → add  (g_F + g_L)
-      dense_lora_A: disjoint slices → add  (g_F + g_L)
-      qkv_lora_A  : shared          → mean (g_F + g_L) / 2
-      dense_lora_B: shared          → mean (g_F + g_L) / 2
-      other       : follower only   → g_F
+      qkv_lora_B, dense_lora_A : disjoint slices → g_F + g_L
+      qkv_lora_A, dense_lora_B : θ_S, g_L zeroed by mask_leader_grad → g_F
+      other                     : follower only → g_F
     """
     for role in assembly.roles:
-        p   = role.param
+        p = role.param
         pid = id(p)
-        gf  = g_follower.get(pid)
-        gl  = g_leader.get(pid)
+        gf = g_follower.get(pid)
+        gl = g_leader.get(pid)
 
         if gf is None and gl is None:
             p.grad = None
@@ -238,8 +259,8 @@ def assemble_gradients(
             # slices are disjoint — simple addition is correct
             p.grad = gf + gl
         elif role.kind in ("qkv_lora_A", "dense_lora_B"):
-            # shared param, seen by both phases — average to avoid double lr
-            p.grad = (gf + gl) * 0.5
+            # θ_S: updated only with g_F (g_L is zero after mask_leader_grad)
+            p.grad = gf
         else:
             # "other": only followers own these params
             p.grad = gf
@@ -277,7 +298,7 @@ class HiddenStateCapture:
             )
 
         def hook_fn(mod, args, output):
-            self._hidden = output[0]   # (B, L, d_model), in computation graph
+            self._hidden = output[0]  # (B, L, d_model), in computation graph
 
         self._hook = module.register_forward_hook(hook_fn)
 
@@ -311,34 +332,36 @@ def compute_diversity_loss(
     RoPE not applied: same rotation for all heads, relative diversity is preserved.
     No eager attention, no output_attentions=True required.
     """
-    W_base = qkv_module.weight                        # (3*d_model, d_model), frozen
-    lora_A = qkv_module.lora_A['default'].weight      # (r, d_model)
-    lora_B = qkv_module.lora_B['default'].weight      # (3*d_model, r)
-    scale  = qkv_module.scaling['default']
-    W_eff  = W_base + lora_B @ lora_A * scale         # (3*d_model, d_model)
+    W_base = qkv_module.weight  # (3*d_model, d_model), frozen
+    lora_A = qkv_module.lora_A["default"].weight  # (r, d_model)
+    lora_B = qkv_module.lora_B["default"].weight  # (3*d_model, r)
+    scale = qkv_module.scaling["default"]
+    W_eff = W_base + lora_B @ lora_A * scale  # (3*d_model, d_model)
 
-    bias = getattr(qkv_module, 'bias', None)
-    qkv_out = F.linear(hidden, W_eff, bias)           # (B, L, 3*d_model)
+    bias = getattr(qkv_module, "bias", None)
+    qkv_out = F.linear(hidden, W_eff, bias)  # (B, L, 3*d_model)
 
     B, L, _ = qkv_out.shape
     # Same reshape as GPTNeoXAttention.forward (interleaved QKV layout)
-    qkv_out = qkv_out.view(B, L, n_heads, 3 * d_head).transpose(1, 2)  # (B, n_heads, L, 3*d_head)
-    Q, K, _ = qkv_out.chunk(3, dim=-1)               # each (B, n_heads, L, d_head)
+    qkv_out = qkv_out.view(B, L, n_heads, 3 * d_head).transpose(
+        1, 2
+    )  # (B, n_heads, L, 3*d_head)
+    Q, K, _ = qkv_out.chunk(3, dim=-1)  # each (B, n_heads, L, d_head)
 
-    scores = Q @ K.transpose(-2, -1) * (d_head ** -0.5)   # (B, n_heads, L, L)
-    A = torch.softmax(scores.float(), dim=-1)              # float32 for numerical stability
+    scores = Q @ K.transpose(-2, -1) * (d_head**-0.5)  # (B, n_heads, L, L)
+    A = torch.softmax(scores.float(), dim=-1)  # float32 for numerical stability
 
     # Cosine similarity between per-head attention maps, averaged over batch
-    A_flat = A.view(B, n_heads, L * L)                     # (B, n_heads, L²)
+    A_flat = A.view(B, n_heads, L * L)  # (B, n_heads, L²)
     A_norm = F.normalize(A_flat, dim=-1)
     S = torch.bmm(A_norm, A_norm.transpose(1, 2)).mean(0)  # (n_heads, n_heads)
 
-    fi   = [i for i in range(n_heads) if i != leader_idx]
+    fi = [i for i in range(n_heads) if i != leader_idx]
     fi_t = torch.tensor(fi, device=S.device)
 
-    lf     = S[fi_t, leader_idx].sum()
+    lf = S[fi_t, leader_idx].sum()
     S_peer = S[fi_t][:, fi_t]
-    mask   = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
-    pp     = S_peer[mask].sum()
+    mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
+    pp = S_peer[mask].sum()
 
     return lambda_lead * lf + lambda_peer * pp

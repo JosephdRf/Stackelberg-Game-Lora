@@ -4,31 +4,43 @@ Experiment 1 — Stackelberg LoRA (Pythia-160M)
 
 Principle
 ---------
-Multi-head attention heads are modeled as players in a Stackelberg game.
-Leader (dense / output projection LoRA) and followers (query_key_value LoRA)
-both optimise purely for cross-entropy.
+One attention layer (design_layer, default 9) is treated as a Stackelberg game.
+Leader head (h0) commits first by anticipating the followers' best response;
+followers (h1–11) best-respond. Both minimise cross-entropy; followers also
+penalise inter-head similarity via L_div when λ > 0.
 
 The bilevel (K=1 Stackelberg) update per optimizer step:
 
   Phase 1 — Accumulate follower gradients
-      Forward → CE → backward (accumulated over micro-batches)
-      mask_follower_grad() zeros the leader slice in .grad
+      Forward → L_F = L_CE [+ λ·L_div] / grad_accum → backward (micro-batches)
+      mask_follower_grad() zeros the leader slices in p.grad
+      Save g_follower = {id(p): p.grad.clone()}
 
-  Phase 2 — Leader looks ahead
-      θ_F' = θ_F − η_sim · g_F          (simulated follower step, vanilla SGD)
-      Forward with θ_F' → leader loss = CE(θ_L, θ_F')
-      mask_leader_grad() zeros follower slices + "other" params in .grad
+  Phase 2 — Leader lookahead
+      θ_F' = θ_F − η_sim · clip(g_F)   (seulement θ_F : qkv_lora_B + dense_lora_A)
+      Forward at θ_F' → L_leader = L_CE → backward over all accumulated micro-batches
+      mask_leader_grad() : garde uniquement les tranches θ_L, zero tout le reste (y compris θ_S)
+      Save g_leader = {id(p): p.grad.clone()}
 
-  Phase 3 — Single optimizer step
+  Phase 3 — Restore, assemble, step
+      Restore θ_F ← saved values (qkv_lora_B + dense_lora_A)
       assemble_gradients(g_follower, g_leader) → writes final p.grad:
-        disjoint slices (qkv_lora_B, dense_lora_A) : g_F + g_L
-        shared params  (qkv_lora_A, dense_lora_B)  : (g_F + g_L) / 2
-        other params                                : g_F
-      Restore θ_F, optimizer.step() — single Adam step, single t counter.
+        θ_L ∪ θ_F (qkv_lora_B, dense_lora_A) : g_F + g_L  (tranches disjointes)
+        θ_S (qkv_lora_A, dense_lora_B, other) : g_F        (g_L = 0 après mask)
+      clip_grad_norm → optimizer.step() — single AdamW step, single t counter.
 
-Parameter split (LoRA):
-  Leader   = dense LoRA           (head output mixing, output projection)
-  Follower = query_key_value LoRA (attention computation, fused QKV)
+Parameter split (design layer LoRA):
+  θ_L ∪ θ_F — décomposables (même tenseur, tranches disjointes) :
+    qkv_lora_B  : lignes lq/lk/lv → θ_L ;  reste → θ_F  (lr_follower)
+    dense_lora_A : colonnes lo    → θ_L ;  reste → θ_F  (lr_leader)
+  θ_S — partagés, mis à jour uniquement par g_F :
+    qkv_lora_A   (lr_follower)
+    dense_lora_B (lr_follower)
+  θ_S — autres layers : follower only  (lr_follower)
+
+  Simplification lr : θ_L et θ_F partagent le même tenseur → même lr.
+    Tranches θ_L de qkv_lora_B → lr_follower (au lieu de lr_leader).
+    Tranches θ_F de dense_lora_A → lr_leader  (au lieu de lr_follower).
 
 Usage:
     python pythia160M/exp1/train_exp1.py --dry_run
@@ -173,16 +185,18 @@ def train_stackelberg(
         leader_idx=leader_idx,
     )
 
-    n_leader_params = sum(
+    # θ_L ∪ θ_F : tranches décomposables (qkv_lora_B + dense_lora_A), même tenseur
+    n_design_params = sum(
         p.numel()
         for r in grad_assembly.roles
-        if r.kind in ("qkv_lora_B", "dense_lora_A", "dense_lora_B")
+        if r.kind in ("qkv_lora_B", "dense_lora_A")
         for p in [r.param]
     )
-    n_follower_params = sum(
+    # θ_S : partagés (qkv_lora_A + dense_lora_B) + autres layers
+    n_shared_params = sum(
         p.numel()
         for r in grad_assembly.roles
-        if r.kind in ("qkv_lora_B", "qkv_lora_A", "other")
+        if r.kind in ("qkv_lora_A", "dense_lora_B", "other")
         for p in [r.param]
     )
     logger.info(f"Total trainable params : {sum(p.numel() for p in all_params):,}")
@@ -190,7 +204,7 @@ def train_stackelberg(
         f"Design layer           : {design_layer}  |  Leader head idx : {leader_idx}"
     )
     logger.info(
-        f"Leader params          : {n_leader_params:,}  |  Follower params : {n_follower_params:,}"
+        f"Design params (θ_L∪θ_F) : {n_design_params:,}  |  Shared+other (θ_S) : {n_shared_params:,}"
     )
     # lr_follower is the reference lr; leader uses lr_leader.
     # Since there is a single optimizer we use lr_follower as base and apply
@@ -199,9 +213,11 @@ def train_stackelberg(
     leader_param_ids = {
         id(r.param)
         for r in grad_assembly.roles
-        if r.kind in ("dense_lora_A", "dense_lora_B")
+        if r.kind == "dense_lora_A"
     }
-    # qkv_lora_B and shared params go at follower lr; pure-leader dense params at leader lr.
+    # dense_lora_A (θ_L ∩ dense) → lr_leader ; everything else (θ_F, θ_S) → lr_follower.
+    # Simplification acceptée : tranches θ_F de dense_lora_A utilisent lr_leader
+    # et tranches θ_L de qkv_lora_B utilisent lr_follower (même tenseur, même lr).
     param_groups = [
         {
             "params": [p for p in all_params if id(p) not in leader_param_ids],
@@ -228,7 +244,7 @@ def train_stackelberg(
 
     # ── Diversity hook (only when λ > 0) ──
     need_div = lambda_lead > 0 or lambda_peer > 0
-    d_head   = 768 // 12   # 64
+    d_head = 768 // 12  # 64
     if need_div:
         _qkv_target = f"gpt_neox.layers.{design_layer}.attention.query_key_value"
         qkv_module = next(
@@ -236,7 +252,9 @@ def train_stackelberg(
         )
         capture = HiddenStateCapture()
         capture.register(model, design_layer - 1)
-        logger.info(f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  — diversity active (hook on layer {design_layer - 1})")
+        logger.info(
+            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  — diversity active (hook on layer {design_layer - 1})"
+        )
     else:
         logger.info("λ_lead=0  λ_peer=0  — CE only (no hook, identical to baseline)")
 
@@ -250,7 +268,7 @@ def train_stackelberg(
 
     history = {
         "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "leader_ce": []},
-        "val":   {"step": [], "loss": [], "ppl": []},
+        "val": {"step": [], "loss": [], "ppl": []},
     }
     _ema_ce = None
     _ema_alpha = 0.05
@@ -269,9 +287,9 @@ def train_stackelberg(
 
     # ── Training state ──
     model.train()
-    global_step     = 0
-    accum_ce        = 0.0
-    accum_div       = 0.0
+    global_step = 0
+    accum_ce = 0.0
+    accum_div = 0.0
     accum_leader_ce = 0.0
     optimizer.zero_grad()
 
@@ -305,12 +323,15 @@ def train_stackelberg(
 
             if need_div:
                 # hidden still in graph (hook captured output[0] of layer design_layer-1)
-                hidden   = capture.get()
+                hidden = capture.get()
                 div_loss = compute_diversity_loss(
-                    hidden, qkv_module,
-                    n_heads=12, d_head=d_head,
+                    hidden,
+                    qkv_module,
+                    n_heads=12,
+                    d_head=d_head,
                     leader_idx=leader_idx,
-                    lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                    lambda_lead=lambda_lead,
+                    lambda_peer=lambda_peer,
                 )
                 follower_loss = (ce_loss + div_loss) / cfg.grad_accum
                 accum_div += div_loss.item()
@@ -358,7 +379,7 @@ def train_stackelberg(
                 )
                 sim_clip = min(1.0, cfg.grad_clip / (sim_gnorm.item() + 1e-8))
 
-                design_roles = [r for r in grad_assembly.roles if r.kind != "other"]
+                design_roles = [r for r in grad_assembly.roles if r.kind in ("qkv_lora_B", "dense_lora_A")]
                 saved_data = {id(r.param): r.param.data.clone() for r in design_roles}
                 with torch.no_grad():
                     for r in design_roles:
@@ -447,13 +468,15 @@ def train_stackelberg(
                     if use_wandb:
                         wandb.log(
                             {
-                                "train/ce_loss":     accum_ce,
-                                "train/ce_ema":      _ema_ce,
-                                "train/div_loss":    accum_div,
-                                "train/leader_ce":   accum_leader_ce,
-                                "train/lr_leader":   lr_l,
+                                "train/ce_loss": accum_ce,
+                                "train/ce_ema": _ema_ce,
+                                "train/div_loss": accum_div,
+                                "train/leader_ce": accum_leader_ce,
+                                "train/lr_leader": lr_l,
                                 "train/lr_follower": lr_f,
-                                "train/tokens":      opt_step * cfg.seq_len * cfg.effective_batch_size,
+                                "train/tokens": opt_step
+                                * cfg.seq_len
+                                * cfg.effective_batch_size,
                             },
                             step=opt_step,
                         )
@@ -498,8 +521,8 @@ def train_stackelberg(
                     with open(os.path.join(logs_dir, "history.json"), "w") as _f:
                         json.dump(history, _f, indent=2)
 
-                accum_ce        = 0.0
-                accum_div       = 0.0
+                accum_ce = 0.0
+                accum_div = 0.0
                 accum_leader_ce = 0.0
                 accum_inputs = []
                 accum_labels = []
@@ -642,11 +665,15 @@ def parse_args():
         help="LR for simulated follower step (vanilla SGD, no momentum)",
     )
     parser.add_argument(
-        "--lambda_lead", type=float, default=0.0,
+        "--lambda_lead",
+        type=float,
+        default=0.0,
         help="Penalty weight for leader-follower similarity (0 = CE only)",
     )
     parser.add_argument(
-        "--lambda_peer", type=float, default=0.0,
+        "--lambda_peer",
+        type=float,
+        default=0.0,
         help="Penalty weight for peer-follower similarity (0 = CE only)",
     )
     parser.add_argument(
@@ -690,11 +717,11 @@ if __name__ == "__main__":
 
     train_stackelberg(
         cfg,
-        design_layer  = args.design_layer,
-        lr_leader     = args.lr_leader,
-        lr_follower   = args.lr_follower,
-        lr_sim        = args.lr_sim,
-        lambda_lead   = args.lambda_lead,
-        lambda_peer   = args.lambda_peer,
-        leader_idx    = args.leader_idx,
+        design_layer=args.design_layer,
+        lr_leader=args.lr_leader,
+        lr_follower=args.lr_follower,
+        lr_sim=args.lr_sim,
+        lambda_lead=args.lambda_lead,
+        lambda_peer=args.lambda_peer,
+        leader_idx=args.leader_idx,
     )
