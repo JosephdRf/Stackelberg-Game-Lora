@@ -84,46 +84,46 @@ _wandb:
           uuid: GPU-26e1b5d8-7be5-6ca5-c024-3f997af1718a
         cuda_version: '12.8'
         slurm:
-          gtids: '0'
-          cpus_per_task: '10'
-          jobid: '59947317'
-          submit_dir: /lustre07/scratch/joseph63/Stackelberg-Game-Lora
-          job_gid: '3158629'
-          mpi_type: pmix
-          job_id: '59947317'
-          job_user: joseph63
-          tmpdir: /localscratch/joseph63.59947317.0
-          cpus_on_node: '10'
-          job_start_time: '1777315560'
-          job_partition: gpubase_bygpu_b1
-          submit_host: narval3
-          conf: /etc/slurm/slurm.conf
-          mem_per_node: '16384'
-          restart_count: '0'
-          cluster_name: narval
-          job_cpus_per_node: '10'
           tasks_per_node: '1'
-          job_account: def-omar12_gpu
-          job_nodelist: ng20501
-          tres_per_task: cpu=10
-          job_num_nodes: '1'
-          job_qos: normal
-          topology_addr: ihpc207u29.ihpc205u25.ng20501
           nodeid: '0'
-          task_pid: '1828493'
-          gpus_on_node: '1'
-          procid: '0'
+          jobid: '59947317'
           localid: '0'
-          job_uid: '3158629'
-          script_context: prolog_task
-          oom_kill_step: '0'
-          job_name: joseph-stackelberg-job
-          job_gpus: '10'
-          nodelist: ng20501
+          mpi_type: pmix
+          job_partition: gpubase_bygpu_b1
           topology_addr_pattern: switch.switch.node
-          job_end_time: '1777326360'
-          prio_process: '0'
+          job_id: '59947317'
+          cpus_on_node: '10'
+          job_num_nodes: '1'
+          oom_kill_step: '0'
+          procid: '0'
+          job_uid: '3158629'
+          restart_count: '0'
           nnodes: '1'
+          job_start_time: '1777315560'
+          task_pid: '1828493'
+          job_user: joseph63
+          tres_per_task: cpu=10
+          cluster_name: narval
+          conf: /etc/slurm/slurm.conf
+          gpus_on_node: '1'
+          job_account: def-omar12_gpu
+          job_qos: normal
+          job_end_time: '1777326360'
+          cpus_per_task: '10'
+          nodelist: ng20501
+          job_cpus_per_node: '10'
+          tmpdir: /localscratch/joseph63.59947317.0
+          script_context: prolog_task
+          job_nodelist: ng20501
+          topology_addr: ihpc207u29.ihpc205u25.ng20501
+          job_gpus: '10'
+          gtids: '0'
+          prio_process: '0'
+          submit_dir: /lustre07/scratch/joseph63/Stackelberg-Game-Lora
+          mem_per_node: '16384'
+          job_gid: '3158629'
+          submit_host: narval3
+          job_name: joseph-stackelberg-job
         writer_id: wxov9sfr6pzqlptkb4ljwnpuepnk82q4
 model_name:
   desc: null
