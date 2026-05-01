@@ -61,8 +61,8 @@ import matplotlib.pyplot as plt
 
 _HERE = os.path.dirname(os.path.abspath(__file__))  # pythia160M/exp1/
 _MODEL = os.path.dirname(_HERE)  # pythia160M/
-sys.path.insert(0, _MODEL)  # pour importer train_utils.py
-sys.path.insert(0, _HERE)  # pour importer stackelberg_losses.py
+sys.path.insert(0, _MODEL)  # pour importer train_utils.py, stackelberg_losses.py
+sys.path.insert(0, _HERE)  # pour importer gradient_mask.py
 
 import torch
 import numpy as np
@@ -83,14 +83,14 @@ from train_utils import (
     log_head_matrices,
     build_model_and_tokenizer,
 )
-from stackelberg_losses import (
+from gradient_mask import (
     collect_lora_params,
     mask_follower_grad,
     mask_leader_grad,
     assemble_gradients,
     HiddenStateCapture,
-    compute_diversity_loss,
 )
+from stackelberg_losses import compute_diversity_loss
 
 logger = logging.getLogger(__name__)
 
@@ -215,9 +215,7 @@ def train_stackelberg(
     # a per-param-group lr_leader for the leader-only parameters.
     # We split into two param groups for lr scheduling but share Adam state.
     leader_param_ids = {
-        id(r.param)
-        for r in grad_assembly.roles
-        if r.kind == "dense_lora_A"
+        id(r.param) for r in grad_assembly.roles if r.kind == "dense_lora_A"
     }
     # dense_lora_A (θ_L ∩ dense) → lr_leader ; everything else (θ_F, θ_S) → lr_follower.
     # Simplification acceptée : tranches θ_F de dense_lora_A utilisent lr_leader
@@ -383,7 +381,11 @@ def train_stackelberg(
                 )
                 sim_clip = min(1.0, cfg.grad_clip / (sim_gnorm.item() + 1e-8))
 
-                design_roles = [r for r in grad_assembly.roles if r.kind in ("qkv_lora_B", "dense_lora_A")]
+                design_roles = [
+                    r
+                    for r in grad_assembly.roles
+                    if r.kind in ("qkv_lora_B", "dense_lora_A")
+                ]
                 saved_data = {id(r.param): r.param.data.clone() for r in design_roles}
                 with torch.no_grad():
                     for r in design_roles:
