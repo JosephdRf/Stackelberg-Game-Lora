@@ -123,7 +123,16 @@ def train_stackelberg(
             project=cfg.wandb_project,
             name=cfg.run_name,
             group=cfg.wandb_group,
-            config=vars(cfg),
+            config={
+                **vars(cfg),
+                "lr_leader": lr_leader,
+                "lr_follower": lr_follower,
+                "lr_sim": lr_sim,
+                "lambda_lead": lambda_lead,
+                "lambda_peer": lambda_peer,
+                "design_layer": design_layer,
+                "leader_idx": leader_idx,
+            },
         )
 
     # ── Model (float32, SDPA) ──
