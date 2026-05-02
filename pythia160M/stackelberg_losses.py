@@ -27,6 +27,12 @@ def compute_diversity_loss(
     scale = qkv_module.scaling["default"]
     W_eff = W_base + lora_B @ lora_A * scale  # (3*d_model, d_model)
 
+    if hidden.ndim != 3:
+        raise ValueError(
+            f"Expected hidden (B, L, d_model) got shape {hidden.shape}. "
+            "Check HiddenStateCapture.hook_fn — the layer may return a tensor, not a tuple."
+        )
+
     bias = getattr(qkv_module, "bias", None)
     qkv_out = F.linear(hidden, W_eff, bias)  # (B, L, 3*d_model)
 

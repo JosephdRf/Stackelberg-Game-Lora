@@ -288,7 +288,7 @@ class HiddenStateCapture:
         target = f"gpt_neox.layers.{layer_idx}"
         module = None
         for name, mod in model.named_modules():
-            if name == target:
+            if name == target or name.endswith("." + target):
                 module = mod
                 break
         if module is None:
@@ -298,7 +298,9 @@ class HiddenStateCapture:
             )
 
         def hook_fn(mod, args, output):
-            self._hidden = output[0]  # (B, L, d_model), in computation graph
+            # GPTNeoXLayer returns a tuple (hidden, ...) in most cases, but
+            # some transformers versions / PEFT builds return the tensor directly.
+            self._hidden = output[0] if isinstance(output, (tuple, list)) else output
 
         self._hook = module.register_forward_hook(hook_fn)
 
