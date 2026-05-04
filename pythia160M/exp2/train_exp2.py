@@ -259,13 +259,25 @@ def train_stackelberg(
     d_head = 768 // 12  # 64
     if need_div:
         _qkv_target = f"gpt_neox.layers.{design_layer}.attention.query_key_value"
+        _attn_target = f"gpt_neox.layers.{design_layer}.attention"
         qkv_module = next(
             mod for name, mod in model.named_modules() if name.endswith(_qkv_target)
         )
+        _layer_target = f"gpt_neox.layers.{design_layer}"
+        attn_module = next(
+            mod for name, mod in model.named_modules() if name.endswith(_attn_target)
+        )
+        layer_module = next(
+            mod for name, mod in model.named_modules() if name.endswith(_layer_target)
+        )
+        rotary_emb = attn_module.rotary_emb
+        rotary_ndims = attn_module.rotary_ndims
+        input_layernorm = layer_module.input_layernorm
         capture = HiddenStateCapture()
         capture.register(model, design_layer - 1)
         logger.info(
-            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  — diversity active (hook on layer {design_layer - 1})"
+            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  rotary_ndims={rotary_ndims}"
+            f"  — diversity active (hook on layer {design_layer - 1})"
         )
     else:
         logger.info("λ_lead=0  λ_peer=0  — CE only (no hook, identical to baseline)")
@@ -344,6 +356,9 @@ def train_stackelberg(
                     leader_idx=leader_idx,
                     lambda_lead=lambda_lead,
                     lambda_peer=lambda_peer,
+                    rotary_emb=rotary_emb,
+                    rotary_ndims=rotary_ndims,
+                    input_layernorm=input_layernorm,
                 )
                 follower_loss = (ce_loss + div_loss) / cfg.grad_accum
                 accum_div += div_loss.item()
@@ -413,7 +428,7 @@ def train_stackelberg(
                     ):
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
-                        leader_ce_mb = leader_ce_mb + lambda_conf * leader_confidence_loss(A, leader_idx) / cfg.grad_accum  # A: (B,H,L,L) depuis compute_diversity_loss
+                        # leader_ce_mb = leader_ce_mb + lambda_conf * leader_confidence_loss(A, leader_idx) / cfg.grad_accum  # A: (B,H,L,L) depuis compute_diversity_loss
                     leader_ce_mb.backward()
                     leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
 
