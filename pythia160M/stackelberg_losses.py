@@ -60,3 +60,15 @@ def compute_diversity_loss(
     pp = S_peer[mask].sum()
 
     return lambda_lead * lf + lambda_peer * pp
+
+
+def leader_confidence_loss(attn_weights: torch.Tensor, leader_idx: int = 0) -> torch.Tensor:
+    """
+    L_conf = -1/(BL) · Σ_{b,l} max_{l'} A_leader[b, l, l']
+
+    attn_weights : (B, H, L, L) — per-head attention maps (post-softmax).
+                   Obtenu via compute_diversity_loss (A) ou output_attentions=True.
+    """
+    A_leader = attn_weights[:, leader_idx, :, :]  # (B, L, L)
+    max_attn = A_leader.max(dim=-1).values         # (B, L)
+    return -max_attn.mean()

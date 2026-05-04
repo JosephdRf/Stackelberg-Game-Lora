@@ -89,7 +89,7 @@ from gradient_mask import (
     assemble_gradients,
     HiddenStateCapture,
 )
-from stackelberg_losses import compute_diversity_loss
+from stackelberg_losses import compute_diversity_loss, leader_confidence_loss
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,7 @@ def train_stackelberg(
     lr_sim: float = 1e-3,
     lambda_lead: float = 0.0,
     lambda_peer: float = 0.0,
+    lambda_conf: float = 0.0,
     leader_idx: int = 0,
 ):
     seed_everything(cfg.seed)
@@ -129,6 +130,7 @@ def train_stackelberg(
                 "lr_sim": lr_sim,
                 "lambda_lead": lambda_lead,
                 "lambda_peer": lambda_peer,
+                "lambda_conf": lambda_conf,
                 "design_layer": design_layer,
                 "leader_idx": leader_idx,
             },
@@ -411,6 +413,7 @@ def train_stackelberg(
                     ):
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
+                        leader_ce_mb = leader_ce_mb + lambda_conf * leader_confidence_loss(A, leader_idx) / cfg.grad_accum  # A: (B,H,L,L) depuis compute_diversity_loss
                     leader_ce_mb.backward()
                     leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
 
@@ -691,6 +694,12 @@ def parse_args():
         help="Penalty weight for peer-follower similarity (0 = CE only)",
     )
     parser.add_argument(
+        "--lambda_conf",
+        type=float,
+        default=0.0,
+        help="Penalty weight for leader confidence loss (0 = désactivé)",
+    )
+    parser.add_argument(
         "--leader_idx", type=int, default=0, help="Index of the leader head"
     )
     return parser.parse_args()
@@ -727,6 +736,7 @@ if __name__ == "__main__":
     logger.info(f"  LR sim step   : {args.lr_sim}")
     logger.info(f"  λ_lead        : {args.lambda_lead}")
     logger.info(f"  λ_peer        : {args.lambda_peer}")
+    logger.info(f"  λ_conf        : {args.lambda_conf}")
     logger.info(f"  Leader head   : {args.leader_idx}")
 
     train_stackelberg(
@@ -737,5 +747,6 @@ if __name__ == "__main__":
         lr_sim=args.lr_sim,
         lambda_lead=args.lambda_lead,
         lambda_peer=args.lambda_peer,
+        lambda_conf=args.lambda_conf,
         leader_idx=args.leader_idx,
     )
