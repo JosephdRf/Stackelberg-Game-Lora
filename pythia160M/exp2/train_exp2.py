@@ -90,9 +90,75 @@ from gradient_mask import (
     assemble_gradients,
     HiddenStateCapture,
 )
-from stackelberg_losses import get_attention_maps, follower_diversity_loss, leader_confidence_loss
+from stackelberg_losses import get_attention_maps, follower_diversity_loss, leader_confidence_loss, entropy_heads
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Eval helpers — attention heatmaps (no grad)
+# ---------------------------------------------------------------------------
+
+
+@torch.no_grad()
+def _compute_attn0_heatmap(
+    model, fixed_ids, qkv_module, d_head, rotary_emb, rotary_ndims,
+    input_layernorm, capture, leader_idx, device,
+):
+    """A_leader heatmap on a fixed validation batch (first example only)."""
+    model.eval()
+    model(input_ids=fixed_ids)
+    hidden = capture.get()
+    A = get_attention_maps(
+        hidden, qkv_module, n_heads=12, d_head=d_head,
+        rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
+        input_layernorm=input_layernorm,
+    )
+    model.train()
+    return A[0, leader_idx].cpu().float()  # (L, L) — first batch element
+
+
+@torch.no_grad()
+def _compute_val_head_metrics(
+    model, val_loader, qkv_module, d_head, rotary_emb, rotary_ndims,
+    input_layernorm, capture, leader_idx, device, n_batches=20,
+):
+    """
+    Un seul passage sur val_loader — retourne :
+      S          : (12, 12)  matrice de similarité cosinus S^A
+      conf_max   : float     mean max_l' A_leader[b,l,l']
+      conf_l2    : float     mean ||A_leader[b,l,:]||^2
+      h_entropy  : float     entropie de la tête leader
+    """
+    model.eval()
+    S_accum = torch.zeros(12, 12)
+    conf_max_sum = conf_l2_sum = entropy_sum = 0.0
+    count = 0
+    for batch in val_loader:
+        if count >= n_batches:
+            break
+        input_ids = batch["input_ids"].to(device)
+        model(input_ids=input_ids)
+        hidden = capture.get()
+        if hidden is None:
+            continue
+        A = get_attention_maps(
+            hidden, qkv_module, n_heads=12, d_head=d_head,
+            rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
+            input_layernorm=input_layernorm,
+        )
+        B, H, L, _ = A.shape
+        A_flat = A.view(B, H, L * L)
+        A_norm = A_flat / A_flat.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        S_accum += torch.bmm(A_norm, A_norm.transpose(1, 2)).mean(0).cpu().float()
+        A_leader = A[:, leader_idx, :, :]  # (B, L, L)
+        conf_max_sum += A_leader.max(dim=-1).values.mean().item()
+        conf_l2_sum += (A_leader ** 2).sum(dim=-1).mean().item()
+        entropy_sum += entropy_heads(A)[leader_idx].item()
+        count += 1
+    model.train()
+    n = max(1, count)
+    return S_accum / n, conf_max_sum / n, conf_l2_sum / n, entropy_sum / n
 
 
 # ---------------------------------------------------------------------------
@@ -255,10 +321,11 @@ def train_stackelberg(
         num_training_steps=total_steps,
     )
 
-    # ── Diversity hook (only when λ > 0) ──
+    # ── Diversity / confidence hook ──
     need_div = lambda_lead > 0 or lambda_peer > 0
+    need_hook = need_div or lambda_conf > 0
     d_head = 768 // 12  # 64
-    if need_div:
+    if need_hook:
         _qkv_target = f"gpt_neox.layers.{design_layer}.attention.query_key_value"
         _attn_target = f"gpt_neox.layers.{design_layer}.attention"
         qkv_module = next(
@@ -282,11 +349,11 @@ def train_stackelberg(
         capture = HiddenStateCapture()
         capture.register(model, design_layer - 1)
         logger.info(
-            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  rotary_ndims={rotary_ndims}"
-            f"  — diversity active (hook on layer {design_layer - 1})"
+            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  "
+            f"rotary_ndims={rotary_ndims}  — hook on layer {design_layer - 1}"
         )
     else:
-        logger.info("λ_lead=0  λ_peer=0  — CE only (no hook, identical to baseline)")
+        logger.info("λ_lead=0  λ_peer=0  λ_conf=0  — CE only (no hook, identical to baseline)")
 
     # ── Directories & history ──
     os.makedirs(cfg.output_dir, exist_ok=True)
@@ -295,8 +362,12 @@ def train_stackelberg(
     os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
 
+    # Batch fixe pour la heatmap A_0 (même input à chaque eval)
+    _fixed_batch = next(iter(val_loader))
+    fixed_ids = _fixed_batch["input_ids"][:1].to(device)
+
     history = {
-        "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "leader_ce": []},
+        "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "conf": []},
         "val": {"step": [], "loss": [], "ppl": []},
     }
     _ema_ce = None
@@ -319,7 +390,7 @@ def train_stackelberg(
     global_step = 0
     accum_ce = 0.0
     accum_div = 0.0
-    accum_leader_ce = 0.0
+    accum_conf = 0.0
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
@@ -420,7 +491,6 @@ def train_stackelberg(
 
                 # Leader forward over all accumulated micro-batches
                 optimizer.zero_grad()
-                leader_ce_accum = torch.tensor(0.0, device=device)
                 for inp, lab in zip(accum_inputs, accum_labels):
                     with torch.autocast(
                         device_type=device.type if device.type != "mps" else "cpu",
@@ -429,12 +499,16 @@ def train_stackelberg(
                     ):
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
-                        # A_leader = get_attention_maps(capture.get(), qkv_module, 12, d_head, rotary_emb, rotary_ndims, input_layernorm)
-                        # leader_ce_mb = leader_ce_mb + lambda_conf * leader_confidence_loss(A_leader, leader_idx) / cfg.grad_accum
+                    if lambda_conf > 0:
+                        hidden_leader = capture.get()
+                        A_leader = get_attention_maps(
+                            hidden_leader, qkv_module, 12, d_head,
+                            rotary_emb, rotary_ndims, input_layernorm,
+                        )
+                        conf_raw = lambda_conf * leader_confidence_loss(A_leader, leader_idx)
+                        leader_ce_mb = leader_ce_mb + conf_raw / cfg.grad_accum
+                        accum_conf += conf_raw.detach().item()
                     leader_ce_mb.backward()
-                    leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
-
-                accum_leader_ce = leader_ce_accum.item()
 
                 # Mask: keep only leader slices, zero "other" params
                 with torch.no_grad():
@@ -480,7 +554,7 @@ def train_stackelberg(
                     ce=f"{accum_ce:.4f}",
                     ema=f"{_ema_ce:.4f}",
                     div=f"{accum_div:.4f}",
-                    l_ce=f"{accum_leader_ce:.4f}",
+                    conf=f"{accum_conf:.4f}",
                     tok_s=f"{tokens_per_sec:,}",
                 )
 
@@ -495,7 +569,7 @@ def train_stackelberg(
                     logger.info(
                         f"[train] step {opt_step:>6d}/{total_steps}"
                         f"  CE={accum_ce:.4f}  ema={_ema_ce:.4f}"
-                        f"  div={accum_div:.4f}  leader_CE={accum_leader_ce:.4f}"
+                        f"  div={accum_div:.4f}  conf={accum_conf:.4f}"
                         f"  lr_L={lr_l:.2e}  lr_F={lr_f:.2e}"
                         f"  tok/s={tokens_per_sec:,}"
                     )
@@ -505,7 +579,7 @@ def train_stackelberg(
                                 "train/ce_loss": accum_ce,
                                 "train/ce_ema": _ema_ce,
                                 "train/div_loss": accum_div,
-                                "train/leader_ce": accum_leader_ce,
+                                "train/conf_loss": accum_conf,
                                 "train/lr_leader": lr_l,
                                 "train/lr_follower": lr_f,
                                 "train/tokens": opt_step
@@ -518,7 +592,7 @@ def train_stackelberg(
                     history["train"]["ce"].append(accum_ce)
                     history["train"]["ce_ema"].append(_ema_ce)
                     history["train"]["div"].append(accum_div)
-                    history["train"]["leader_ce"].append(accum_leader_ce)
+                    history["train"]["conf"].append(accum_conf)
 
                 # ── Eval périodique ──
                 if opt_step % cfg.eval_every == 0:
@@ -532,16 +606,39 @@ def train_stackelberg(
                     logger.info(
                         f"[val]   step {opt_step:>6d}  val_loss={v_loss:.4f}  val_ppl={v_ppl:.3f}"
                     )
-                    log_head_matrices(
-                        model,
-                        device,
-                        design_layer,
-                        opt_step,
-                        val_loader,
-                        wandb_mod=wandb if use_wandb else None,
-                    )
+                    # log_head_matrices désactivé
                     if use_wandb:
-                        wandb.log({"val/loss": v_loss, "val/ppl": v_ppl}, step=opt_step)
+                        log_dict = {"val/loss": v_loss, "val/ppl": v_ppl}
+                        if need_hook:
+                            A0 = _compute_attn0_heatmap(
+                                model, fixed_ids, qkv_module, d_head,
+                                rotary_emb, rotary_ndims, input_layernorm,
+                                capture, leader_idx, device,
+                            )
+                            fig, ax = plt.subplots(figsize=(7, 6))
+                            im = ax.imshow(A0.numpy(), cmap="viridis", aspect="auto", vmin=0)
+                            plt.colorbar(im, ax=ax)
+                            ax.set_title(f"A_leader (head {leader_idx}, step {opt_step})")
+                            log_dict["eval/A0_heatmap"] = wandb.Image(fig)
+                            plt.close(fig)
+
+                            S, conf_max, conf_l2, h_entropy = _compute_val_head_metrics(
+                                model, val_loader, qkv_module, d_head,
+                                rotary_emb, rotary_ndims, input_layernorm,
+                                capture, leader_idx, device,
+                            )
+                            fig, ax = plt.subplots(figsize=(7, 6))
+                            im = ax.imshow(S.numpy(), cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
+                            plt.colorbar(im, ax=ax)
+                            ax.set_title(f"S^A cosine similarity (step {opt_step})")
+                            ax.set_xlabel("head j")
+                            ax.set_ylabel("head i")
+                            log_dict["eval/SA_heatmap"] = wandb.Image(fig)
+                            plt.close(fig)
+                            log_dict["leader/conf_max"] = conf_max
+                            log_dict["leader/conf_l2"] = conf_l2
+                            log_dict["leader/entropy"] = h_entropy
+                        wandb.log(log_dict, step=opt_step)
                     history["val"]["step"].append(opt_step)
                     history["val"]["loss"].append(v_loss)
                     history["val"]["ppl"].append(v_ppl)
@@ -557,7 +654,7 @@ def train_stackelberg(
 
                 accum_ce = 0.0
                 accum_div = 0.0
-                accum_leader_ce = 0.0
+                accum_conf = 0.0
                 accum_inputs = []
                 accum_labels = []
 
@@ -579,7 +676,7 @@ def train_stackelberg(
 
     pbar.close()
 
-    if need_div:
+    if need_hook:
         capture.remove()
 
     # ── Eval finale ──
@@ -617,13 +714,6 @@ def train_stackelberg(
         history["train"]["ce_ema"],
         color="darkorange",
         label="CE (EMA)",
-    )
-    ax.plot(
-        history["train"]["step"],
-        history["train"]["leader_ce"],
-        color="purple",
-        alpha=0.6,
-        label="leader CE (lookahead)",
     )
     if any(v > 0 for v in history["train"]["div"]):
         ax.plot(

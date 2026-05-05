@@ -132,7 +132,7 @@ def leader_confidence_loss_smooth(attn_weights: torch.Tensor, leader_idx: int = 
 
 
 
-def entropy_heads(attn_weights: torch.Tensor) -> torch.Tensor:
+def entropy_head(attn_weights: torch.Tensor, leader_idx: int = 0) -> torch.Tensor:
     """
     Calcule l'entropie moyenne des poids d'attention pour chaque tête.
     H = -1/(BL) · Σ_{b,l} Σ_{l'} A[head_idx][b, l, l'] log A[head_idx][b, l, l']
