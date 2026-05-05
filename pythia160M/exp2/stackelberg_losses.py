@@ -18,7 +18,7 @@ def _apply_rope(
     Q, K : (B, n_heads, L, d_head)
     Retourne Q, K avec la rotation appliquée — même transformation que GPTNeoXAttention.
     """
-    B, _, L, _ = Q.shape
+    B, H, L, _ = Q.shape
     position_ids = torch.arange(L, device=Q.device).unsqueeze(0).expand(B, -1)
     cos, sin = rotary_emb(Q, position_ids)  # (B, L, rotary_ndims) — rotary_emb sur GPTNeoXModel
     cos = cos.unsqueeze(1)                  # (B, 1, L, rotary_ndims) — broadcast sur H
