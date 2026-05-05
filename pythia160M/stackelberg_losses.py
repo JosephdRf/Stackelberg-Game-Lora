@@ -20,8 +20,8 @@ def _apply_rope(
     """
     B, H, L, _ = Q.shape
     position_ids = torch.arange(L, device=Q.device).unsqueeze(0).expand(B, -1)
-    cos, sin = rotary_emb(Q, position_ids)       # (B, L, rotary_ndims)
-    cos = cos.unsqueeze(1)                        # (B, 1, L, rotary_ndims) — broadcast sur H
+    cos, sin = rotary_emb(Q, position_ids)  # (B, L, rotary_ndims) — rotary_emb sur GPTNeoXModel
+    cos = cos.unsqueeze(1)                  # (B, 1, L, rotary_ndims) — broadcast sur H
     sin = sin.unsqueeze(1)
 
     q_rot = Q[..., :rotary_ndims] * cos + _rotate_half(Q[..., :rotary_ndims]) * sin

@@ -270,7 +270,12 @@ def train_stackelberg(
         layer_module = next(
             mod for name, mod in model.named_modules() if name.endswith(_layer_target)
         )
-        rotary_emb = attn_module.rotary_emb
+        # rotary_emb est sur GPTNeoXModel (partagé entre toutes les couches)
+        gpt_neox_module = next(
+            mod for name, mod in model.named_modules()
+            if name == "gpt_neox" or name.endswith(".gpt_neox")
+        )
+        rotary_emb = gpt_neox_module.rotary_emb
         rotary_ndims = attn_module.rotary_ndims
         input_layernorm = layer_module.input_layernorm
         capture = HiddenStateCapture()
