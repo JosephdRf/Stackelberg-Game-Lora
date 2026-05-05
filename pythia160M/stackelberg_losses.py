@@ -31,29 +31,26 @@ def _apply_rope(
     return Q, K
 
 
-def compute_diversity_loss(
+def get_attention_maps(
     hidden: torch.Tensor,
     qkv_module,
     n_heads: int,
     d_head: int,
-    leader_idx: int,
-    lambda_lead: float,
-    lambda_peer: float,
     rotary_emb=None,
     rotary_ndims: int = 0,
     input_layernorm=None,
 ) -> torch.Tensor:
     """
-    L_div = λ_lead·Σ_i sim(A_i, A_leader) + λ_peer·Σ_{i≠j, i,j≠leader} sim(A_i, A_j)
+    Calcule les cartes d'attention par tête sans eager attention ni output_attentions=True.
 
     hidden          : (B, L, d_model) — sortie de la couche design_layer-1.
     qkv_module      : PEFT-wrapped query_key_value Linear du design layer.
-    input_layernorm : LayerNorm du design layer (appliqué à hidden avant QKV, comme dans le modèle).
-    rotary_emb      : module RotaryEmbedding du design layer.
-    rotary_ndims    : nombre de dims rotées (= rotary_pct * d_head, 16 pour Pythia-160M).
+    input_layernorm : LayerNorm du design layer (appliqué avant QKV, comme dans le modèle).
+    rotary_emb      : GPTNeoXRotaryEmbedding (sur gpt_neox, partagé entre couches).
+    rotary_ndims    : dims rotées (16 pour Pythia-160M, = rotary_pct * d_head).
 
-    W_eff = W_frozen + lora_B @ lora_A * scale — gradients flow through lora_A/B only.
-    No eager attention, no output_attentions=True required.
+    Retourne A : (B, n_heads, L, L) — attention maps post-softmax, float32.
+    W_eff = W_frozen + lora_B @ lora_A * scale — gradients via lora_A/B uniquement.
     """
     if hidden.ndim != 3:
         raise ValueError(
@@ -62,11 +59,11 @@ def compute_diversity_loss(
         )
 
     if input_layernorm is not None:
-        hidden = input_layernorm(hidden)  # identique à GPTNeoXAttention.forward
+        hidden = input_layernorm(hidden)
 
-    W_base = qkv_module.weight  # (3*d_model, d_model), frozen
-    lora_A = qkv_module.lora_A["default"].weight  # (r, d_model)
-    lora_B = qkv_module.lora_B["default"].weight  # (3*d_model, r)
+    W_base = qkv_module.weight
+    lora_A = qkv_module.lora_A["default"].weight
+    lora_B = qkv_module.lora_B["default"].weight
     scale = qkv_module.scaling["default"]
     W_eff = W_base + lora_B @ lora_A * scale  # (3*d_model, d_model)
 
@@ -74,20 +71,31 @@ def compute_diversity_loss(
     qkv_out = F.linear(hidden, W_eff, bias)  # (B, L, 3*d_model)
 
     B, L, _ = qkv_out.shape
-    # Same reshape as GPTNeoXAttention.forward (interleaved QKV layout)
-    qkv_out = qkv_out.view(B, L, n_heads, 3 * d_head).transpose(
-        1, 2
-    )  # (B, n_heads, L, 3*d_head)
+    qkv_out = qkv_out.view(B, L, n_heads, 3 * d_head).transpose(1, 2)  # (B, n_heads, L, 3*d_head)
     Q, K, _ = qkv_out.chunk(3, dim=-1)  # each (B, n_heads, L, d_head)
 
     if rotary_emb is not None and rotary_ndims > 0:
         Q, K = _apply_rope(Q, K, rotary_emb, rotary_ndims)
 
     scores = Q @ K.transpose(-2, -1) * (d_head**-0.5)  # (B, n_heads, L, L)
-    A = torch.softmax(scores.float(), dim=-1)  # float32 for numerical stability
+    return torch.softmax(scores.float(), dim=-1)        # (B, n_heads, L, L)
 
-    # Cosine similarity between per-head attention maps, averaged over batch
-    A_flat = A.view(B, n_heads, L * L)  # (B, n_heads, L²)
+
+
+def follower_diversity_loss(
+    attn_weights: torch.Tensor,
+    n_heads: int,
+    leader_idx: int,
+    lambda_lead: float,
+    lambda_peer: float,
+) -> torch.Tensor:
+    """
+    L_div = λ_lead·Σ_i sim(A_i, A_leader) + λ_peer·Σ_{i≠j, i,j≠leader} sim(A_i, A_j)
+
+    attn_weights : (B, n_heads, L, L) — sortie de get_attention_maps.
+    """
+    B, H, L, _ = attn_weights.shape
+    A_flat = attn_weights.view(B, H, L * L)
     A_norm = F.normalize(A_flat, dim=-1)
     S = torch.bmm(A_norm, A_norm.transpose(1, 2)).mean(0)  # (n_heads, n_heads)
 
@@ -106,9 +114,32 @@ def leader_confidence_loss(attn_weights: torch.Tensor, leader_idx: int = 0) -> t
     """
     L_conf = -1/(BL) · Σ_{b,l} max_{l'} A_leader[b, l, l']
 
-    attn_weights : (B, H, L, L) — per-head attention maps (post-softmax).
-                   Obtenu via compute_diversity_loss (A) ou output_attentions=True.
+    attn_weights : (B, n_heads, L, L) — sortie de get_attention_maps.
     """
     A_leader = attn_weights[:, leader_idx, :, :]  # (B, L, L)
     max_attn = A_leader.max(dim=-1).values         # (B, L)
     return -max_attn.mean()
+
+
+
+def leader_confidence_loss_smooth(attn_weights: torch.Tensor, leader_idx: int = 0) -> torch.Tensor:
+    """
+    Variante de L_conf qui maximise la somme des carrés des poids d'attention du leader, encourageant une distribution plus pointue.
+    L_conf = -1/(BL) · Σ_{b,l,l'} A_leader[b, l, l']^2
+    """
+    A_leader = attn_weights[:, leader_idx, :, :]  # (B, L, L)
+    return -(A_leader ** 2).sum(dim=-1).mean()    # -||A_0||^2 moyenné
+
+
+
+def entropy_heads(attn_weights: torch.Tensor) -> torch.Tensor:
+    """
+    Calcule l'entropie moyenne des poids d'attention pour chaque tête.
+    H = -1/(BL) · Σ_{b,l} Σ_{l'} A[head_idx][b, l, l'] log A[head_idx][b, l, l']
+
+    attn_weights : (B, n_heads, L, L)
+    """
+    log_attn = torch.log(attn_weights + 1e-12)  # éviter log(0)
+    entropies = -(attn_weights * log_attn).sum(dim=-1).mean(dim=(0, 2))  # (B, n_heads, L) → (n_heads,)
+    assert entropies.shape == (attn_weights.shape[1],), f"Expected entropy shape ({attn_weights.shape[1]},) got {entropies.shape}"
+    return entropies

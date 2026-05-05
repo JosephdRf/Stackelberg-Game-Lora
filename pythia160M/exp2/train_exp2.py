@@ -89,7 +89,7 @@ from gradient_mask import (
     assemble_gradients,
     HiddenStateCapture,
 )
-from stackelberg_losses import compute_diversity_loss, leader_confidence_loss
+from stackelberg_losses import get_attention_maps, follower_diversity_loss, leader_confidence_loss
 
 logger = logging.getLogger(__name__)
 
@@ -353,18 +353,13 @@ def train_stackelberg(
             if need_div:
                 # hidden still in graph (hook captured output[0] of layer design_layer-1)
                 hidden = capture.get()
-                div_loss = compute_diversity_loss(
-                    hidden,
-                    qkv_module,
-                    n_heads=12,
-                    d_head=d_head,
-                    leader_idx=leader_idx,
-                    lambda_lead=lambda_lead,
-                    lambda_peer=lambda_peer,
-                    rotary_emb=rotary_emb,
-                    rotary_ndims=rotary_ndims,
+                A = get_attention_maps(
+                    hidden, qkv_module, n_heads=12, d_head=d_head,
+                    rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
                     input_layernorm=input_layernorm,
                 )
+                div_loss = follower_diversity_loss(A, n_heads=12, leader_idx=leader_idx,
+                                                   lambda_lead=lambda_lead, lambda_peer=lambda_peer)
                 follower_loss = (ce_loss + div_loss) / cfg.grad_accum
                 accum_div += div_loss.item()
             else:
@@ -433,7 +428,8 @@ def train_stackelberg(
                     ):
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
-                        # leader_ce_mb = leader_ce_mb + lambda_conf * leader_confidence_loss(A, leader_idx) / cfg.grad_accum  # A: (B,H,L,L) depuis compute_diversity_loss
+                        # A_leader = get_attention_maps(capture.get(), qkv_module, 12, d_head, rotary_emb, rotary_ndims, input_layernorm)
+                        # leader_ce_mb = leader_ce_mb + lambda_conf * leader_confidence_loss(A_leader, leader_idx) / cfg.grad_accum
                     leader_ce_mb.backward()
                     leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
 
