@@ -111,7 +111,8 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
-    pbar = tqdm(total=total_steps, desc="Training (Pythia-160M LoRA baseline)", unit="step")
+    pbar = tqdm(total=total_steps, desc="Training (Pythia-160M LoRA baseline)", unit="step",
+                disable=not sys.stderr.isatty())
 
     _autocast_dtype = torch.bfloat16
     _use_autocast   = device.type in ("cuda", "cpu")  # pas en MPS
@@ -274,6 +275,8 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
     logger.info(f"Plots → {plots_dir}")
 
     if use_wandb:
+        with open(os.path.join(cfg.output_dir, "wandb_run_id.txt"), "w") as _f:
+            _f.write(wandb.run.id)
         wandb.finish()
 
 

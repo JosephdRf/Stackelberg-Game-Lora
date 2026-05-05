@@ -41,6 +41,7 @@ Usage :
 
 import os
 import re
+import glob
 import math
 import argparse
 import logging
@@ -592,25 +593,6 @@ if __name__ == "__main__":
                         help="Tags W&B (ex: 'seed=42 fullft')")
     args = parser.parse_args()
 
-    use_wandb = bool(args.wandb_project)
-    if use_wandb:
-        import wandb
-        wandb.init(
-            project=args.wandb_project,
-            name=args.wandb_run_name,
-            group=args.wandb_group,
-            tags=args.wandb_tags,
-            job_type="eval",
-            config={
-                "model_path": args.model_path,
-                "seed":       args.seed,
-                "n_samples":  args.n_samples,
-            },
-        )
-
-    model, tokenizer, device = load_model(args.model_path)
-    results = run_eval(model, tokenizer, device, args.n_samples, args.seed)
-
     METRIC_ORDER = [
         "WikiText103_PPL", "WikiText103_BPB",
         "PTB_BPB", "PTB_PPL",
@@ -620,14 +602,81 @@ if __name__ == "__main__":
         "ARC-Easy_acc", "ARC-Easy_acc_norm",
         "MemoTrap",
     ]
+
+    # Auto-detect multi-run directory structure (run_*/final subdirs)
+    run_dirs = sorted(glob.glob(os.path.join(args.model_path, "run_*/final")))
+
+    # Try to resume the corresponding training wandb run (run_0 for multi-run, parent dir for single)
+    _run_id = None
+    if run_dirs:
+        _id_file = os.path.join(run_dirs[0].replace("/final", ""), "wandb_run_id.txt")
+    else:
+        _id_file = os.path.join(os.path.dirname(os.path.abspath(args.model_path)), "wandb_run_id.txt")
+    if os.path.exists(_id_file):
+        with open(_id_file) as _f:
+            _run_id = _f.read().strip()
+
+    use_wandb = bool(args.wandb_project)
+    if use_wandb:
+        import wandb
+        if _run_id:
+            logger.info(f"Resuming wandb run {_run_id} (training run)")
+            wandb.init(
+                project=args.wandb_project,
+                id=_run_id,
+                resume="allow",
+                job_type="eval",
+            )
+        else:
+            wandb.init(
+                project=args.wandb_project,
+                name=args.wandb_run_name,
+                group=args.wandb_group,
+                tags=args.wandb_tags,
+                job_type="eval",
+                config={
+                    "model_path": args.model_path,
+                    "seed":       args.seed,
+                    "n_samples":  args.n_samples,
+                },
+            )
+
+    if run_dirs:
+        logger.info(f"Multi-run eval : {len(run_dirs)} runs trouvés dans {args.model_path}")
+        all_results = []
+        for run_dir in run_dirs:
+            logger.info(f"\n--- {run_dir} ---")
+            model, tokenizer, device = load_model(run_dir)
+            r = run_eval(model, tokenizer, device, args.n_samples, args.seed)
+            all_results.append(r)
+            del model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        all_keys = list(all_results[0].keys())
+        results = {k: round(float(np.mean([r[k] for r in all_results])), 4) for k in all_keys}
+        results_std = {k: round(float(np.std([r[k] for r in all_results])), 4) for k in all_keys}
+
+        logger.info("\n=== Résultats (moyenne ± std sur %d runs) ===" % len(run_dirs))
+        for k in METRIC_ORDER:
+            if k in results:
+                logger.info(f"  {k:<20} = {results[k]:.4f} ± {results_std[k]:.4f}")
+    else:
+        model, tokenizer, device = load_model(args.model_path)
+        results = run_eval(model, tokenizer, device, args.n_samples, args.seed)
+        results_std = {}
+
+        logger.info("\n=== Résultats finaux ===")
+        for k in METRIC_ORDER:
+            if k in results:
+                logger.info(f"  {k:<20} = {results[k]}")
+
     ordered = [k for k in METRIC_ORDER if k in results]
     ordered += [k for k in results if k not in METRIC_ORDER]
-
-    logger.info("\n=== Résultats finaux ===")
-    for k in ordered:
-        logger.info(f"  {k:<20} = {results[k]}")
 
     if use_wandb:
         for k in ordered:
             wandb.run.summary[f"eval/{k}"] = results[k]
+            if k in results_std:
+                wandb.run.summary[f"eval/{k}_std"] = results_std[k]
         wandb.finish()

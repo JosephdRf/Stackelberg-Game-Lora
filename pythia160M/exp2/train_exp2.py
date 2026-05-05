@@ -54,6 +54,7 @@ import json
 import argparse
 import logging
 import time
+import dataclasses
 import matplotlib
 
 matplotlib.use("Agg")
@@ -289,9 +290,8 @@ def train_stackelberg(
 
     # ── Directories & history ──
     os.makedirs(cfg.output_dir, exist_ok=True)
-    _exp_dir = os.path.dirname(os.path.abspath(cfg.output_dir))
-    logs_dir = os.path.join(_exp_dir, "logs")
-    plots_dir = os.path.join(_exp_dir, "plots")
+    logs_dir = os.path.join(cfg.output_dir, "logs")
+    plots_dir = os.path.join(cfg.output_dir, "plots")
     os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
 
@@ -324,7 +324,8 @@ def train_stackelberg(
 
     _step_start = time.perf_counter()
     pbar = tqdm(
-        total=total_steps, desc="Stackelberg Training (Pythia-160M)", unit="step"
+        total=total_steps, desc="Stackelberg Training (Pythia-160M)", unit="step",
+        disable=not sys.stderr.isatty(),
     )
 
     accum_inputs: list = []
@@ -668,6 +669,8 @@ def train_stackelberg(
     logger.info(f"Plots → {plots_dir}")
 
     if use_wandb:
+        with open(os.path.join(cfg.output_dir, "wandb_run_id.txt"), "w") as _f:
+            _f.write(wandb.run.id)
         wandb.finish()
 
 
@@ -718,6 +721,10 @@ def parse_args():
     parser.add_argument(
         "--leader_idx", type=int, default=0, help="Index of the leader head"
     )
+    parser.add_argument(
+        "--nb_runs", type=int, default=1,
+        help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …). Chaque run sauvegardé dans output_dir/run_i/",
+    )
     return parser.parse_args()
 
 
@@ -754,15 +761,29 @@ if __name__ == "__main__":
     logger.info(f"  λ_peer        : {args.lambda_peer}")
     logger.info(f"  λ_conf        : {args.lambda_conf}")
     logger.info(f"  Leader head   : {args.leader_idx}")
+    logger.info(f"  Nb runs       : {args.nb_runs}")
 
-    train_stackelberg(
-        cfg,
-        design_layer=args.design_layer,
-        lr_leader=args.lr_leader,
-        lr_follower=args.lr_follower,
-        lr_sim=args.lr_sim,
-        lambda_lead=args.lambda_lead,
-        lambda_peer=args.lambda_peer,
-        lambda_conf=args.lambda_conf,
-        leader_idx=args.leader_idx,
-    )
+    for i in range(args.nb_runs):
+        cfg_i = dataclasses.replace(
+            cfg,
+            output_dir=os.path.join(args.output_dir, f"run_{i}"),
+            run_name=args.run_name,
+            seed=args.seed + i,
+            wandb_project=cfg.wandb_project if i == 0 else None,
+        )
+        logger.info(
+            f"\n{'='*60}\n"
+            f"Run {i+1}/{args.nb_runs}  seed={cfg_i.seed}  output={cfg_i.output_dir}\n"
+            f"{'='*60}"
+        )
+        train_stackelberg(
+            cfg_i,
+            design_layer=args.design_layer,
+            lr_leader=args.lr_leader,
+            lr_follower=args.lr_follower,
+            lr_sim=args.lr_sim,
+            lambda_lead=args.lambda_lead,
+            lambda_peer=args.lambda_peer,
+            lambda_conf=args.lambda_conf,
+            leader_idx=args.leader_idx,
+        )

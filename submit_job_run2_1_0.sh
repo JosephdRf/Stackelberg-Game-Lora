@@ -3,7 +3,7 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=2:00:00
+#SBATCH --time=3:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
@@ -34,8 +34,8 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
-RUN_NAME_TRAIN=Train_stackelberg_exp2_1_0_second_Test
-RUN_NAME_EVAL=Eval_exp2_1_0_second_Test
+RUN_NAME_TRAIN=Train_stackelberg_exp2_1_0_third_Test
+RUN_NAME_EVAL=Eval_exp2_1_0_third_Test
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME_TRAIN
 
 python pythia160M/exp2/train_exp2.py \
@@ -46,8 +46,10 @@ python pythia160M/exp2/train_exp2.py \
     --lr_follower 3e-5 \
     --design_layer 9 \
     --lambda_lead 0.0 \
-    --lambda_peer 0.0
+    --lambda_peer 0.0 \
+    --seed 43 \
+    --nb_runs 3
 
 python pythia160M/eval.py \
-    --model_path $CKPT_DIR/final \
+    --model_path $CKPT_DIR \
     --wandb_project Stackelberg-Pythia160M --wandb_group Exp2 --wandb_run_name $RUN_NAME_EVAL
