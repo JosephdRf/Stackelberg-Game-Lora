@@ -34,8 +34,8 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
-RUN_NAME_TRAIN=Train_stackelberg_exp1_10
-RUN_NAME_EVAL=Eval_exp1_10
+RUN_NAME_TRAIN=Train_stackelberg_exp1_10_second_Test
+RUN_NAME_EVAL=Eval_exp1_10_second_Test
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp1/$RUN_NAME_TRAIN
 
 python pythia160M/exp1/train_exp1.py \
