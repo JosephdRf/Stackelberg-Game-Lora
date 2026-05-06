@@ -110,6 +110,66 @@ def follower_diversity_loss(
     return lambda_lead * lf + lambda_peer * pp
 
 
+def follower_diversity_loss_sq(
+    attn_weights: torch.Tensor,
+    n_heads: int,
+    leader_idx: int,
+    lambda_lead: float,
+    lambda_peer: float,
+) -> torch.Tensor:
+    """
+    L_div = λ_lead·Σ_i cos(A_i, A_leader)² + λ_peer·Σ_{i≠j, i,j≠leader} cos(A_i, A_j)²
+
+    Squared cosine similarity avoids anticorrelation gradients (Exp2_5).
+    """
+    B, H, L, _ = attn_weights.shape
+    A_flat = attn_weights.view(B, H, L * L)
+    A_norm = F.normalize(A_flat, dim=-1)
+    S = torch.bmm(A_norm, A_norm.transpose(1, 2)).mean(0)  # (n_heads, n_heads)
+    S_sq = S ** 2
+
+    fi = [i for i in range(n_heads) if i != leader_idx]
+    fi_t = torch.tensor(fi, device=S.device)
+
+    lf = S_sq[fi_t, leader_idx].sum()
+    S_peer = S_sq[fi_t][:, fi_t]
+    mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
+    pp = S_peer[mask].sum()
+
+    return lambda_lead * lf + lambda_peer * pp
+
+
+def follower_diversity_loss_hadamard(
+    attn_weights: torch.Tensor,
+    n_heads: int,
+    leader_idx: int,
+    lambda_lead: float,
+    lambda_peer: float,
+) -> torch.Tensor:
+    """
+    L_div = λ_lead·Σ_i |A_i ⊙ A_leader| + λ_peer·Σ_{i≠j, i,j≠leader} |A_i ⊙ A_j|
+
+    Attention weights are non-negative (softmax), so |A_i ⊙ A_j| = <A_i, A_j> (Exp2_6).
+    """
+    B, H, L, _ = attn_weights.shape
+    A_flat = attn_weights.view(B, H, L * L)  # (B, H, L²)
+
+    fi = [i for i in range(n_heads) if i != leader_idx]
+    fi_t = torch.tensor(fi, device=A_flat.device)
+
+    A_leader = A_flat[:, leader_idx, :]   # (B, L²)
+    A_followers = A_flat[:, fi_t, :]      # (B, n_f, L²)
+
+    lf = (A_followers * A_leader.unsqueeze(1)).sum(dim=-1).mean(dim=0).sum()
+
+    M = torch.bmm(A_followers, A_followers.transpose(1, 2)).mean(0)  # (n_f, n_f)
+    n_f = len(fi)
+    mask = ~torch.eye(n_f, dtype=torch.bool, device=A_flat.device)
+    pp = M[mask].sum()
+
+    return lambda_lead * lf + lambda_peer * pp
+
+
 def leader_confidence_loss(attn_weights: torch.Tensor, leader_idx: int = 0) -> torch.Tensor:
     """
     L_conf = -1/(BL) · Σ_{b,l} max_{l'} A_leader[b, l, l']

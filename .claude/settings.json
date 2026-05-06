@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(python pythia160M/exp2/train_exp2.py --help)",
+      "Bash(python3 -c \"import torch; print\\(torch.__version__\\)\")",
+      "Bash(module load *)",
+      "Bash(python3 -c \"import sys; sys.path.insert\\(0,'pythia160M'\\); from stackelberg_losses import follower_diversity_loss_sq, follower_diversity_loss_hadamard; print\\('imports OK'\\)\")"
+    ]
+  }
+}

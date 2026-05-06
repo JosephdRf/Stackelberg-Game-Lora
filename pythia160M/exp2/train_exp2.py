@@ -92,7 +92,9 @@ from gradient_mask import (
     HiddenStateCapture,
 )
 from stackelberg_losses import (
-    get_attention_maps, follower_diversity_loss, entropy_heads,
+    get_attention_maps,
+    follower_diversity_loss, follower_diversity_loss_sq, follower_diversity_loss_hadamard,
+    entropy_heads,
     leader_confidence_loss, leader_confidence_loss_smooth, minus_entropy_head,
 )
 
@@ -176,6 +178,12 @@ _CONF_LOSS_FN = {
     "entropy": minus_entropy_head,
 }
 
+_DIV_LOSS_FN = {
+    "cos":      follower_diversity_loss,
+    "cos_sq":   follower_diversity_loss_sq,
+    "hadamard": follower_diversity_loss_hadamard,
+}
+
 
 def train_stackelberg(
     cfg: TrainConfig,
@@ -188,6 +196,7 @@ def train_stackelberg(
     lambda_conf: float = 0.0,
     leader_idx: int = 0,
     conf_loss_type: str = "max",
+    div_loss_type: str = "cos",
     keep_wandb_open: bool = False,
 ):
     seed_everything(cfg.seed)
@@ -212,6 +221,7 @@ def train_stackelberg(
                 "lambda_peer": lambda_peer,
                 "lambda_conf": lambda_conf,
                 "conf_loss_type": conf_loss_type,
+                "div_loss_type": div_loss_type,
                 "design_layer": design_layer,
                 "leader_idx": leader_idx,
             },
@@ -363,9 +373,11 @@ def train_stackelberg(
         capture = HiddenStateCapture()
         capture.register(model, design_layer - 1)
         _conf_loss_fn = _CONF_LOSS_FN[conf_loss_type]
+        _div_loss_fn = _DIV_LOSS_FN[div_loss_type]
         logger.info(
             f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  "
-            f"conf_loss_type={conf_loss_type}  rotary_ndims={rotary_ndims}  — hook on layer {design_layer - 1}"
+            f"conf_loss_type={conf_loss_type}  div_loss_type={div_loss_type}  "
+            f"rotary_ndims={rotary_ndims}  — hook on layer {design_layer - 1}"
         )
     else:
         logger.info("λ_lead=0  λ_peer=0  λ_conf=0  — CE only (no hook, identical to baseline)")
@@ -445,8 +457,8 @@ def train_stackelberg(
                     rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
                     input_layernorm=input_layernorm,
                 )
-                div_loss = follower_diversity_loss(A, n_heads=12, leader_idx=leader_idx,
-                                                   lambda_lead=lambda_lead, lambda_peer=lambda_peer)
+                div_loss = _div_loss_fn(A, n_heads=12, leader_idx=leader_idx,
+                                        lambda_lead=lambda_lead, lambda_peer=lambda_peer) # Loss follower de diversité inter-têtes
                 follower_loss = (ce_loss + div_loss) / cfg.grad_accum
                 accum_div += div_loss.item()
             else:
@@ -520,7 +532,7 @@ def train_stackelberg(
                             hidden_leader, qkv_module, 12, d_head,
                             rotary_emb, rotary_ndims, input_layernorm,
                         )
-                        conf_raw = lambda_conf * _conf_loss_fn(A_leader, leader_idx)
+                        conf_raw = lambda_conf * _conf_loss_fn(A_leader, leader_idx) # Loss leader de confiance (ex: max attention)
                         leader_ce_mb = leader_ce_mb + conf_raw / cfg.grad_accum
                         accum_conf += conf_raw.detach().item()
                     leader_ce_mb.backward()
@@ -843,6 +855,15 @@ def parse_args():
         help="Confidence loss variant: max=leader_confidence_loss, smooth=leader_confidence_loss_smooth, entropy=minus_entropy_head",
     )
     parser.add_argument(
+        "--div_loss_type", choices=["cos", "cos_sq", "hadamard"], default="cos",
+        help=(
+            "Diversity loss variant: "
+            "cos=cosine similarity (Exp2_1–4), "
+            "cos_sq=squared cosine similarity avoids anticorrelation (Exp2_5), "
+            "hadamard=|A_i ⊙ A_j| dot product (Exp2_6)"
+        ),
+    )
+    parser.add_argument(
         "--nb_runs", type=int, default=1,
         help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …). Chaque run sauvegardé dans output_dir/run_i/",
     )
@@ -888,6 +909,7 @@ if __name__ == "__main__":
     logger.info(f"  Leader head   : {args.leader_idx}")
     logger.info(f"  Nb runs       : {args.nb_runs}")
     logger.info(f"  Conf loss     : {args.conf_loss_type}")
+    logger.info(f"  Div loss      : {args.div_loss_type}")
 
     _run_durations = []
     _train_wall_start = time.perf_counter()
@@ -917,6 +939,7 @@ if __name__ == "__main__":
             lambda_conf=args.lambda_conf,
             leader_idx=args.leader_idx,
             conf_loss_type=args.conf_loss_type,
+            div_loss_type=args.div_loss_type,
             keep_wandb_open=keep_open,
         )
         _run_durations.append(time.perf_counter() - _t0)
