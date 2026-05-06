@@ -34,8 +34,8 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
-RUN_NAME_TRAIN=Train_stackelberg_exp2_1_0_third_Test
-RUN_NAME_EVAL=Eval_exp2_1_0_third_Test
+RUN_NAME_TRAIN=Train_stackelberg_exp2_1_0
+RUN_NAME_EVAL=Eval_exp2_1_0
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME_TRAIN
 
 python pythia160M/exp2/train_exp2.py \
@@ -47,7 +47,6 @@ python pythia160M/exp2/train_exp2.py \
     --design_layer 9 \
     --lambda_lead 0.0 \
     --lambda_peer 0.0 \
-    --seed 43 \
     --nb_runs 3
 
 python pythia160M/eval.py \
