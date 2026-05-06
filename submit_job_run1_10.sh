@@ -44,8 +44,5 @@ python pythia160M/exp1/train_exp1.py \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
-    --nb_runs 3
-
-python pythia160M/eval.py \
-    --model_path $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name $RUN_NAME_EVAL
+    --nb_runs 3 \
+    --run_eval

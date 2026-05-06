@@ -12,10 +12,12 @@ Usage :
 
 import os
 import sys
+import glob
 import json
 import argparse
 import logging
 import time
+import dataclasses
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -27,6 +29,7 @@ _ROOT    = os.path.dirname(_MODEL)                             # repo root
 sys.path.insert(0, _MODEL)
 
 import torch
+import numpy as np
 from tqdm import tqdm
 
 from train_utils import (
@@ -50,7 +53,8 @@ logger = logging.getLogger(__name__)
 
 
 def train(cfg: TrainConfig, head_log_layer: int = 9,
-          attention_eager: bool = False, bfloat16: bool = False):
+          attention_eager: bool = False, bfloat16: bool = False,
+          keep_wandb_open: bool = False):
     seed_everything(cfg.seed)
 
     device = get_device()
@@ -274,7 +278,7 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
 
     logger.info(f"Plots → {plots_dir}")
 
-    if use_wandb:
+    if use_wandb and not keep_wandb_open:
         with open(os.path.join(cfg.output_dir, "wandb_run_id.txt"), "w") as _f:
             _f.write(wandb.run.id)
         wandb.finish()
@@ -294,6 +298,14 @@ def parse_args():
     parser.add_argument("--run_name",        default="baseline_fullft_pythia")
     parser.add_argument("--attention_eager", action="store_true", default=False)
     parser.add_argument("--bfloat16",        action="store_true", default=False)
+    parser.add_argument(
+        "--nb_runs", type=int, default=1,
+        help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …). Chaque run sauvegardé dans output_dir/run_i/",
+    )
+    parser.add_argument(
+        "--run_eval", action="store_true",
+        help="Lancer l'évaluation après l'entraînement et logger les métriques dans le même run wandb.",
+    )
     return parser.parse_args()
 
 
@@ -321,6 +333,76 @@ if __name__ == "__main__":
     )
 
     log_config(cfg)
-    train(cfg, head_log_layer=args.head_log_layer,
-          attention_eager=args.attention_eager,
-          bfloat16=args.bfloat16)
+    logger.info(f"  Nb runs       : {args.nb_runs}")
+
+    _run_durations = []
+    _train_wall_start = time.perf_counter()
+    for i in range(args.nb_runs):
+        cfg_i = dataclasses.replace(
+            cfg,
+            output_dir=os.path.join(args.output_dir, f"run_{i}"),
+            run_name=args.run_name,
+            seed=args.seed + i,
+            wandb_project=cfg.wandb_project if i == 0 else None,
+        )
+        logger.info(
+            f"\n{'='*60}\n"
+            f"Run {i+1}/{args.nb_runs}  seed={cfg_i.seed}  output={cfg_i.output_dir}\n"
+            f"{'='*60}"
+        )
+        keep_open = args.run_eval and i == 0 and cfg.wandb_project is not None
+        _t0 = time.perf_counter()
+        train(cfg_i, head_log_layer=args.head_log_layer,
+              attention_eager=args.attention_eager,
+              bfloat16=args.bfloat16,
+              keep_wandb_open=keep_open)
+        _run_durations.append(time.perf_counter() - _t0)
+        logger.info(f"  Run {i} duration : {_run_durations[-1]/60:.1f} min")
+
+    if args.run_eval and cfg.wandb_project is not None:
+        import wandb
+        from eval import run_eval, load_model, METRIC_ORDER
+
+        run_dirs = sorted(glob.glob(os.path.join(args.output_dir, "run_*/final")))
+        if not run_dirs:
+            run_dirs = [os.path.join(args.output_dir, "final")]
+
+        _total_train_s = time.perf_counter() - _train_wall_start
+        wandb.run.summary["train/total_duration_s"] = round(_total_train_s)
+        wandb.run.summary["train/mean_run_duration_s"] = round(_total_train_s / len(_run_durations))
+        for _i, _d in enumerate(_run_durations):
+            wandb.run.summary[f"train/run_{_i}_duration_s"] = round(_d)
+        logger.info(f"  Total training : {_total_train_s/60:.1f} min  "
+                    f"(mean/run={_total_train_s/len(_run_durations)/60:.1f} min)")
+
+        logger.info(f"\n{'='*60}\nÉvaluation sur {len(run_dirs)} checkpoint(s)\n{'='*60}")
+        all_results = []
+        for run_dir in run_dirs:
+            logger.info(f"  eval: {run_dir}")
+            model, tokenizer, device = load_model(run_dir)
+            r = run_eval(model, tokenizer, device)
+            all_results.append(r)
+            del model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        all_keys = list(all_results[0].keys())
+        results = {k: round(float(np.mean([r[k] for r in all_results])), 4) for k in all_keys}
+        results_std = {k: round(float(np.std([r[k] for r in all_results])), 4) for k in all_keys}
+
+        logger.info("=== Résultats eval (moyenne ± std) ===")
+        for k in METRIC_ORDER:
+            if k in results:
+                logger.info(f"  {k:<20} = {results[k]:.4f} ± {results_std[k]:.4f}")
+
+        log_dict = {}
+        for k in results:
+            wandb.run.summary[f"eval/{k}"] = results[k]
+            wandb.run.summary[f"eval/{k}_std"] = results_std[k]
+            log_dict[f"eval/{k}"] = results[k]
+        wandb.log(log_dict)
+
+        run0_dir = os.path.join(args.output_dir, "run_0")
+        with open(os.path.join(run0_dir, "wandb_run_id.txt"), "w") as _f:
+            _f.write(wandb.run.id)
+        wandb.finish()

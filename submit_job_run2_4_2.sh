@@ -46,7 +46,10 @@ python pythia160M/exp2/train_exp2.py \
     --design_layer 9 \
     --lambda_lead 0.01 \
     --lambda_peer 0.001 \
-    --lambda_conf 0.005 \
+    --lambda_conf 0.05 \
     --conf_loss_type entropy \
     --nb_runs 3 \
     --run_eval
+
+
+

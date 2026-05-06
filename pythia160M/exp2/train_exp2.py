@@ -50,6 +50,7 @@ Usage:
 
 import os
 import sys
+import glob
 import json
 import argparse
 import logging
@@ -187,6 +188,7 @@ def train_stackelberg(
     lambda_conf: float = 0.0,
     leader_idx: int = 0,
     conf_loss_type: str = "max",
+    keep_wandb_open: bool = False,
 ):
     seed_everything(cfg.seed)
 
@@ -629,8 +631,16 @@ def train_stackelberg(
                                 capture, leader_idx, device,
                             )
                             fig, ax = plt.subplots(figsize=(7, 6))
-                            im = ax.imshow(A0.numpy(), cmap="viridis", aspect="auto", vmin=0)
-                            plt.colorbar(im, ax=ax)
+                            A0_np = A0.numpy()
+                            _vmax = float(np.percentile(A0_np, 99.5))
+                            _vmin = max(float(A0_np.min()), _vmax * 1e-4)
+                            from matplotlib.colors import LogNorm
+                            im = ax.imshow(
+                                A0_np.clip(_vmin, None),
+                                cmap="inferno", aspect="auto",
+                                norm=LogNorm(vmin=_vmin, vmax=_vmax),
+                            )
+                            plt.colorbar(im, ax=ax, label="attention weight (log)")
                             ax.set_title(f"A_leader (head {leader_idx}, step {opt_step})")
                             log_dict["eval/A0_heatmap"] = wandb.Image(fig)
                             plt.close(fig)
@@ -641,8 +651,12 @@ def train_stackelberg(
                                 capture, leader_idx, device,
                             )
                             fig, ax = plt.subplots(figsize=(7, 6))
-                            im = ax.imshow(S.numpy(), cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
-                            plt.colorbar(im, ax=ax)
+                            S_np = S.numpy()
+                            _off = S_np[~np.eye(S_np.shape[0], dtype=bool)]
+                            _vext = max(abs(float(np.percentile(_off, 1))),
+                                        abs(float(np.percentile(_off, 99))), 0.05)
+                            im = ax.imshow(S_np, cmap="RdBu_r", vmin=-_vext, vmax=_vext, aspect="auto")
+                            plt.colorbar(im, ax=ax, label="cosine similarity (diag saturated)")
                             ax.set_title(f"S^A cosine similarity (step {opt_step})")
                             ax.set_xlabel("head j")
                             ax.set_ylabel("head i")
@@ -771,7 +785,7 @@ def train_stackelberg(
 
     logger.info(f"Plots → {plots_dir}")
 
-    if use_wandb:
+    if use_wandb and not keep_wandb_open:
         with open(os.path.join(cfg.output_dir, "wandb_run_id.txt"), "w") as _f:
             _f.write(wandb.run.id)
         wandb.finish()
@@ -832,6 +846,10 @@ def parse_args():
         "--nb_runs", type=int, default=1,
         help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …). Chaque run sauvegardé dans output_dir/run_i/",
     )
+    parser.add_argument(
+        "--run_eval", action="store_true",
+        help="Lancer l'évaluation après l'entraînement et logger les métriques dans le même run wandb.",
+    )
     return parser.parse_args()
 
 
@@ -871,6 +889,8 @@ if __name__ == "__main__":
     logger.info(f"  Nb runs       : {args.nb_runs}")
     logger.info(f"  Conf loss     : {args.conf_loss_type}")
 
+    _run_durations = []
+    _train_wall_start = time.perf_counter()
     for i in range(args.nb_runs):
         cfg_i = dataclasses.replace(
             cfg,
@@ -884,6 +904,8 @@ if __name__ == "__main__":
             f"Run {i+1}/{args.nb_runs}  seed={cfg_i.seed}  output={cfg_i.output_dir}\n"
             f"{'='*60}"
         )
+        keep_open = args.run_eval and i == 0 and cfg.wandb_project is not None
+        _t0 = time.perf_counter()
         train_stackelberg(
             cfg_i,
             design_layer=args.design_layer,
@@ -895,4 +917,55 @@ if __name__ == "__main__":
             lambda_conf=args.lambda_conf,
             leader_idx=args.leader_idx,
             conf_loss_type=args.conf_loss_type,
+            keep_wandb_open=keep_open,
         )
+        _run_durations.append(time.perf_counter() - _t0)
+        logger.info(f"  Run {i} duration : {_run_durations[-1]/60:.1f} min")
+
+    if args.run_eval and cfg.wandb_project is not None:
+        import wandb
+        from eval import run_eval, load_model, METRIC_ORDER
+
+        run_dirs = sorted(glob.glob(os.path.join(args.output_dir, "run_*/final")))
+        if not run_dirs:
+            run_dirs = [os.path.join(args.output_dir, "final")]
+
+        _total_train_s = time.perf_counter() - _train_wall_start
+        wandb.run.summary["train/total_duration_s"] = round(_total_train_s)
+        wandb.run.summary["train/mean_run_duration_s"] = round(_total_train_s / len(_run_durations))
+        for _i, _d in enumerate(_run_durations):
+            wandb.run.summary[f"train/run_{_i}_duration_s"] = round(_d)
+        logger.info(f"  Total training : {_total_train_s/60:.1f} min  "
+                    f"(mean/run={_total_train_s/len(_run_durations)/60:.1f} min)")
+
+        logger.info(f"\n{'='*60}\nÉvaluation sur {len(run_dirs)} checkpoint(s)\n{'='*60}")
+        all_results = []
+        for run_dir in run_dirs:
+            logger.info(f"  eval: {run_dir}")
+            model, tokenizer, device = load_model(run_dir)
+            r = run_eval(model, tokenizer, device)
+            all_results.append(r)
+            del model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        all_keys = list(all_results[0].keys())
+        results = {k: round(float(np.mean([r[k] for r in all_results])), 4) for k in all_keys}
+        results_std = {k: round(float(np.std([r[k] for r in all_results])), 4) for k in all_keys}
+
+        logger.info("=== Résultats eval (moyenne ± std) ===")
+        for k in METRIC_ORDER:
+            if k in results:
+                logger.info(f"  {k:<20} = {results[k]:.4f} ± {results_std[k]:.4f}")
+
+        log_dict = {}
+        for k in results:
+            wandb.run.summary[f"eval/{k}"] = results[k]
+            wandb.run.summary[f"eval/{k}_std"] = results_std[k]
+            log_dict[f"eval/{k}"] = results[k]
+        wandb.log(log_dict)
+
+        run0_dir = os.path.join(args.output_dir, "run_0")
+        with open(os.path.join(run0_dir, "wandb_run_id.txt"), "w") as _f:
+            _f.write(wandb.run.id)
+        wandb.finish()
