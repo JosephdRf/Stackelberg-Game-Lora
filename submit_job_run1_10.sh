@@ -3,7 +3,7 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=5:00:00
+#SBATCH --time=3:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
@@ -43,4 +43,5 @@ python pythia160M/exp1/train_exp1.py \
     --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name $RUN_NAME_TRAIN \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
-    --lr_follower 3e-5
+    --lr_follower 3e-5 \
+    --nb_runs 1

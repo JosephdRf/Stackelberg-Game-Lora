@@ -9,7 +9,8 @@
       "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && python3 -c \"import json,sys; d=json.load\\(open\\(sys.argv[1]\\)\\); steps=d[\\\\\"val\\\\\"][\\\\\"step\\\\\"]; print\\(f\\\\\"last_step={steps[-1] if steps else 0}\\\\\"\\)\" \"{}\"')",
       "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && cat \"{}\"')",
       "Bash(python3)",
-      "Bash(sed -i 's/#SBATCH --time=3:00:00/#SBATCH --time=5:00:00/' /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh && grep \"time\" /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh | grep SBATCH)"
+      "Bash(sed -i 's/#SBATCH --time=3:00:00/#SBATCH --time=5:00:00/' /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh && grep \"time\" /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh | grep SBATCH)",
+      "Bash(sed -i 's/#SBATCH --time=5:00:00/#SBATCH --time=3:00:00/' /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh)"
     ],
     "additionalDirectories": [
       "/home/joseph63/scratch/Stackelberg-Game-Lora"
