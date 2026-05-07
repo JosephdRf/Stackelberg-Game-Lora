@@ -299,11 +299,11 @@ def parse_args():
     parser.add_argument("--attention_eager", action="store_true", default=False)
     parser.add_argument("--bfloat16",        action="store_true", default=False)
     parser.add_argument(
-        "--nb_runs", type=int, default=1,
+        "--nb_runs", type=int, default=3,
         help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …). Chaque run sauvegardé dans output_dir/run_i/",
     )
     parser.add_argument(
-        "--run_eval", action="store_true",
+        "--run_eval", action="store_true", default=True,
         help="Lancer l'évaluation après l'entraînement et logger les métriques dans le même run wandb.",
     )
     return parser.parse_args()
