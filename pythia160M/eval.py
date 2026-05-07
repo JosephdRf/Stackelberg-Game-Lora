@@ -500,6 +500,16 @@ def eval_memotrap(model, tokenizer, device, n, seed):
 # Pipeline d'évaluation
 # ---------------------------------------------------------------------------
 
+METRIC_ORDER = [
+    "WikiText103_PPL", "WikiText103_BPB",
+    "PTB_BPB", "PTB_PPL",
+    "LAMBADA_ppl",
+    "HellaSwag_acc", "HellaSwag_acc_norm",
+    "PIQA_acc", "PIQA_acc_norm",
+    "ARC-Easy_acc", "ARC-Easy_acc_norm",
+    "MemoTrap",
+]
+
 
 def run_eval(model, tokenizer, device, n=None, seed=42):
     results = {}
@@ -592,16 +602,6 @@ if __name__ == "__main__":
     parser.add_argument("--wandb_tags", nargs="*", default=[],
                         help="Tags W&B (ex: 'seed=42 fullft')")
     args = parser.parse_args()
-
-    METRIC_ORDER = [
-        "WikiText103_PPL", "WikiText103_BPB",
-        "PTB_BPB", "PTB_PPL",
-        "LAMBADA_ppl",
-        "HellaSwag_acc", "HellaSwag_acc_norm",
-        "PIQA_acc", "PIQA_acc_norm",
-        "ARC-Easy_acc", "ARC-Easy_acc_norm",
-        "MemoTrap",
-    ]
 
     # Auto-detect multi-run directory structure (run_*/final subdirs)
     run_dirs = sorted(glob.glob(os.path.join(args.model_path, "run_*/final")))
