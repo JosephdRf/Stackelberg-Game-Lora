@@ -55,6 +55,7 @@ import argparse
 import logging
 import time
 import dataclasses
+import shutil
 import matplotlib
 
 matplotlib.use("Agg")
@@ -674,6 +675,10 @@ if __name__ == "__main__":
     logger.info(f"  LR sim step   : {args.lr_sim}")
     logger.info(f"  Leader head   : {args.leader_idx}")
     logger.info(f"  Nb runs       : {args.nb_runs}")
+
+    if os.path.exists(args.output_dir):
+        shutil.rmtree(args.output_dir)
+        logger.info(f"Anciens checkpoints supprimés : {args.output_dir}")
 
     _run_durations = []
     _train_wall_start = time.perf_counter()

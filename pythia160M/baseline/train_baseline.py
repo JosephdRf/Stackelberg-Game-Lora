@@ -18,6 +18,7 @@ import argparse
 import logging
 import time
 import dataclasses
+import shutil
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -334,6 +335,10 @@ if __name__ == "__main__":
 
     log_config(cfg)
     logger.info(f"  Nb runs       : {args.nb_runs}")
+
+    if os.path.exists(args.output_dir):
+        shutil.rmtree(args.output_dir)
+        logger.info(f"Anciens checkpoints supprimés : {args.output_dir}")
 
     _run_durations = []
     _train_wall_start = time.perf_counter()

@@ -34,13 +34,17 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
-RUN_NAME_TRAIN=Exp1_10_final_Test
-CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp1/$RUN_NAME_TRAIN
+RUN_NAME=Exp2_4_3
+CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME
 
-python pythia160M/exp1/train_exp1.py \
+python pythia160M/exp2/train_exp2.py \
     --output_dir $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --run_name $RUN_NAME_TRAIN \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp2 --run_name $RUN_NAME \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
+    --lambda_lead 0.01 \
+    --lambda_peer 0.001 \
+    --lambda_conf 0.2 \
+    --conf_loss_type entropy \
     --nb_runs 1
