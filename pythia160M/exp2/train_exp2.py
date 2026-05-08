@@ -93,8 +93,9 @@ from gradient_mask import (
     HiddenStateCapture,
 )
 from stackelberg_losses import (
-    get_attention_maps,
+    get_attention_maps, get_attention_outputs,
     follower_diversity_loss, follower_diversity_loss_sq, follower_diversity_loss_hadamard,
+    follower_erank_loss,
     entropy_heads,
     leader_confidence_loss, leader_confidence_loss_smooth, minus_entropy_head,
 )
@@ -195,6 +196,7 @@ def train_stackelberg(
     lambda_lead: float = 0.0,
     lambda_peer: float = 0.0,
     lambda_conf: float = 0.0,
+    lambda_rank: float = 0.0,
     leader_idx: int = 0,
     conf_loss_type: str = "max",
     div_loss_type: str = "cos",
@@ -221,6 +223,7 @@ def train_stackelberg(
                 "lambda_lead": lambda_lead,
                 "lambda_peer": lambda_peer,
                 "lambda_conf": lambda_conf,
+                "lambda_rank": lambda_rank,
                 "conf_loss_type": conf_loss_type,
                 "div_loss_type": div_loss_type,
                 "design_layer": design_layer,
@@ -347,7 +350,7 @@ def train_stackelberg(
     )
 
     # ── Diversity / confidence hook ──
-    need_div = lambda_lead > 0 or lambda_peer > 0
+    need_div = lambda_lead > 0 or lambda_peer > 0 or lambda_rank > 0
     need_hook = need_div or lambda_conf > 0
     d_head = 768 // 12  # 64
     if need_hook:
@@ -374,9 +377,9 @@ def train_stackelberg(
         capture = HiddenStateCapture()
         capture.register(model, design_layer - 1)
         _conf_loss_fn = _CONF_LOSS_FN[conf_loss_type]
-        _div_loss_fn = _DIV_LOSS_FN[div_loss_type]
+        _div_loss_fn = _DIV_LOSS_FN[div_loss_type] if div_loss_type != "erank" else None
         logger.info(
-            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  "
+            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  λ_rank={lambda_rank}  "
             f"conf_loss_type={conf_loss_type}  div_loss_type={div_loss_type}  "
             f"rotary_ndims={rotary_ndims}  — hook on layer {design_layer - 1}"
         )
@@ -453,13 +456,23 @@ def train_stackelberg(
             if need_div:
                 # hidden still in graph (hook captured output[0] of layer design_layer-1)
                 hidden = capture.get()
-                A = get_attention_maps(
-                    hidden, qkv_module, n_heads=12, d_head=d_head,
-                    rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
-                    input_layernorm=input_layernorm,
-                )
-                div_loss = _div_loss_fn(A, n_heads=12, leader_idx=leader_idx,
-                                        lambda_lead=lambda_lead, lambda_peer=lambda_peer) # Loss follower de diversité inter-têtes
+                if div_loss_type == "erank":
+                    _A_unused, Z = get_attention_outputs(
+                        hidden, qkv_module, n_heads=12, d_head=d_head,
+                        rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
+                        input_layernorm=input_layernorm,
+                    )
+                    div_loss = follower_erank_loss(
+                        Z, n_heads=12, leader_idx=leader_idx, lambda_rank=lambda_rank,
+                    )
+                else:
+                    A = get_attention_maps(
+                        hidden, qkv_module, n_heads=12, d_head=d_head,
+                        rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
+                        input_layernorm=input_layernorm,
+                    )
+                    div_loss = _div_loss_fn(A, n_heads=12, leader_idx=leader_idx,
+                                            lambda_lead=lambda_lead, lambda_peer=lambda_peer)
                 follower_loss = (ce_loss + div_loss) / cfg.grad_accum
                 accum_div += div_loss.item()
             else:
@@ -849,6 +862,12 @@ def parse_args():
         help="Penalty weight for leader confidence loss (0 = désactivé)",
     )
     parser.add_argument(
+        "--lambda_rank",
+        type=float,
+        default=0.0,
+        help="Coefficient pour la loss de rang effectif des followers (utilisé si --div_loss_type erank)",
+    )
+    parser.add_argument(
         "--leader_idx", type=int, default=0, help="Index of the leader head"
     )
     parser.add_argument(
@@ -856,12 +875,13 @@ def parse_args():
         help="Confidence loss variant: max=leader_confidence_loss, smooth=leader_confidence_loss_smooth, entropy=minus_entropy_head",
     )
     parser.add_argument(
-        "--div_loss_type", choices=["cos", "cos_sq", "hadamard"], default="cos",
+        "--div_loss_type", choices=["cos", "cos_sq", "hadamard", "erank"], default="cos",
         help=(
             "Diversity loss variant: "
             "cos=cosine similarity (Exp2_1–4), "
             "cos_sq=squared cosine similarity avoids anticorrelation (Exp2_5), "
-            "hadamard=|A_i ⊙ A_j| dot product (Exp2_6)"
+            "hadamard=|A_i ⊙ A_j| dot product (Exp2_6), "
+            "erank=-effective rank des sorties followers (Exp2_7, utilise --lambda_rank)"
         ),
     )
     parser.add_argument(
@@ -907,6 +927,7 @@ if __name__ == "__main__":
     logger.info(f"  λ_lead        : {args.lambda_lead}")
     logger.info(f"  λ_peer        : {args.lambda_peer}")
     logger.info(f"  λ_conf        : {args.lambda_conf}")
+    logger.info(f"  λ_rank        : {args.lambda_rank}")
     logger.info(f"  Leader head   : {args.leader_idx}")
     logger.info(f"  Nb runs       : {args.nb_runs}")
     logger.info(f"  Conf loss     : {args.conf_loss_type}")
@@ -942,6 +963,7 @@ if __name__ == "__main__":
             lambda_lead=args.lambda_lead,
             lambda_peer=args.lambda_peer,
             lambda_conf=args.lambda_conf,
+            lambda_rank=args.lambda_rank,
             leader_idx=args.leader_idx,
             conf_loss_type=args.conf_loss_type,
             div_loss_type=args.div_loss_type,

@@ -3,7 +3,7 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=3:00:00
+#SBATCH --time=5:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
@@ -47,4 +47,3 @@ python pythia160M/exp2/train_exp2.py \
     --lambda_peer 0.001 \
     --lambda_conf 0.2 \
     --conf_loss_type entropy \
-    --nb_runs 1

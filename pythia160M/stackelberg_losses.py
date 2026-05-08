@@ -78,7 +78,66 @@ def get_attention_maps(
         Q, K = _apply_rope(Q, K, rotary_emb, rotary_ndims)
 
     scores = Q @ K.transpose(-2, -1) * (d_head**-0.5)  # (B, n_heads, L, L)
+    causal_mask = torch.triu(
+        torch.ones(L, L, dtype=torch.bool, device=scores.device),
+        diagonal=1,
+    )
+    scores = scores.masked_fill(causal_mask, float("-inf"))
     return torch.softmax(scores.float(), dim=-1)        # (B, n_heads, L, L)
+
+
+def get_attention_outputs(
+    hidden: torch.Tensor,
+    qkv_module,
+    n_heads: int,
+    d_head: int,
+    rotary_emb=None,
+    rotary_ndims: int = 0,
+    input_layernorm=None,
+) -> tuple:
+    """
+    Comme get_attention_maps mais retourne aussi Z = A @ V (sorties par tête, pré-projection).
+
+    Returns:
+        A : (B, n_heads, L, L)        attention causale post-softmax (float32)
+        Z : (B, L, n_heads, d_head)   sorties par tête, axe heads en 3e position pour
+                                      faciliter la concaténation des followers
+    """
+    if hidden.ndim != 3:
+        raise ValueError(
+            f"Expected hidden (B, L, d_model) got shape {hidden.shape}."
+        )
+
+    if input_layernorm is not None:
+        hidden = input_layernorm(hidden)
+
+    W_base = qkv_module.weight
+    lora_A = qkv_module.lora_A["default"].weight
+    lora_B = qkv_module.lora_B["default"].weight
+    scale = qkv_module.scaling["default"]
+    W_eff = W_base + lora_B @ lora_A * scale
+
+    bias = getattr(qkv_module, "bias", None)
+    qkv_out = F.linear(hidden, W_eff, bias)
+
+    B, L, _ = qkv_out.shape
+    qkv_out = qkv_out.view(B, L, n_heads, 3 * d_head).transpose(1, 2)
+    Q, K, V = qkv_out.chunk(3, dim=-1)  # (B, n_heads, L, d_head)
+
+    if rotary_emb is not None and rotary_ndims > 0:
+        Q, K = _apply_rope(Q, K, rotary_emb, rotary_ndims)
+
+    scores = Q @ K.transpose(-2, -1) * (d_head**-0.5)
+    causal_mask = torch.triu(
+        torch.ones(L, L, dtype=torch.bool, device=scores.device),
+        diagonal=1,
+    )
+    scores = scores.masked_fill(causal_mask, float("-inf"))
+    A = torch.softmax(scores.float(), dim=-1)  # (B, n_heads, L, L) fp32
+
+    Z = A @ V.float()                          # (B, n_heads, L, d_head)
+    Z = Z.transpose(1, 2).contiguous()         # (B, L, n_heads, d_head)
+    return A, Z
 
 
 
@@ -168,6 +227,40 @@ def follower_diversity_loss_hadamard(
     pp = M[mask].sum()
 
     return lambda_lead * lf + lambda_peer * pp
+
+
+def follower_erank_loss(
+    head_outputs: torch.Tensor,
+    n_heads: int,
+    leader_idx: int,
+    lambda_rank: float,
+) -> torch.Tensor:
+    """
+    L_rank = -lambda_rank · erank(Z) avec Z = [Z_1, ..., Z_{n_f}] (followers concat, leader exclu).
+
+    erank(Z) = exp(-Σ p_i log p_i) où p_i = σ_i² / Σ σ_j² et σ_i² sont les v.p. de Z^T Z.
+
+    head_outputs : (B, L, n_heads, d_head) — sortie de get_attention_outputs.
+    """
+    B, L, H, d_h = head_outputs.shape
+    fi = [i for i in range(H) if i != leader_idx]
+    fi_t = torch.tensor(fi, device=head_outputs.device)
+
+    Z = head_outputs.index_select(2, fi_t)                # (B, L, n_f, d_h)
+    n_f = len(fi)
+    Z = Z.reshape(B * L, n_f * d_h).float()               # (B·L, 704)
+
+    Z = Z - Z.mean(dim=0, keepdim=True)                   # centrage colonnes
+
+    G = Z.transpose(0, 1) @ Z                             # (704, 704) symétrique PSD
+    G = 0.5 * (G + G.transpose(0, 1))                     # symétrisation explicite
+
+    eigs = torch.linalg.eigvalsh(G).clamp(min=0)          # (704,) ≥ 0
+    p = eigs / (eigs.sum() + 1e-12)
+    entropy = -(p * (p + 1e-12).log()).sum()
+    erank = entropy.exp()
+
+    return -lambda_rank * erank
 
 
 def leader_confidence_loss(attn_weights: torch.Tensor, leader_idx: int = 0) -> torch.Tensor:

@@ -10,7 +10,10 @@
       "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && cat \"{}\"')",
       "Bash(python3)",
       "Bash(sed -i 's/#SBATCH --time=3:00:00/#SBATCH --time=5:00:00/' /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh && grep \"time\" /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh | grep SBATCH)",
-      "Bash(sed -i 's/#SBATCH --time=5:00:00/#SBATCH --time=3:00:00/' /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh)"
+      "Bash(sed -i 's/#SBATCH --time=5:00:00/#SBATCH --time=3:00:00/' /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh)",
+      "Read(//home/joseph63/.claude/plans/**)",
+      "Bash(mkdir -p /home/joseph63/.claude/plans/)",
+      "Bash(bash -c ' *)"
     ],
     "additionalDirectories": [
       "/home/joseph63/scratch/Stackelberg-Game-Lora"
