@@ -95,7 +95,7 @@ from gradient_mask import (
 from stackelberg_losses import (
     get_attention_maps, get_attention_outputs,
     follower_diversity_loss, follower_diversity_loss_sq, follower_diversity_loss_hadamard,
-    follower_erank_loss,
+    follower_erank_loss, follower_output_diversity_loss,
     entropy_heads,
     leader_confidence_loss, leader_confidence_loss_smooth, minus_entropy_head,
 )
@@ -377,7 +377,7 @@ def train_stackelberg(
         capture = HiddenStateCapture()
         capture.register(model, design_layer - 1)
         _conf_loss_fn = _CONF_LOSS_FN[conf_loss_type]
-        _div_loss_fn = _DIV_LOSS_FN[div_loss_type] if div_loss_type != "erank" else None
+        _div_loss_fn = _DIV_LOSS_FN.get(div_loss_type, None)
         logger.info(
             f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  λ_rank={lambda_rank}  "
             f"conf_loss_type={conf_loss_type}  div_loss_type={div_loss_type}  "
@@ -456,15 +456,21 @@ def train_stackelberg(
             if need_div:
                 # hidden still in graph (hook captured output[0] of layer design_layer-1)
                 hidden = capture.get()
-                if div_loss_type == "erank":
+                if div_loss_type in ("erank", "output_cos"):
                     _A_unused, Z = get_attention_outputs(
                         hidden, qkv_module, n_heads=12, d_head=d_head,
                         rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
                         input_layernorm=input_layernorm,
                     )
-                    div_loss = follower_erank_loss(
-                        Z, n_heads=12, leader_idx=leader_idx, lambda_rank=lambda_rank,
-                    )
+                    if div_loss_type == "erank":
+                        div_loss = follower_erank_loss(
+                            Z, n_heads=12, leader_idx=leader_idx, lambda_rank=lambda_rank,
+                        )
+                    else:
+                        div_loss = follower_output_diversity_loss(
+                            Z, n_heads=12, leader_idx=leader_idx,
+                            lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                        )
                 else:
                     A = get_attention_maps(
                         hidden, qkv_module, n_heads=12, d_head=d_head,
@@ -875,13 +881,14 @@ def parse_args():
         help="Confidence loss variant: max=leader_confidence_loss, smooth=leader_confidence_loss_smooth, entropy=minus_entropy_head",
     )
     parser.add_argument(
-        "--div_loss_type", choices=["cos", "cos_sq", "hadamard", "erank"], default="cos",
+        "--div_loss_type", choices=["cos", "cos_sq", "hadamard", "erank", "output_cos"], default="cos",
         help=(
             "Diversity loss variant: "
-            "cos=cosine similarity (Exp2_1–4), "
-            "cos_sq=squared cosine similarity avoids anticorrelation (Exp2_5), "
-            "hadamard=|A_i ⊙ A_j| dot product (Exp2_6), "
-            "erank=-effective rank des sorties followers (Exp2_7, utilise --lambda_rank)"
+            "cos=cosine similarity sur A_i (Exp2_1–4), "
+            "cos_sq=squared cosine similarity sur A_i (Exp2_5), "
+            "hadamard=|A_i ⊙ A_j| dot product sur A_i (Exp2_6), "
+            "erank=-effective rank des sorties followers (Exp2_7, utilise --lambda_rank), "
+            "output_cos=cosine similarity sur Z_i=A_i@V_i (Exp2_8, utilise --lambda_lead/peer)"
         ),
     )
     parser.add_argument(

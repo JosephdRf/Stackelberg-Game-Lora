@@ -229,6 +229,39 @@ def follower_diversity_loss_hadamard(
     return lambda_lead * lf + lambda_peer * pp
 
 
+def follower_output_diversity_loss(
+    head_outputs: torch.Tensor,
+    n_heads: int,
+    leader_idx: int,
+    lambda_lead: float,
+    lambda_peer: float,
+) -> torch.Tensor:
+    """
+    Même formule que follower_diversity_loss (cosine similarity) mais sur les vecteurs
+    de sortie Z_i = (A @ V)_i au lieu des cartes d'attention A_i.
+
+    L_div = λ_lead·Σ_i sim(Z_i, Z_leader) + λ_peer·Σ_{i≠j, i,j≠leader} sim(Z_i, Z_j)
+
+    head_outputs : (B, L, n_heads, d_head) — sortie de get_attention_outputs.
+    """
+    B, L, H, d_h = head_outputs.shape
+    Z = head_outputs.permute(0, 2, 1, 3)          # (B, n_heads, L, d_head)
+    Z_flat = Z.reshape(B, H, L * d_h).float()     # (B, n_heads, L*d_head)
+    Z_norm = F.normalize(Z_flat, dim=-1)
+
+    S = torch.bmm(Z_norm, Z_norm.transpose(1, 2)).mean(0)  # (n_heads, n_heads)
+
+    fi = [i for i in range(n_heads) if i != leader_idx]
+    fi_t = torch.tensor(fi, device=S.device)
+
+    lf = S[fi_t, leader_idx].sum()
+    S_peer = S[fi_t][:, fi_t]
+    mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
+    pp = S_peer[mask].sum()
+
+    return lambda_lead * lf + lambda_peer * pp
+
+
 def follower_erank_loss(
     head_outputs: torch.Tensor,
     n_heads: int,
