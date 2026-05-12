@@ -13,7 +13,9 @@
       "Bash(sed -i 's/#SBATCH --time=5:00:00/#SBATCH --time=3:00:00/' /home/joseph63/scratch/Stackelberg-Game-Lora/submit_job*.sh)",
       "Read(//home/joseph63/.claude/plans/**)",
       "Bash(mkdir -p /home/joseph63/.claude/plans/)",
-      "Bash(bash -c ' *)"
+      "Bash(bash -c ' *)",
+      "Bash(/home/joseph63/scratch/Stackelberg-Game-Lora/.venv/bin/python3.11 pythia160M/exp2/train_exp2.py --help)",
+      "Bash(/home/joseph63/scratch/Stackelberg-Game-Lora/.venv/bin/python3.11 -)"
     ],
     "additionalDirectories": [
       "/home/joseph63/scratch/Stackelberg-Game-Lora"

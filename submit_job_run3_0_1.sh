@@ -5,8 +5,9 @@
 #SBATCH --mem=16G
 #SBATCH --time=5:00:00
 #SBATCH --gres=gpu:a100:1
-#SBATCH --output=logs/%j.out
-#SBATCH --error=logs/%j.err
+#SBATCH --array=0-11
+#SBATCH --output=logs/%j_%a.out
+#SBATCH --error=logs/%j_%a.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
 
@@ -20,11 +21,6 @@ module load arrow/21.0.0
 # Aller au projet
 cd "$SLURM_SUBMIT_DIR"
 
-# Purge des anciens logs (garder les 10 derniers)
-ls -t logs/*.out 2>/dev/null | tail -n +11 | xargs -r rm --
-ls -t logs/*.err 2>/dev/null | tail -n +11 | xargs -r rm --
-
-
 # Virtualenv
 source $SLURM_SUBMIT_DIR/.venv/bin/activate
 
@@ -33,16 +29,18 @@ export WANDB_MODE=offline
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-# Run et evals
-RUN_NAME=Exp2_2
-CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME
+# Run : tête SLURM_ARRAY_TASK_ID seule comme leader
+RUN_NAME=Exp3_0_1_${SLURM_ARRAY_TASK_ID}
+CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp3/$RUN_NAME
 
-python pythia160M/exp2/train_exp2.py \
+python pythia160M/exp3/train_exp3.py \
     --output_dir $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp2 --run_name $RUN_NAME \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp3 --run_name $RUN_NAME \
+    --leader_idx $SLURM_ARRAY_TASK_ID \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
-    --lambda_lead 1e-3 \
-    --lambda_peer 1e-4 \
-    --lambda_conf 1.0 \
+    --lambda_lead 0.0 \
+    --lambda_peer 0.0 \
+    --lambda_conf 0.0 \
+    --div_loss_type cos \
