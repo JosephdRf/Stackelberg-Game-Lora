@@ -229,6 +229,61 @@ def follower_diversity_loss_hadamard(
     return lambda_lead * lf + lambda_peer * pp
 
 
+def _cka_matrix(Z_heads: torch.Tensor) -> torch.Tensor:
+    """
+    Matrice H×H de CKA linéaire entre toutes les paires de têtes.
+
+    Z_heads : (H, n, d) — n = B*L samples, d features par tête.
+    Retourne S_cka : (H, H) ∈ [0, 1].
+
+    Formule feature-space (O(H²·n·d) sans boucle Python) :
+      HSIC(i,j) = ||Z_c[i]^T Z_c[j]||_F²
+      CKA(i,j)  = HSIC(i,j) / sqrt(HSIC(i,i) · HSIC(j,j))
+    """
+    Z_c = Z_heads - Z_heads.mean(1, keepdim=True)        # (H, n, d) — centrage sur samples
+    C = torch.einsum('hnd,gne->hgde', Z_c, Z_c)          # (H, H, d, d) — cross-Gram features
+    hsic = (C * C).sum(dim=(-2, -1))                      # (H, H) — ||C[h,g]||_F²
+    diag = hsic.diagonal()                                # (H,) — HSIC(h,h)
+    norm = (diag.unsqueeze(1) * diag.unsqueeze(0)).sqrt() # (H, H)
+    return hsic / (norm + 1e-8)
+
+
+def follower_diversity_loss_cka(
+    head_outputs: torch.Tensor,
+    n_heads: int,
+    leader_idx: int,
+    lambda_lead: float,
+    lambda_peer: float,
+) -> torch.Tensor:
+    """
+    L_div = λ_lead·Σ_i CKA(Z_i, Z_leader) + λ_peer·Σ_{i≠j, i,j≠leader} CKA(Z_i, Z_j)
+
+    CKA est calculée sur les sorties par tête Z_i = (A @ V)_i ∈ ℝ^{d_head},
+    traitement par position comme sample (n = B·L, d = d_head = 64).
+    Contrairement à la cosine sur A_i, évite les artefacts du masque causal
+    et de la contrainte row-stochastic.
+
+    head_outputs : (B, L, n_heads, d_head) — sortie de get_attention_outputs.
+    """
+    B, L, H, d_h = head_outputs.shape
+    Z = head_outputs.permute(2, 0, 1, 3).reshape(H, B * L, d_h).float()
+    S = _cka_matrix(Z)   # (H, H)
+
+    fi = [i for i in range(H) if i != leader_idx]
+    fi_t = torch.tensor(fi, device=S.device)
+
+    loss = head_outputs.new_tensor(0.0)
+    if lambda_lead > 0:
+        lf = S[fi_t, leader_idx].sum()
+        loss = loss + lambda_lead * lf
+    if lambda_peer > 0:
+        S_peer = S[fi_t][:, fi_t]
+        mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
+        pp = S_peer[mask].sum()
+        loss = loss + lambda_peer * pp
+    return loss
+
+
 def follower_output_diversity_loss(
     head_outputs: torch.Tensor,
     n_heads: int,
