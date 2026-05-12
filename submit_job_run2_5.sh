@@ -43,6 +43,6 @@ python pythia160M/exp2/train_exp2.py \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
-    --lambda_lead 1e-1 \
-    --lambda_peer 1e-2 \
+    --lambda_lead 1e-0 \
+    --lambda_peer 1e-1 \
     --div_loss_type cos_sq \

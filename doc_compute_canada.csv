@@ -12,5 +12,4 @@ scontrol show job 59999999, voir détails avancés d'un job
 rsync -avz --progress joseph63@narval.computecanada.ca:/home/joseph63/scratch/Stackelberg-Game-Lora/wandb/ wandb/
 
 ,synchroniser les résultats de WandB après l'exécution du job
-wandb sync wandb/
-
+wandb sync --sync-all wandb/

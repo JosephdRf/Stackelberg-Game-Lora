@@ -250,12 +250,13 @@ def follower_output_diversity_loss(
     Z_norm = F.normalize(Z_flat, dim=-1)
 
     S = torch.bmm(Z_norm, Z_norm.transpose(1, 2)).mean(0)  # (n_heads, n_heads)
+    S_sq = S ** 2
 
     fi = [i for i in range(n_heads) if i != leader_idx]
     fi_t = torch.tensor(fi, device=S.device)
 
-    lf = S[fi_t, leader_idx].sum()
-    S_peer = S[fi_t][:, fi_t]
+    lf = S_sq[fi_t, leader_idx].sum()
+    S_peer = S_sq[fi_t][:, fi_t]
     mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
     pp = S_peer[mask].sum()
 

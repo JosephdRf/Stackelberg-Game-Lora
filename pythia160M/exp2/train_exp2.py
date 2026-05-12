@@ -892,7 +892,7 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--nb_runs", type=int, default=3,
+        "--nb_runs", type=int, default=5,
         help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …). Chaque run sauvegardé dans output_dir/run_i/",
     )
     parser.add_argument(

@@ -45,5 +45,5 @@ python pythia160M/exp2/train_exp2.py \
     --lr_follower 3e-5 \
     --lambda_conf 1.0 \
     --conf_loss_type max \
-    --lambda_rank 0.001 \
+    --lambda_rank 0.0002 \
     --div_loss_type erank \
