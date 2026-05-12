@@ -34,7 +34,7 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
-RUN_NAME=Exp2_4
+RUN_NAME=Exp2_4_1
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME
 
 python pythia160M/exp2/train_exp2.py \
@@ -43,7 +43,7 @@ python pythia160M/exp2/train_exp2.py \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
-    --lambda_lead 0.01 \
-    --lambda_peer 0.001 \
-    --lambda_conf 0.005 \
+    --lambda_lead 0.001 \
+    --lambda_peer 0.0001 \
+    --lambda_conf 0.2 \
     --conf_loss_type entropy \

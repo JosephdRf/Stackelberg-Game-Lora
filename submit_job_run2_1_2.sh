@@ -43,5 +43,5 @@ python pythia160M/exp2/train_exp2.py \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
-    --lambda_lead 0.001 \
-    --lambda_peer 0.0001 \
+    --lambda_lead 0.0003 \
+    --lambda_peer 0.00003 \
