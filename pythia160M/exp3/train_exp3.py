@@ -644,6 +644,7 @@ def train_stackelberg(
                     or opt_step % cfg.eval_every == 0
                     or opt_step == 1
                 ):
+                    os.makedirs(logs_dir, exist_ok=True)
                     with open(os.path.join(logs_dir, "history.json"), "w") as _f:
                         json.dump(history, _f, indent=2)
 
@@ -690,6 +691,7 @@ def train_stackelberg(
     tokenizer.save_pretrained(final_path)
     logger.info(f"Modèle final sauvegardé → {final_path}")
 
+    os.makedirs(logs_dir, exist_ok=True)
     with open(os.path.join(logs_dir, "history.json"), "w") as _f:
         json.dump(history, _f, indent=2)
 
