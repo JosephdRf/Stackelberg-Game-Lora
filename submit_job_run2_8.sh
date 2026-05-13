@@ -45,6 +45,6 @@ python pythia160M/exp2/train_exp2.py \
     --lr_follower 3e-5 \
     --lambda_conf 1.0 \
     --conf_loss_type max \
-    --lambda_lead 1e-2 \
-    --lambda_peer 1e-3 \
+    --lambda_lead 1e-1 \
+    --lambda_peer 1e-1 \
     --div_loss_type output_cos \

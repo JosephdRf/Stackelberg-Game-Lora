@@ -149,7 +149,7 @@ def follower_diversity_loss(
     lambda_peer: float,
 ) -> torch.Tensor:
     """
-    L_div = λ_lead·Σ_i sim(A_i, A_leader) + λ_peer·Σ_{i≠j, i,j≠leader} sim(A_i, A_j)
+    L_div = λ_lead · mean_i cos(A_i, A_leader) + λ_peer · mean_{i≠j} cos(A_i, A_j)
 
     attn_weights : (B, n_heads, L, L) — sortie de get_attention_maps.
     """
@@ -161,10 +161,10 @@ def follower_diversity_loss(
     fi = [i for i in range(n_heads) if i != leader_idx]
     fi_t = torch.tensor(fi, device=S.device)
 
-    lf = S[fi_t, leader_idx].sum()
+    lf = S[fi_t, leader_idx].mean()
     S_peer = S[fi_t][:, fi_t]
     mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
-    pp = S_peer[mask].sum()
+    pp = S_peer[mask].mean()
 
     return lambda_lead * lf + lambda_peer * pp
 
@@ -295,13 +295,12 @@ def follower_output_diversity_loss(
     Même formule que follower_diversity_loss (cosine similarity) mais sur les vecteurs
     de sortie Z_i = (A @ V)_i au lieu des cartes d'attention A_i.
 
-    L_div = λ_lead·Σ_i sim(Z_i, Z_leader) + λ_peer·Σ_{i≠j, i,j≠leader} sim(Z_i, Z_j)
+    L_div = λ_lead · mean_i cos(Z_i, Z_leader)² + λ_peer · mean_{i≠j} cos(Z_i, Z_j)²
 
     head_outputs : (B, L, n_heads, d_head) — sortie de get_attention_outputs.
     """
     B, L, H, d_h = head_outputs.shape
     Z = head_outputs.permute(0, 2, 1, 3).float()   # (B, H, L, d_head)
-    # normalise par position (d_head dims) pour éviter la malédiction de la dimension
     Z_norm = F.normalize(Z, dim=-1)                 # (B, H, L, d_head)
     # cosine par position, moyennée sur B et L → (H, H)
     S = torch.einsum('bhld,bgld->bhg', Z_norm, Z_norm) / L
@@ -311,10 +310,10 @@ def follower_output_diversity_loss(
     fi = [i for i in range(n_heads) if i != leader_idx]
     fi_t = torch.tensor(fi, device=S.device)
 
-    lf = S_sq[fi_t, leader_idx].sum()
+    lf = S_sq[fi_t, leader_idx].mean()
     S_peer = S_sq[fi_t][:, fi_t]
     mask = ~torch.eye(len(fi_t), dtype=torch.bool, device=S.device)
-    pp = S_peer[mask].sum()
+    pp = S_peer[mask].mean()
 
     return lambda_lead * lf + lambda_peer * pp
 

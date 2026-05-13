@@ -457,8 +457,8 @@ def train_stackelberg(
             if need_div:
                 # hidden still in graph (hook captured output[0] of layer design_layer-1)
                 hidden = capture.get()
-                if div_loss_type in ("erank", "output_cos", "cka"):
-                    _A_unused, Z = get_attention_outputs(
+                if div_loss_type in ("erank", "output_cos", "cka", "cos_output_cos"):
+                    A, Z = get_attention_outputs(
                         hidden, qkv_module, n_heads=12, d_head=d_head,
                         rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
                         input_layernorm=input_layernorm,
@@ -471,6 +471,17 @@ def train_stackelberg(
                         div_loss = follower_diversity_loss_cka(
                             Z, n_heads=12, leader_idx=leader_idx,
                             lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                        )
+                    elif div_loss_type == "cos_output_cos":
+                        div_loss = (
+                            follower_diversity_loss(
+                                A, n_heads=12, leader_idx=leader_idx,
+                                lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                            )
+                            + follower_output_diversity_loss(
+                                Z, n_heads=12, leader_idx=leader_idx,
+                                lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                            )
                         )
                     else:
                         div_loss = follower_output_diversity_loss(
@@ -888,7 +899,7 @@ def parse_args():
         help="Confidence loss variant: max=leader_confidence_loss, smooth=leader_confidence_loss_smooth, entropy=minus_entropy_head",
     )
     parser.add_argument(
-        "--div_loss_type", choices=["cos", "cos_sq", "hadamard", "erank", "output_cos", "cka"], default="cos",
+        "--div_loss_type", choices=["cos", "cos_sq", "hadamard", "erank", "output_cos", "cka", "cos_output_cos"], default="cos",
         help=(
             "Diversity loss variant: "
             "cos=cosine similarity sur A_i (Exp2_1–4), "
