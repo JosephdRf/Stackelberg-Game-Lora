@@ -340,10 +340,10 @@ def follower_output_diversity_loss(
     head_outputs : (B, L, n_heads, d_head).
     """
     B, L, H, d_h = head_outputs.shape
-    Z = head_outputs.permute(0, 2, 1, 3)
-    Z_flat = Z.reshape(B, H, L * d_h).float()
-    Z_norm = F.normalize(Z_flat, dim=-1)
-    S = torch.bmm(Z_norm, Z_norm.transpose(1, 2)).mean(0)
+    Z = head_outputs.permute(0, 2, 1, 3).float()   # (B, H, L, d_head)
+    Z_norm = F.normalize(Z, dim=-1)                 # normalise par position
+    S = torch.einsum('bhld,bgld->bhg', Z_norm, Z_norm) / L
+    S = S.mean(0)                                   # (H, H)
     S_sq = S ** 2
 
     fi, li, fi_t, li_t = _fl_indices(H, leader_indices, S.device)

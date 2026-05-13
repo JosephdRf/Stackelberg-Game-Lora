@@ -64,7 +64,8 @@ import matplotlib.pyplot as plt
 
 _HERE = os.path.dirname(os.path.abspath(__file__))  # pythia160M/exp2/
 _MODEL = os.path.dirname(_HERE)  # pythia160M/
-sys.path.insert(0, _MODEL)  # train_utils.py, gradient_mask.py, stackelberg_losses.py
+sys.path.insert(0, _HERE)   # stackelberg_losses.py local (exp2)
+sys.path.insert(1, _MODEL)  # train_utils.py, gradient_mask.py
 
 import torch
 import numpy as np
