@@ -66,6 +66,7 @@ from gradient_mask import (
     mask_leader_grad,
     assemble_gradients,
     HiddenStateCapture,
+    GradAssembly,
 )
 from stackelberg_losses import (
     get_attention_maps, get_attention_outputs,
@@ -99,6 +100,40 @@ def _compute_leader_heatmaps(
     )
     model.train()
     return {k: A[0, k].cpu().float() for k in leader_indices}
+
+
+@torch.no_grad()
+def _compute_confidence_all_heads(
+    model, val_loader, qkv_module, d_head, rotary_emb, rotary_ndims,
+    input_layernorm, capture, device, conf_loss_type, n_batches=20,
+) -> torch.Tensor:
+    """Returns (12,) confidence scores for all heads. Higher = more concentrated."""
+    model.eval()
+    scores = torch.zeros(12)
+    count = 0
+    for batch in val_loader:
+        if count >= n_batches:
+            break
+        input_ids = batch["input_ids"].to(device)
+        model(input_ids=input_ids)
+        hidden = capture.get()
+        if hidden is None:
+            continue
+        A = get_attention_maps(
+            hidden, qkv_module, n_heads=12, d_head=d_head,
+            rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
+            input_layernorm=input_layernorm,
+        )
+        if conf_loss_type == "max":
+            per_head = A.max(dim=-1).values.mean(dim=(0, 2))   # (12,)
+        elif conf_loss_type == "smooth":
+            per_head = (A ** 2).sum(dim=-1).mean(dim=(0, 2))   # (12,)
+        else:  # entropy
+            per_head = -entropy_heads(A)                        # (12,)
+        scores += per_head.cpu().float()
+        count += 1
+    model.train()
+    return scores / max(1, count)
 
 
 @torch.no_grad()
@@ -177,9 +212,17 @@ def train_stackelberg(
     conf_loss_type: str = "max",
     div_loss_type: str = "cos",
     keep_wandb_open: bool = False,
+    dynamic_leaders: bool = False,
 ):
     if leader_indices is None:
         leader_indices = [0]
+
+    if dynamic_leaders and len(leader_indices) != 2:
+        logger.warning(
+            f"--dynamic_leaders requiert exactement 2 leaders initiaux "
+            f"(reçu {leader_indices}). On utilise [0, 1] par défaut."
+        )
+        leader_indices = [0, 1]
 
     seed_everything(cfg.seed)
 
@@ -208,6 +251,7 @@ def train_stackelberg(
                 "design_layer": design_layer,
                 "leader_indices": leader_indices,
                 "n_leaders": len(leader_indices),
+                "dynamic_leaders": dynamic_leaders,
             },
         )
 
@@ -254,6 +298,19 @@ def train_stackelberg(
         n_heads=12,
         leader_indices=leader_indices,
     )
+
+    # Slices stables pour rebuild rapide lors du changement de leaders
+    _d_head = 768 // 12
+    _head_slices = {
+        h: {
+            "q": slice(h * _d_head, (h + 1) * _d_head),
+            "k": slice(768 + h * _d_head, 768 + (h + 1) * _d_head),
+            "v": slice(2 * 768 + h * _d_head, 2 * 768 + (h + 1) * _d_head),
+            "o": slice(h * _d_head, (h + 1) * _d_head),
+        }
+        for h in range(12)
+    }
+    _assembly_roles = grad_assembly.roles
 
     n_design_params = sum(
         p.numel()
@@ -304,7 +361,7 @@ def train_stackelberg(
 
     # ── Diversity / confidence hook ──
     need_div = lambda_lead > 0 or lambda_peer > 0 or lambda_rank > 0
-    need_hook = need_div or lambda_conf > 0
+    need_hook = need_div or lambda_conf > 0 or dynamic_leaders
     d_head = 768 // 12  # 64
     if need_hook:
         _qkv_target = f"gpt_neox.layers.{design_layer}.attention.query_key_value"
@@ -351,6 +408,7 @@ def train_stackelberg(
     history = {
         "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "conf": []},
         "val": {"step": [], "loss": [], "ppl": []},
+        "leaders": {"step": [], "indices": [], "conf_scores": []},
     }
     _ema_ce = None
     _ema_alpha = 0.05
@@ -638,6 +696,47 @@ def train_stackelberg(
                     history["val"]["loss"].append(v_loss)
                     history["val"]["ppl"].append(v_ppl)
 
+                    # ── Sélection dynamique des leaders ──
+                    if dynamic_leaders:
+                        conf_per_head = _compute_confidence_all_heads(
+                            model, val_loader, qkv_module, d_head,
+                            rotary_emb, rotary_ndims, input_layernorm,
+                            capture, device, conf_loss_type,
+                            n_batches=cfg.eval_max_batches,
+                        )
+                        new_leader_indices = sorted(
+                            torch.topk(conf_per_head, 2).indices.tolist()
+                        )
+                        if set(new_leader_indices) != set(leader_indices):
+                            logger.info(
+                                f"[leaders] step {opt_step}: "
+                                f"{leader_indices} → {new_leader_indices}"
+                            )
+                        else:
+                            logger.info(
+                                f"[leaders] step {opt_step}: "
+                                f"leaders inchangés {leader_indices}"
+                            )
+                        leader_indices = new_leader_indices
+                        grad_assembly = GradAssembly(
+                            roles=_assembly_roles,
+                            leader_q=[_head_slices[h]["q"] for h in leader_indices],
+                            leader_k=[_head_slices[h]["k"] for h in leader_indices],
+                            leader_v=[_head_slices[h]["v"] for h in leader_indices],
+                            leader_o=[_head_slices[h]["o"] for h in leader_indices],
+                        )
+                        history["leaders"]["step"].append(opt_step)
+                        history["leaders"]["indices"].append(leader_indices)
+                        history["leaders"]["conf_scores"].append(conf_per_head.tolist())
+                        if use_wandb:
+                            leader_log = {
+                                f"leader/conf_score_head_{h}": conf_per_head[h].item()
+                                for h in range(12)
+                            }
+                            leader_log["leader/leader_0"] = leader_indices[0]
+                            leader_log["leader/leader_1"] = leader_indices[1]
+                            wandb.log(leader_log, step=opt_step)
+
                 # ── JSON ──
                 if (
                     opt_step % cfg.log_every == 0
@@ -800,6 +899,14 @@ def parse_args():
         help="Number of consecutive training runs (seeds seed, seed+1, …).",
     )
     parser.add_argument(
+        "--dynamic_leaders", action="store_true", default=False,
+        help=(
+            "Si True, re-sélectionne les 2 leaders toutes les eval_every steps "
+            "en maximisant le score de confiance (conf_loss_type). "
+            "Requiert exactement 2 indices dans --leader_idx (défaut [0, 1])."
+        ),
+    )
+    parser.add_argument(
         "--run_eval", action="store_true", default=True,
         help="Run evaluation after training and log metrics into the same wandb run.",
     )
@@ -843,6 +950,7 @@ if __name__ == "__main__":
     logger.info(f"  Nb runs       : {args.nb_runs}")
     logger.info(f"  Conf loss     : {args.conf_loss_type}")
     logger.info(f"  Div loss      : {args.div_loss_type}")
+    logger.info(f"  Dynamic leaders: {args.dynamic_leaders}")
 
     if os.path.exists(args.output_dir):
         shutil.rmtree(args.output_dir)
@@ -879,6 +987,7 @@ if __name__ == "__main__":
             conf_loss_type=args.conf_loss_type,
             div_loss_type=args.div_loss_type,
             keep_wandb_open=keep_open,
+            dynamic_leaders=args.dynamic_leaders,
         )
         _run_durations.append(time.perf_counter() - _t0)
         logger.info(f"  Run {i} duration : {_run_durations[-1]/60:.1f} min")
