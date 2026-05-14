@@ -1,5 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=joseph-stackelberg-job
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
@@ -31,6 +30,7 @@ export TRANSFORMERS_OFFLINE=1
 
 # Run : tête SLURM_ARRAY_TASK_ID seule comme leader
 RUN_NAME=Exp3_0_1_${SLURM_ARRAY_TASK_ID}
+scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp3/$RUN_NAME
 
 python pythia160M/exp3/train_exp3.py \

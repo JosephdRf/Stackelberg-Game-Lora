@@ -1,5 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=joseph-stackelberg-job
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
@@ -34,6 +33,8 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
+RUN_NAME=Eval_base_recent
+scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME
 
 python pythia160M/eval.py \

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=joseph-stackelberg-job
+RUN_NAME=Exp3_1
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
@@ -9,6 +9,8 @@
 #SBATCH --error=logs/%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
+
+scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 
 # Modules
 module load StdEnv/2023
@@ -28,7 +30,6 @@ export WANDB_MODE=offline
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-RUN_NAME=Exp3_1
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp3/$RUN_NAME
 
 python pythia160M/exp3/train_exp3.py \
@@ -41,5 +42,4 @@ python pythia160M/exp3/train_exp3.py \
     --lambda_lead 0.0 \
     --lambda_peer 0.0 \
     --lambda_conf 0.0 \
-    --div_loss_type cos \
     --dynamic_leaders \

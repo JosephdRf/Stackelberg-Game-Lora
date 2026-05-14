@@ -1,5 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=joseph-stackelberg-job
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
@@ -34,7 +33,8 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 # Run et evals
-RUN_NAME=Exp2_8
+RUN_NAME=Exp2_10
+scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME
 
 python pythia160M/exp2/train_exp2.py \
@@ -47,4 +47,4 @@ python pythia160M/exp2/train_exp2.py \
     --conf_loss_type max \
     --lambda_lead 1e-1 \
     --lambda_peer 1e-1 \
-    --div_loss_type output_cos \
+    --div_loss_type cos_output_cos \

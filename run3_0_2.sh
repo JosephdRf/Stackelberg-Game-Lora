@@ -1,5 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=joseph-stackelberg-job
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
@@ -40,6 +39,7 @@ print(' '.join(map(str, sorted(heads[:6]))))
 ")
 
 RUN_NAME=Exp3_0_2_${SLURM_ARRAY_TASK_ID}
+scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp3/$RUN_NAME
 
 python pythia160M/exp3/train_exp3.py \

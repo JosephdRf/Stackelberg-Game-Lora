@@ -410,6 +410,10 @@ def train_stackelberg(
         "val": {"step": [], "loss": [], "ppl": []},
         "leaders": {"step": [], "indices": [], "conf_scores": []},
     }
+    if dynamic_leaders:
+        history["leaders"]["step"].append(0)
+        history["leaders"]["indices"].append(list(leader_indices))
+        history["leaders"]["conf_scores"].append([0.0] * 12)
     _ema_ce = None
     _ema_alpha = 0.05
 
@@ -653,7 +657,7 @@ def train_stackelberg(
                                 rotary_emb, rotary_ndims, input_layernorm,
                                 capture, leader_indices, device,
                             )
-                            for k, A0 in heatmaps.items():
+                            for rank, (k, A0) in enumerate(heatmaps.items()):
                                 fig, ax = plt.subplots(figsize=(7, 6))
                                 A0_np = A0.numpy()
                                 _vmax = float(np.percentile(A0_np, 99.5))
@@ -665,8 +669,8 @@ def train_stackelberg(
                                     norm=LogNorm(vmin=_vmin, vmax=_vmax),
                                 )
                                 plt.colorbar(im, ax=ax, label="attention weight (log)")
-                                ax.set_title(f"A_leader (head {k}, step {opt_step})")
-                                log_dict[f"eval/A_leader_{k}_heatmap"] = wandb.Image(fig)
+                                ax.set_title(f"A_leader_{rank} (head {k}, step {opt_step})")
+                                log_dict[f"eval/A_leader_{rank}_heatmap"] = wandb.Image(fig)
                                 plt.close(fig)
 
                             S, conf_max, conf_l2, h_entropy = _compute_val_head_metrics(
@@ -729,12 +733,42 @@ def train_stackelberg(
                         history["leaders"]["indices"].append(leader_indices)
                         history["leaders"]["conf_scores"].append(conf_per_head.tolist())
                         if use_wandb:
-                            leader_log = {
-                                f"leader/conf_score_head_{h}": conf_per_head[h].item()
-                                for h in range(12)
-                            }
+                            leader_log = {}
                             leader_log["leader/leader_0"] = leader_indices[0]
                             leader_log["leader/leader_1"] = leader_indices[1]
+                            steps_c = history["leaders"]["step"][1:]
+                            conf_c = history["leaders"]["conf_scores"][1:]
+                            if steps_c:
+                                fig_c, ax_c = plt.subplots(figsize=(10, 4))
+                                _cmap = plt.get_cmap("tab20", 12)
+                                for _h in range(12):
+                                    _ys = [conf_c[_i][_h] for _i in range(len(conf_c))]
+                                    ax_c.plot(steps_c, _ys, color=_cmap(_h), linewidth=1.5, label=f"head {_h}")
+                                ax_c.set_xlabel("optimizer step")
+                                ax_c.set_ylabel("confidence score")
+                                ax_c.set_title(f"Confidence scores — all heads (step {opt_step})")
+                                ax_c.legend(loc="upper right", ncol=3, fontsize=8)
+                                ax_c.grid(True, alpha=0.2)
+                                fig_c.tight_layout()
+                                leader_log["leader/conf_scores_all"] = wandb.Image(fig_c)
+                                plt.close(fig_c)
+                            steps_h = history["leaders"]["step"]
+                            indices_h = history["leaders"]["indices"]
+                            _xs = list(steps_h) + [total_steps]
+                            _y0 = [idx[0] for idx in indices_h] + [indices_h[-1][0]]
+                            _y1 = [idx[1] for idx in indices_h] + [indices_h[-1][1]]
+                            fig_l, ax_l = plt.subplots(figsize=(10, 3))
+                            ax_l.step(_xs, _y0, where="post", color="#4FC3F7", linewidth=2, label="leader_0")
+                            ax_l.step(_xs, _y1, where="post", color="#F48FB1", linewidth=2, label="leader_1")
+                            ax_l.set_xlabel("optimizer step")
+                            ax_l.set_ylabel("head index")
+                            ax_l.set_yticks(range(12))
+                            ax_l.set_title(f"Dynamic leaders — step {opt_step}")
+                            ax_l.legend(loc="upper right")
+                            ax_l.grid(True, alpha=0.2, axis="y")
+                            fig_l.tight_layout()
+                            leader_log["leader/leader_history"] = wandb.Image(fig_l)
+                            plt.close(fig_l)
                             wandb.log(leader_log, step=opt_step)
 
                 # ── JSON ──
