@@ -151,6 +151,7 @@ def follower_diversity_loss(
     """
     L_div = λ_lead · mean_i cos(A_i, A_leader) + λ_peer · mean_{i≠j} cos(A_i, A_j)
 
+    Normalisé par le nombre de paires : λ indépendant de n_heads.
     attn_weights : (B, n_heads, L, L) — sortie de get_attention_maps.
     """
     B, H, L, _ = attn_weights.shape

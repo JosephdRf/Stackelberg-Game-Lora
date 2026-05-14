@@ -58,7 +58,7 @@ class GradAssembly:
 
 def collect_lora_params(
     model,
-    design_layer: int = 9,
+    design_layers: List[int] = None,
     d_model: int = 768,
     n_heads: int = 12,
     leader_indices: List[int] = None,
@@ -66,8 +66,11 @@ def collect_lora_params(
     """
     Returns (all_trainable_params, grad_assembly).
 
+    design_layers  : list of layer indices treated as Stackelberg design layers (default [9]).
     leader_indices : list of head indices that act as leaders (default [0]).
     """
+    if design_layers is None:
+        design_layers = [9]
     if leader_indices is None:
         leader_indices = [0]
 
@@ -79,7 +82,7 @@ def collect_lora_params(
     leader_v = [slice(2 * d_model + i * d_head, 2 * d_model + (i + 1) * d_head) for i in leader_indices]
     leader_o = [slice(i * d_head, (i + 1) * d_head) for i in leader_indices]
 
-    layer_prefix = f"layers.{design_layer}."
+    _layer_prefixes = {f"layers.{dl}." for dl in design_layers}
 
     roles: List[ParamRole] = []
     seen_ids = set()
@@ -93,7 +96,7 @@ def collect_lora_params(
         seen_ids.add(id(p))
         all_params.append(p)
 
-        is_design = layer_prefix in name
+        is_design = any(prefix in name for prefix in _layer_prefixes)
         is_qkv = "query_key_value" in name
         is_dense = "dense" in name and "dense_h_to_4h" not in name
 

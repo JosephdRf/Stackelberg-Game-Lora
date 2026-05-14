@@ -200,7 +200,7 @@ _DIV_LOSS_FN = {
 
 def train_stackelberg(
     cfg: TrainConfig,
-    design_layer: int = 9,
+    design_layers: list = None,
     lr_leader: float = 1e-4,
     lr_follower: float = 3e-4,
     lr_sim: float = 1e-3,
@@ -214,9 +214,16 @@ def train_stackelberg(
     keep_wandb_open: bool = False,
     dynamic_leaders: bool = False,
 ):
+    if design_layers is None:
+        design_layers = [9]
     if leader_indices is None:
         leader_indices = [0]
 
+    if dynamic_leaders and len(design_layers) > 1:
+        logger.warning(
+            "--dynamic_leaders with multiple design_layers: "
+            "confidence scores are averaged over all layers."
+        )
     if dynamic_leaders and len(leader_indices) != 2:
         logger.warning(
             f"--dynamic_leaders requiert exactement 2 leaders initiaux "
@@ -248,7 +255,7 @@ def train_stackelberg(
                 "lambda_rank": lambda_rank,
                 "conf_loss_type": conf_loss_type,
                 "div_loss_type": div_loss_type,
-                "design_layer": design_layer,
+                "design_layers": design_layers,
                 "leader_indices": leader_indices,
                 "n_leaders": len(leader_indices),
                 "dynamic_leaders": dynamic_leaders,
@@ -293,7 +300,7 @@ def train_stackelberg(
     # ── Single optimizer over all trainable params ──
     all_params, grad_assembly = collect_lora_params(
         model,
-        design_layer=design_layer,
+        design_layers=design_layers,
         d_model=768,
         n_heads=12,
         leader_indices=leader_indices,
@@ -330,7 +337,7 @@ def train_stackelberg(
         f"  |  Effective batch : {cfg.effective_batch_size}"
     )
     logger.info(
-        f"Design layer           : {design_layer}  |  Leader heads : {leader_indices}"
+        f"Design layers          : {design_layers}  |  Leader heads : {leader_indices}"
     )
     logger.info(
         f"Design params (θ_L∪θ_F) : {n_design_params:,}  |  Shared+other (θ_S) : {n_shared_params:,}"
@@ -364,33 +371,39 @@ def train_stackelberg(
     need_hook = need_div or lambda_conf > 0 or dynamic_leaders
     d_head = 768 // 12  # 64
     if need_hook:
-        _qkv_target = f"gpt_neox.layers.{design_layer}.attention.query_key_value"
-        _attn_target = f"gpt_neox.layers.{design_layer}.attention"
-        qkv_module = next(
-            mod for name, mod in model.named_modules() if name.endswith(_qkv_target)
-        )
-        _layer_target = f"gpt_neox.layers.{design_layer}"
-        attn_module = next(
-            mod for name, mod in model.named_modules() if name.endswith(_attn_target)
-        )
-        layer_module = next(
-            mod for name, mod in model.named_modules() if name.endswith(_layer_target)
-        )
         gpt_neox_module = next(
             mod for name, mod in model.named_modules()
             if name == "gpt_neox" or name.endswith(".gpt_neox")
         )
         rotary_emb = gpt_neox_module.rotary_emb
-        rotary_ndims = attn_module.rotary_ndims
-        input_layernorm = layer_module.input_layernorm
-        capture = HiddenStateCapture()
-        capture.register(model, design_layer - 1)
+        _layer_ctx = {}
+        for dl in design_layers:
+            _qkv_mod = next(
+                mod for name, mod in model.named_modules()
+                if name.endswith(f"gpt_neox.layers.{dl}.attention.query_key_value")
+            )
+            _attn_mod = next(
+                mod for name, mod in model.named_modules()
+                if name.endswith(f"gpt_neox.layers.{dl}.attention")
+            )
+            _lay_mod = next(
+                mod for name, mod in model.named_modules()
+                if name.endswith(f"gpt_neox.layers.{dl}")
+            )
+            _cap = HiddenStateCapture()
+            _cap.register(model, dl - 1)
+            _layer_ctx[dl] = {
+                "qkv_module":      _qkv_mod,
+                "input_layernorm": _lay_mod.input_layernorm,
+                "rotary_ndims":    _attn_mod.rotary_ndims,
+                "capture":         _cap,
+            }
         _conf_loss_fn = _CONF_LOSS_FN[conf_loss_type]
         _div_loss_fn = _DIV_LOSS_FN.get(div_loss_type, None)
         logger.info(
             f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  λ_rank={lambda_rank}  "
             f"conf_loss_type={conf_loss_type}  div_loss_type={div_loss_type}  "
-            f"rotary_ndims={rotary_ndims}  — hook on layer {design_layer - 1}"
+            f"— hooks on layers {[dl - 1 for dl in design_layers]}"
         )
     else:
         logger.info("λ_lead=0  λ_peer=0  λ_conf=0  — CE only (no hook, identical to baseline)")
@@ -464,38 +477,42 @@ def train_stackelberg(
                 ce_loss = out.loss
 
             if need_div:
-                hidden = capture.get()
-                if div_loss_type in ("erank", "output_cos", "cka"):
-                    _A_unused, Z = get_attention_outputs(
-                        hidden, qkv_module, n_heads=12, d_head=d_head,
-                        rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
-                        input_layernorm=input_layernorm,
-                    )
-                    if div_loss_type == "erank":
-                        div_loss = follower_erank_loss(
-                            Z, n_heads=12, leader_indices=leader_indices,
-                            lambda_rank=lambda_rank,
+                _div_losses = []
+                for dl in design_layers:
+                    ctx = _layer_ctx[dl]
+                    hidden = ctx["capture"].get()
+                    if div_loss_type in ("erank", "output_cos", "cka"):
+                        _A_unused, Z = get_attention_outputs(
+                            hidden, ctx["qkv_module"], n_heads=12, d_head=d_head,
+                            rotary_emb=rotary_emb, rotary_ndims=ctx["rotary_ndims"],
+                            input_layernorm=ctx["input_layernorm"],
                         )
-                    elif div_loss_type == "cka":
-                        div_loss = follower_diversity_loss_cka(
-                            Z, n_heads=12, leader_indices=leader_indices,
-                            lambda_lead=lambda_lead, lambda_peer=lambda_peer,
-                        )
+                        if div_loss_type == "erank":
+                            _div_losses.append(follower_erank_loss(
+                                Z, n_heads=12, leader_indices=leader_indices,
+                                lambda_rank=lambda_rank,
+                            ))
+                        elif div_loss_type == "cka":
+                            _div_losses.append(follower_diversity_loss_cka(
+                                Z, n_heads=12, leader_indices=leader_indices,
+                                lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                            ))
+                        else:
+                            _div_losses.append(follower_output_diversity_loss(
+                                Z, n_heads=12, leader_indices=leader_indices,
+                                lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                            ))
                     else:
-                        div_loss = follower_output_diversity_loss(
-                            Z, n_heads=12, leader_indices=leader_indices,
-                            lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                        A = get_attention_maps(
+                            hidden, ctx["qkv_module"], n_heads=12, d_head=d_head,
+                            rotary_emb=rotary_emb, rotary_ndims=ctx["rotary_ndims"],
+                            input_layernorm=ctx["input_layernorm"],
                         )
-                else:
-                    A = get_attention_maps(
-                        hidden, qkv_module, n_heads=12, d_head=d_head,
-                        rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
-                        input_layernorm=input_layernorm,
-                    )
-                    div_loss = _div_loss_fn(
-                        A, n_heads=12, leader_indices=leader_indices,
-                        lambda_lead=lambda_lead, lambda_peer=lambda_peer,
-                    )
+                        _div_losses.append(_div_loss_fn(
+                            A, n_heads=12, leader_indices=leader_indices,
+                            lambda_lead=lambda_lead, lambda_peer=lambda_peer,
+                        ))
+                div_loss = torch.stack(_div_losses).mean()
                 follower_loss = (ce_loss + div_loss) / cfg.grad_accum
                 accum_div += div_loss.item()
             else:
@@ -555,13 +572,16 @@ def train_stackelberg(
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
                     if lambda_conf > 0:
-                        hidden_leader = capture.get()
-                        A_leader = get_attention_maps(
-                            hidden_leader, qkv_module, 12, d_head,
-                            rotary_emb, rotary_ndims, input_layernorm,
-                        )
-                        # averaged over all leader heads inside _conf_loss_fn
-                        conf_raw = lambda_conf * _conf_loss_fn(A_leader, leader_indices)
+                        _conf_losses = []
+                        for dl in design_layers:
+                            ctx = _layer_ctx[dl]
+                            hidden_leader = ctx["capture"].get()
+                            A_leader = get_attention_maps(
+                                hidden_leader, ctx["qkv_module"], 12, d_head,
+                                rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
+                            )
+                            _conf_losses.append(_conf_loss_fn(A_leader, leader_indices))
+                        conf_raw = lambda_conf * torch.stack(_conf_losses).mean()
                         leader_ce_mb = leader_ce_mb + conf_raw / cfg.grad_accum
                         accum_conf += conf_raw.detach().item()
                     leader_ce_mb.backward()
@@ -652,32 +672,42 @@ def train_stackelberg(
                     if use_wandb:
                         log_dict = {"val/loss": v_loss, "val/ppl": v_ppl}
                         if need_hook:
-                            heatmaps = _compute_leader_heatmaps(
-                                model, fixed_ids, qkv_module, d_head,
-                                rotary_emb, rotary_ndims, input_layernorm,
-                                capture, leader_indices, device,
-                            )
-                            for rank, (k, A0) in enumerate(heatmaps.items()):
-                                fig, ax = plt.subplots(figsize=(7, 6))
-                                A0_np = A0.numpy()
-                                _vmax = float(np.percentile(A0_np, 99.5))
-                                _vmin = max(float(A0_np.min()), _vmax * 1e-4)
-                                from matplotlib.colors import LogNorm
-                                im = ax.imshow(
-                                    A0_np.clip(_vmin, None),
-                                    cmap="inferno", aspect="auto",
-                                    norm=LogNorm(vmin=_vmin, vmax=_vmax),
+                            from matplotlib.colors import LogNorm
+                            _conf_max_vals, _conf_l2_vals, _entropy_vals = [], [], []
+                            S_sum = torch.zeros(12, 12)
+                            for dl in design_layers:
+                                ctx = _layer_ctx[dl]
+                                heatmaps = _compute_leader_heatmaps(
+                                    model, fixed_ids, ctx["qkv_module"], d_head,
+                                    rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
+                                    ctx["capture"], leader_indices, device,
                                 )
-                                plt.colorbar(im, ax=ax, label="attention weight (log)")
-                                ax.set_title(f"A_leader_{rank} (head {k}, step {opt_step})")
-                                log_dict[f"eval/A_leader_{rank}_heatmap"] = wandb.Image(fig)
-                                plt.close(fig)
+                                for rank, (k, A0) in enumerate(heatmaps.items()):
+                                    fig, ax = plt.subplots(figsize=(7, 6))
+                                    A0_np = A0.numpy()
+                                    _vmax = float(np.percentile(A0_np, 99.5))
+                                    _vmin = max(float(A0_np.min()), _vmax * 1e-4)
+                                    im = ax.imshow(
+                                        A0_np.clip(_vmin, None),
+                                        cmap="inferno", aspect="auto",
+                                        norm=LogNorm(vmin=_vmin, vmax=_vmax),
+                                    )
+                                    plt.colorbar(im, ax=ax, label="attention weight (log)")
+                                    ax.set_title(f"A_leader_{rank} (head {k}, layer {dl}, step {opt_step})")
+                                    log_dict[f"eval/A_leader_{rank}_layer{dl}_heatmap"] = wandb.Image(fig)
+                                    plt.close(fig)
 
-                            S, conf_max, conf_l2, h_entropy = _compute_val_head_metrics(
-                                model, val_loader, qkv_module, d_head,
-                                rotary_emb, rotary_ndims, input_layernorm,
-                                capture, leader_indices, device,
-                            )
+                                S, conf_max, conf_l2, h_entropy = _compute_val_head_metrics(
+                                    model, val_loader, ctx["qkv_module"], d_head,
+                                    rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
+                                    ctx["capture"], leader_indices, device,
+                                )
+                                S_sum += S
+                                _conf_max_vals.append(conf_max)
+                                _conf_l2_vals.append(conf_l2)
+                                _entropy_vals.append(h_entropy)
+
+                            S = S_sum / len(design_layers)
                             fig, ax = plt.subplots(figsize=(7, 6))
                             S_np = S.numpy()
                             _off = S_np[~np.eye(S_np.shape[0], dtype=bool)]
@@ -692,9 +722,9 @@ def train_stackelberg(
                             ax.set_ylabel("head i")
                             log_dict["eval/SA_heatmap"] = wandb.Image(fig)
                             plt.close(fig)
-                            log_dict["leader/conf_max"] = conf_max
-                            log_dict["leader/conf_l2"] = conf_l2
-                            log_dict["leader/entropy"] = h_entropy
+                            log_dict["leader/conf_max"] = float(np.mean(_conf_max_vals))
+                            log_dict["leader/conf_l2"] = float(np.mean(_conf_l2_vals))
+                            log_dict["leader/entropy"] = float(np.mean(_entropy_vals))
                         wandb.log(log_dict, step=opt_step)
                     history["val"]["step"].append(opt_step)
                     history["val"]["loss"].append(v_loss)
@@ -702,12 +732,16 @@ def train_stackelberg(
 
                     # ── Sélection dynamique des leaders ──
                     if dynamic_leaders:
-                        conf_per_head = _compute_confidence_all_heads(
-                            model, val_loader, qkv_module, d_head,
-                            rotary_emb, rotary_ndims, input_layernorm,
-                            capture, device, conf_loss_type,
-                            n_batches=cfg.eval_max_batches,
-                        )
+                        _scores_per_layer = []
+                        for dl in design_layers:
+                            ctx = _layer_ctx[dl]
+                            _scores_per_layer.append(_compute_confidence_all_heads(
+                                model, val_loader, ctx["qkv_module"], d_head,
+                                rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
+                                ctx["capture"], device, conf_loss_type,
+                                n_batches=cfg.eval_max_batches,
+                            ))
+                        conf_per_head = torch.stack(_scores_per_layer).mean(0)
                         new_leader_indices = sorted(
                             torch.topk(conf_per_head, 2).indices.tolist()
                         )
@@ -806,7 +840,8 @@ def train_stackelberg(
     pbar.close()
 
     if need_hook:
-        capture.remove()
+        for dl in design_layers:
+            _layer_ctx[dl]["capture"].remove()
 
     # ── Eval finale ──
     logger.info("Eval finale ...")
@@ -880,8 +915,8 @@ def parse_args():
     parser.add_argument("--output_dir", default=os.path.join(_HERE, "checkpoints"))
     parser.add_argument("--run_name", default="stackelberg_exp3_pythia")
     parser.add_argument(
-        "--design_layer", type=int, default=9,
-        help="Attention layer for the Stackelberg game (Pythia-160M has 12 layers).",
+        "--design_layer", nargs="+", type=int, default=[9],
+        help="Design layer(s) for the Stackelberg game. Ex: --design_layer 9  or  --design_layer 6 7 8 9",
     )
     parser.add_argument("--lr_leader", type=float, default=1e-4)
     parser.add_argument("--lr_follower", type=float, default=3e-4)
@@ -972,7 +1007,7 @@ if __name__ == "__main__":
     )
 
     log_config(cfg)
-    logger.info(f"  Design layer  : {args.design_layer}")
+    logger.info(f"  Design layers : {args.design_layer}")
     logger.info(f"  LR leader     : {args.lr_leader}")
     logger.info(f"  LR follower   : {args.lr_follower}")
     logger.info(f"  LR sim step   : {args.lr_sim}")
@@ -1009,7 +1044,7 @@ if __name__ == "__main__":
         _t0 = time.perf_counter()
         train_stackelberg(
             cfg_i,
-            design_layer=args.design_layer,
+            design_layers=args.design_layer,
             lr_leader=args.lr_leader,
             lr_follower=args.lr_follower,
             lr_sim=args.lr_sim,
