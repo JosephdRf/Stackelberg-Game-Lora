@@ -244,6 +244,7 @@ def train_stackelberg(
             project=cfg.wandb_project,
             name=cfg.run_name,
             group=cfg.wandb_group,
+            settings=wandb.Settings(init_timeout=300, _service_wait=120),
             config={
                 **vars(cfg),
                 "lr_leader": lr_leader,
