@@ -1,5 +1,4 @@
 #!/bin/bash
-RUN_NAME=Exp3_2_1
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
@@ -10,6 +9,7 @@ RUN_NAME=Exp3_2_1
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
 
+RUN_NAME=Exp3_2_1
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 
 # Modules

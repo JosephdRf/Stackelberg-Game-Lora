@@ -1005,9 +1005,12 @@ if __name__ == "__main__":
         save_every=args.save_every,
         num_workers=args.num_workers,
         random_init=args.random_init,
+        lora_rank=args.lora_rank,
+        lora_alpha=args.lora_alpha if args.lora_alpha is not None else 2 * args.lora_rank,
     )
 
     log_config(cfg)
+    logger.info(f"  LoRA rank     : {cfg.lora_rank}  alpha={cfg.lora_alpha}")
     logger.info(f"  Design layers : {args.design_layer}")
     logger.info(f"  LR leader     : {args.lr_leader}")
     logger.info(f"  LR follower   : {args.lr_follower}")

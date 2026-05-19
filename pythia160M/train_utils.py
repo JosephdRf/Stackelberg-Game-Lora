@@ -382,6 +382,10 @@ def add_common_args(parser):
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--random_init", action="store_true",
                         help="Initialiser les poids aléatoirement (pas de préentraînement)")
+    parser.add_argument("--lora_rank", type=int, default=16,
+                        help="Rang LoRA (défaut 16)")
+    parser.add_argument("--lora_alpha", type=int, default=None,
+                        help="Alpha LoRA (défaut 2×lora_rank si non spécifié)")
     parser.add_argument("--head_log_layer", type=int, default=9,
                         help="Couche d'attention observée pour les matrices omega/rho/G "
                              "(layer 9 ≈ 79%% du réseau pour Pythia-160M à 12 couches)")
