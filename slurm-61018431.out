@@ -1,0 +1,13 @@
+
+Lmod is automatically replacing "gcc/12.3" with "intel/2023.2.1".
+
+
+Due to MODULEPATH changes, the following have been reloaded:
+  1) blis/0.9.0     2) cuda/12.2     3) flexiblas/3.3.1     4) openmpi/4.1.5
+
+
+The following have been reloaded with a version change:
+  1) python/3.10.13 => python/3.11.5
+
+/localscratch/spool/slurmd/job61018431/slurm_script: line 47: 120738 Killed                  python pythia160M/exp3/train_exp3.py --output_dir $CKPT_DIR --wandb_project Stackelberg-Pythia160M --wandb_group Exp3 --run_name $RUN_NAME --leader_idx 0 1 --lr_sim 1e-5 --lr_leader 3e-5 --lr_follower 3e-5 --lambda_lead 0.01 --lambda_peer 0.01 --lambda_conf 0.0 --div_loss_type cos --dynamic_leaders
+slurmstepd: error: Detected 1 oom_kill event in StepId=61018431.batch. Some of the step tasks have been OOM Killed.
