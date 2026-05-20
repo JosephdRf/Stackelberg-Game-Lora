@@ -311,9 +311,9 @@ def train_stackelberg(
     _d_head = 768 // 12
     _head_slices = {
         h: {
-            "q": slice(h * _d_head, (h + 1) * _d_head),
-            "k": slice(768 + h * _d_head, 768 + (h + 1) * _d_head),
-            "v": slice(2 * 768 + h * _d_head, 2 * 768 + (h + 1) * _d_head),
+            "q": slice(3*h*_d_head, (3*h+1)*_d_head),
+            "k": slice((3*h+1)*_d_head, (3*h+2)*_d_head),
+            "v": slice((3*h+2)*_d_head, (3*h+3)*_d_head),
             "o": slice(h * _d_head, (h + 1) * _d_head),
         }
         for h in range(12)

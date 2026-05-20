@@ -709,8 +709,7 @@ if __name__ == "__main__":
         _run_durations.append(time.perf_counter() - _t0)
         logger.info(f"  Run {i} duration : {_run_durations[-1]/60:.1f} min")
 
-    if args.run_eval and cfg.wandb_project is not None:
-        import wandb
+    if args.run_eval:
         from eval import run_eval, load_model, METRIC_ORDER
 
         run_dirs = sorted(glob.glob(os.path.join(args.output_dir, "run_*/final")))
@@ -718,12 +717,14 @@ if __name__ == "__main__":
             run_dirs = [os.path.join(args.output_dir, "final")]
 
         _total_train_s = time.perf_counter() - _train_wall_start
-        wandb.run.summary["train/total_duration_s"] = round(_total_train_s)
-        wandb.run.summary["train/mean_run_duration_s"] = round(_total_train_s / len(_run_durations))
-        for _i, _d in enumerate(_run_durations):
-            wandb.run.summary[f"train/run_{_i}_duration_s"] = round(_d)
         logger.info(f"  Total training : {_total_train_s/60:.1f} min  "
                     f"(mean/run={_total_train_s/len(_run_durations)/60:.1f} min)")
+        if cfg.wandb_project is not None:
+            import wandb
+            wandb.run.summary["train/total_duration_s"] = round(_total_train_s)
+            wandb.run.summary["train/mean_run_duration_s"] = round(_total_train_s / len(_run_durations))
+            for _i, _d in enumerate(_run_durations):
+                wandb.run.summary[f"train/run_{_i}_duration_s"] = round(_d)
 
         logger.info(f"\n{'='*60}\nÉvaluation sur {len(run_dirs)} checkpoint(s)\n{'='*60}")
         all_results = []
@@ -745,14 +746,14 @@ if __name__ == "__main__":
             if k in results:
                 logger.info(f"  {k:<20} = {results[k]:.4f} ± {results_std[k]:.4f}")
 
-        log_dict = {}
-        for k in results:
-            wandb.run.summary[f"eval/{k}"] = results[k]
-            wandb.run.summary[f"eval/{k}_std"] = results_std[k]
-            log_dict[f"eval/{k}"] = results[k]
-        wandb.log(log_dict)
-
-        run0_dir = os.path.join(args.output_dir, "run_0")
-        with open(os.path.join(run0_dir, "wandb_run_id.txt"), "w") as _f:
-            _f.write(wandb.run.id)
-        wandb.finish()
+        if cfg.wandb_project is not None:
+            log_dict = {}
+            for k in results:
+                wandb.run.summary[f"eval/{k}"] = results[k]
+                wandb.run.summary[f"eval/{k}_std"] = results_std[k]
+                log_dict[f"eval/{k}"] = results[k]
+            wandb.log(log_dict)
+            run0_dir = os.path.join(args.output_dir, "run_0")
+            with open(os.path.join(run0_dir, "wandb_run_id.txt"), "w") as _f:
+                _f.write(wandb.run.id)
+            wandb.finish()

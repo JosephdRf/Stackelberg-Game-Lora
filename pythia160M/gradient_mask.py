@@ -1,23 +1,36 @@
 """
 Stackelberg — gradient utilities (Pythia-160M / GPT-NeoX).
 
-LoRA matrices of the design layer and their decomposability:
+Two training modes are supported:
+
+LoRA fine-tuning (collect_lora_params):
   - qkv_lora_B  ∈ ℝ^(3d×r) : decomposable by rows — Q/K/V block per head.
-                               Leader heads own rows lq_k, lk_k, lv_k for each k in L.
   - qkv_lora_A  ∈ ℝ^(r×d)  : shared.
-  - dense_lora_A ∈ ℝ^(r×d) : decomposable by columns — cols lo_k per leader head k.
+  - dense_lora_A ∈ ℝ^(r×d) : decomposable by columns.
   - dense_lora_B ∈ ℝ^(d×r) : shared.
 
-Gradient assembly rules:
-  qkv_lora_B, dense_lora_A : disjoint slices (θ_L ∪ θ_F) → g_final = g_F + g_L
-  qkv_lora_A, dense_lora_B : θ_S — g_L zeroed → g_final = g_F
-  other                     : θ_S — follower only → g_final = g_F
+Full fine-tuning (collect_fullft_params):
+  - qkv_weight  ∈ ℝ^(3d×d) : decomposable by rows — same head layout as qkv_lora_B.
+  - dense_weight ∈ ℝ^(d×d) : decomposable by columns — same layout as dense_lora_A.
+
+Gradient assembly rules (both modes):
+  row-decomposable (qkv_lora_B, qkv_weight)   : disjoint slices → g_final = g_F + g_L
+  col-decomposable (dense_lora_A, dense_weight): disjoint slices → g_final = g_F + g_L
+  shared LoRA      (qkv_lora_A, dense_lora_B)  : g_L zeroed      → g_final = g_F
+  other                                         : follower only   → g_final = g_F
 """
 
 import torch
 import torch.nn.functional as F
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Dict
+
+# Kinds that own disjoint row/col slices of the design weight matrix.
+_LEADER_ROW_KINDS = {"qkv_lora_B", "qkv_weight"}
+_LEADER_COL_KINDS = {"dense_lora_A", "dense_weight"}
+_ADDITIVE_KINDS   = _LEADER_ROW_KINDS | _LEADER_COL_KINDS
+# Shared LoRA params: g_L is zeroed — update comes from g_F only.
+_SHARED_KINDS     = {"qkv_lora_A", "dense_lora_B"}
 
 
 # ---------------------------------------------------------------------------
@@ -73,9 +86,12 @@ def collect_lora_params(
     d_head = d_model // n_heads  # 64 for Pythia-160M
 
     # One slice per leader head
-    leader_q = [slice(i * d_head, (i + 1) * d_head) for i in leader_indices]
-    leader_k = [slice(d_model + i * d_head, d_model + (i + 1) * d_head) for i in leader_indices]
-    leader_v = [slice(2 * d_model + i * d_head, 2 * d_model + (i + 1) * d_head) for i in leader_indices]
+    # Pythia/GPT-NeoX uses head-interleaved QKV layout: [Q_h0, K_h0, V_h0, Q_h1, K_h1, V_h1, ...]
+    # Head h occupies rows [3h*d_head, (3h+3)*d_head) in lora_B (= output dims of QKV linear).
+    leader_q = [slice(3*i*d_head, (3*i+1)*d_head) for i in leader_indices]
+    leader_k = [slice((3*i+1)*d_head, (3*i+2)*d_head) for i in leader_indices]
+    leader_v = [slice((3*i+2)*d_head, (3*i+3)*d_head) for i in leader_indices]
+    # Dense output projection: heads concatenated in order → col h at [h*d_head, (h+1)*d_head)
     leader_o = [slice(i * d_head, (i + 1) * d_head) for i in leader_indices]
 
     _layer_prefixes = {f"layers.{dl}." for dl in design_layers}
@@ -119,23 +135,86 @@ def collect_lora_params(
     return all_params, assembly
 
 
+def collect_fullft_params(
+    model,
+    design_layers: List[int] = None,
+    d_model: int = 768,
+    n_heads: int = 12,
+    leader_indices: List[int] = None,
+) -> Tuple[List[torch.nn.Parameter], "GradAssembly"]:
+    """
+    Returns (all_trainable_params, grad_assembly) for full fine-tuning.
+
+    Classifies attention.query_key_value.weight as "qkv_weight" and
+    attention.dense.weight as "dense_weight" at the design layer(s).
+    All other parameters get kind "other".
+
+    Assumes all model parameters already have requires_grad=True.
+    """
+    if design_layers is None:
+        design_layers = [9]
+    if leader_indices is None:
+        leader_indices = [0]
+
+    d_head = d_model // n_heads
+    leader_q = [slice(3*i*d_head, (3*i+1)*d_head) for i in leader_indices]
+    leader_k = [slice((3*i+1)*d_head, (3*i+2)*d_head) for i in leader_indices]
+    leader_v = [slice((3*i+2)*d_head, (3*i+3)*d_head) for i in leader_indices]
+    leader_o = [slice(i * d_head, (i + 1) * d_head) for i in leader_indices]
+
+    _layer_prefixes = {f"layers.{dl}." for dl in design_layers}
+
+    roles: List[ParamRole] = []
+    seen_ids: set = set()
+    all_params: List[torch.nn.Parameter] = []
+
+    for name, p in model.named_parameters():
+        if not p.requires_grad:
+            continue
+        if id(p) in seen_ids:
+            continue
+        seen_ids.add(id(p))
+        all_params.append(p)
+
+        is_design = any(prefix in name for prefix in _layer_prefixes)
+        is_qkv    = "attention.query_key_value" in name and name.endswith(".weight")
+        is_dense  = "attention.dense" in name and name.endswith(".weight")
+
+        if is_design and is_qkv:
+            kind = "qkv_weight"
+        elif is_design and is_dense:
+            kind = "dense_weight"
+        else:
+            kind = "other"
+
+        roles.append(ParamRole(param=p, name=name, kind=kind))
+
+    assembly = GradAssembly(
+        roles=roles,
+        leader_q=leader_q,
+        leader_k=leader_k,
+        leader_v=leader_v,
+        leader_o=leader_o,
+    )
+    return all_params, assembly
+
+
 def mask_follower_grad(assembly: GradAssembly) -> None:
     """
     Called right after follower_loss.backward().
-    Zeros the leader slices (all leader heads) in p.grad so that the saved
-    follower gradient contains zero on all leader slices.
-    Works in-place on p.grad.
+    Zeros the leader slices in p.grad so that g_follower is zero on all leader regions.
+    Works in-place on p.grad. Compatible with both LoRA and full-FT kinds.
     """
     for role in assembly.roles:
         p = role.param
         if p.grad is None:
             continue
-        if role.kind == "qkv_lora_B":
+        if role.kind in _LEADER_ROW_KINDS:
             for lq, lk, lv in zip(assembly.leader_q, assembly.leader_k, assembly.leader_v):
                 p.grad[lq, :] = 0
                 p.grad[lk, :] = 0
                 p.grad[lv, :] = 0
-        elif role.kind == "dense_lora_A":
+        elif role.kind in _LEADER_COL_KINDS:
             for lo in assembly.leader_o:
                 p.grad[:, lo] = 0
 
@@ -143,28 +222,26 @@ def mask_follower_grad(assembly: GradAssembly) -> None:
 def mask_leader_grad(assembly: GradAssembly) -> None:
     """
     Called right after leader_loss.backward().
-    Keeps only the leader slices (all leader heads); zeros everything else.
-    Works in-place on p.grad.
+    Keeps only the leader slices; zeros everything else.
+    Works in-place on p.grad. Compatible with both LoRA and full-FT kinds.
     """
     for role in assembly.roles:
         p = role.param
         if p.grad is None:
             continue
-        if role.kind == "qkv_lora_B":
+        if role.kind in _LEADER_ROW_KINDS:
             mask = torch.zeros_like(p.grad)
             for lq, lk, lv in zip(assembly.leader_q, assembly.leader_k, assembly.leader_v):
                 mask[lq, :] = 1
                 mask[lk, :] = 1
                 mask[lv, :] = 1
             p.grad.mul_(mask)
-        elif role.kind == "dense_lora_A":
+        elif role.kind in _LEADER_COL_KINDS:
             mask = torch.zeros_like(p.grad)
             for lo in assembly.leader_o:
                 mask[:, lo] = 1
             p.grad.mul_(mask)
-        elif role.kind in ("qkv_lora_A", "dense_lora_B"):
-            p.grad.zero_()  # θ_S: g_L contribution is zero, update comes from g_F only
-        elif role.kind == "other":
+        elif role.kind in _SHARED_KINDS or role.kind == "other":
             p.grad.zero_()
 
 
@@ -179,10 +256,9 @@ def assemble_gradients(
     g_follower, g_leader : {id(p): grad_tensor} — already masked by
         mask_follower_grad / mask_leader_grad respectively.
 
-    Assembly rules:
-      qkv_lora_B, dense_lora_A : disjoint slices → g_F + g_L
-      qkv_lora_A, dense_lora_B : θ_S, g_L zeroed by mask_leader_grad → g_F
-      other                     : follower only → g_F
+    Assembly rules (LoRA and full-FT):
+      row/col-decomposable : disjoint slices → g_F + g_L
+      shared / other       : g_L zeroed by mask_leader_grad → g_F
     """
     for role in assembly.roles:
         p = role.param
@@ -197,14 +273,9 @@ def assemble_gradients(
         gf = gf if gf is not None else torch.zeros_like(p)
         gl = gl if gl is not None else torch.zeros_like(p)
 
-        if role.kind in ("qkv_lora_B", "dense_lora_A"):
-            # slices are disjoint — simple addition is correct
+        if role.kind in _ADDITIVE_KINDS:
             p.grad = gf + gl
-        elif role.kind in ("qkv_lora_A", "dense_lora_B"):
-            # θ_S: updated only with g_F (g_L is zero after mask_leader_grad)
-            p.grad = gf
         else:
-            # "other": only followers own these params
             p.grad = gf
 
 
