@@ -1,51 +1,21 @@
 """
-Experiment 2 — Stackelberg LoRA + Diversity Loss (Pythia-160M)
-==============================================================
+Experiment 5 — Stackelberg Full Fine-Tuning (Pythia-160M)
+==========================================================
 
-Principle
----------
-One attention layer (design_layer, default 9) is treated as a Stackelberg game.
-Leader head (h0) commits first by anticipating the followers' best response;
-followers (h1–11) best-respond. Both minimise cross-entropy; followers also
-penalise inter-head similarity via L_div when λ > 0.
+Optimization Process 2 : same Stackelberg K=1 algorithm as exp3, but applied
+directly to the pretrained weight matrices W_QKV and W_dense instead of LoRA
+adapters.
 
-The bilevel (K=1 Stackelberg) update per optimizer step:
+  θ_L = leader rows/cols of W_QKV and W_dense at the design layer(s)
+  θ_F = follower rows/cols of W_QKV and W_dense at the design layer(s)
+  θ_S = all other parameters (other layers, layernorms, FFN)
 
-  Phase 1 — Accumulate follower gradients
-      Forward → L_F = L_CE [+ λ·L_div] / grad_accum → backward (micro-batches)
-      mask_follower_grad() zeros the leader slices in p.grad
-      Save g_follower = {id(p): p.grad.clone()}
-
-  Phase 2 — Leader lookahead
-      θ_F' = θ_F − η_sim · clip(g_F)   (seulement θ_F : qkv_lora_B + dense_lora_A)
-      Forward at θ_F' → L_leader = L_CE → backward over all accumulated micro-batches
-      mask_leader_grad() : garde uniquement les tranches θ_L, zero tout le reste (y compris θ_S)
-      Save g_leader = {id(p): p.grad.clone()}
-
-  Phase 3 — Restore, assemble, step
-      Restore θ_F ← saved values (qkv_lora_B + dense_lora_A)
-      assemble_gradients(g_follower, g_leader) → writes final p.grad:
-        θ_L ∪ θ_F (qkv_lora_B, dense_lora_A) : g_F + g_L  (tranches disjointes)
-        θ_S (qkv_lora_A, dense_lora_B, other) : g_F        (g_L = 0 après mask)
-      clip_grad_norm → optimizer.step() — single AdamW step, single t counter.
-
-Parameter split (design layer LoRA):
-  θ_L ∪ θ_F — décomposables (même tenseur, tranches disjointes) :
-    qkv_lora_B  : lignes lq/lk/lv → θ_L ;  reste → θ_F  (lr_follower)
-    dense_lora_A : colonnes lo    → θ_L ;  reste → θ_F  (lr_leader)
-  θ_S — partagés, mis à jour uniquement par g_F :
-    qkv_lora_A   (lr_follower)
-    dense_lora_B (lr_follower)
-  θ_S — autres layers : follower only  (lr_follower)
-
-  Simplification lr : θ_L et θ_F partagent le même tenseur → même lr.
-    Tranches θ_L de qkv_lora_B → lr_follower (au lieu de lr_leader).
-    Tranches θ_F de dense_lora_A → lr_leader  (au lieu de lr_follower).
+The gradient masking and assembly logic is identical to exp3; only the
+parameter classification changes (no lora_A / lora_B).
 
 Usage:
-    python pythia160M/exp2/train_exp2.py --dry_run
-    python pythia160M/exp2/train_exp2.py --design_layer 9
-    python pythia160M/exp2/train_exp2.py --wandb_project my_project --run_name stackelberg_v2
+    python pythia160M/exp5/train_exp5.py --dry_run
+    python pythia160M/exp5/train_exp5.py --leader_idx 0 --design_layer 9
 """
 
 import os
@@ -62,15 +32,16 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-_HERE = os.path.dirname(os.path.abspath(__file__))  # pythia160M/exp2/
-_MODEL = os.path.dirname(_HERE)  # pythia160M/
-sys.path.insert(0, _HERE)   # stackelberg_losses.py local (exp2)
-sys.path.insert(1, _MODEL)  # train_utils.py, gradient_mask.py
+_HERE = os.path.dirname(os.path.abspath(__file__))   # pythia160M/exp5/
+_MODEL = os.path.dirname(_HERE)                       # pythia160M/
+sys.path.insert(0, _HERE)   # exp5/gradient_mask.py takes precedence
+sys.path.insert(1, _MODEL)  # train_utils, stackelberg_losses, eval (shared)
 
 import torch
 import numpy as np
 from tqdm import tqdm
 
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import get_cosine_schedule_with_warmup
 from torch.utils.data import DataLoader
 
@@ -83,15 +54,14 @@ from train_utils import (
     add_common_args,
     seed_everything,
     evaluate,
-    log_head_matrices,
-    build_model_and_tokenizer,
 )
 from gradient_mask import (
-    collect_lora_params,
+    collect_fullft_params,
     mask_follower_grad,
     mask_leader_grad,
     assemble_gradients,
     HiddenStateCapture,
+    GradAssembly,
 )
 from stackelberg_losses import (
     get_attention_maps, get_attention_outputs,
@@ -105,16 +75,46 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Model loading (no LoRA)
+# ---------------------------------------------------------------------------
+
+
+def _build_fullft_model(cfg: TrainConfig):
+    """Load Pythia with all parameters trainable (no LoRA adapter)."""
+    logger.info(f"Chargement de {cfg.model_name} (full fine-tuning) ...")
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model_name, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    if cfg.random_init:
+        from transformers import AutoConfig, AutoModelForCausalLM as _AMLM
+        logger.info("Initialisation ALÉATOIRE des poids (pas de préentraînement)")
+        config = AutoConfig.from_pretrained(cfg.model_name, trust_remote_code=True)
+        model = _AMLM.from_config(config)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            cfg.model_name, torch_dtype=torch.float32, trust_remote_code=True,
+        )
+
+    for p in model.parameters():
+        p.requires_grad_(True)
+
+    n_params = sum(p.numel() for p in model.parameters())
+    logger.info(f"  Paramètres totaux (tous trainable) : {n_params:,}")
+    return model, tokenizer
+
+
+# ---------------------------------------------------------------------------
 # Eval helpers — attention heatmaps (no grad)
 # ---------------------------------------------------------------------------
 
 
 @torch.no_grad()
-def _compute_attn0_heatmap(
+def _compute_leader_heatmaps(
     model, fixed_ids, qkv_module, d_head, rotary_emb, rotary_ndims,
-    input_layernorm, capture, leader_idx, device,
+    input_layernorm, capture, leader_indices, device,
 ):
-    """A_leader heatmap on a fixed validation batch (first example only)."""
+    """Return {k: A_k heatmap (L, L)} for each leader head k."""
     model.eval()
     model(input_ids=fixed_ids)
     hidden = capture.get()
@@ -124,25 +124,53 @@ def _compute_attn0_heatmap(
         input_layernorm=input_layernorm,
     )
     model.train()
-    return A[0, leader_idx].cpu().float()  # (L, L) — first batch element
+    return {k: A[0, k].cpu().float() for k in leader_indices}
+
+
+@torch.no_grad()
+def _compute_confidence_all_heads(
+    model, val_loader, qkv_module, d_head, rotary_emb, rotary_ndims,
+    input_layernorm, capture, device, conf_loss_type, n_batches=20,
+) -> torch.Tensor:
+    """Returns (12,) confidence scores for all heads. Higher = more concentrated."""
+    model.eval()
+    scores = torch.zeros(12)
+    count = 0
+    for batch in val_loader:
+        if count >= n_batches:
+            break
+        input_ids = batch["input_ids"].to(device)
+        model(input_ids=input_ids)
+        hidden = capture.get()
+        if hidden is None:
+            continue
+        A = get_attention_maps(
+            hidden, qkv_module, n_heads=12, d_head=d_head,
+            rotary_emb=rotary_emb, rotary_ndims=rotary_ndims,
+            input_layernorm=input_layernorm,
+        )
+        if conf_loss_type == "max":
+            per_head = A.max(dim=-1).values.mean(dim=(0, 2))
+        elif conf_loss_type == "smooth":
+            per_head = (A ** 2).sum(dim=-1).mean(dim=(0, 2))
+        else:  # entropy
+            per_head = -entropy_heads(A)
+        scores += per_head.cpu().float()
+        count += 1
+    model.train()
+    return scores / max(1, count)
 
 
 @torch.no_grad()
 def _compute_val_head_metrics(
     model, val_loader, qkv_module, d_head, rotary_emb, rotary_ndims,
-    input_layernorm, capture, leader_idx, device, n_batches=20,
+    input_layernorm, capture, leader_indices, device, n_batches=20,
 ):
-    """
-    Un seul passage sur val_loader — retourne :
-      S          : (12, 12)  matrice de similarité cosinus S^A
-      conf_max   : float     mean max_l' A_leader[b,l,l']
-      conf_l2    : float     mean ||A_leader[b,l,:]||^2
-      h_entropy  : float     entropie de la tête leader
-    """
     model.eval()
     S_accum = torch.zeros(12, 12)
     conf_max_sum = conf_l2_sum = entropy_sum = 0.0
     count = 0
+    li_t = torch.tensor(leader_indices)
     for batch in val_loader:
         if count >= n_batches:
             break
@@ -160,10 +188,10 @@ def _compute_val_head_metrics(
         A_flat = A.view(B, H, L * L)
         A_norm = A_flat / A_flat.norm(dim=-1, keepdim=True).clamp(min=1e-8)
         S_accum += torch.bmm(A_norm, A_norm.transpose(1, 2)).mean(0).cpu().float()
-        A_leader = A[:, leader_idx, :, :]  # (B, L, L)
-        conf_max_sum += A_leader.max(dim=-1).values.mean().item()
-        conf_l2_sum += (A_leader ** 2).sum(dim=-1).mean().item()
-        entropy_sum += entropy_heads(A)[leader_idx].item()
+        A_leaders = A[:, li_t, :, :]
+        conf_max_sum += A_leaders.max(dim=-1).values.mean().item()
+        conf_l2_sum += (A_leaders ** 2).sum(dim=-1).mean().item()
+        entropy_sum += entropy_heads(A)[li_t].mean().item()
         count += 1
     model.train()
     n = max(1, count)
@@ -176,8 +204,8 @@ def _compute_val_head_metrics(
 
 
 _CONF_LOSS_FN = {
-    "max":    leader_confidence_loss,
-    "smooth": leader_confidence_loss_smooth,
+    "max":     leader_confidence_loss,
+    "smooth":  leader_confidence_loss_smooth,
     "entropy": minus_entropy_head,
 }
 
@@ -191,20 +219,36 @@ _DIV_LOSS_FN = {
 def train_stackelberg(
     cfg: TrainConfig,
     design_layers: list = None,
-    lr_leader: float = 1e-4,
-    lr_follower: float = 3e-4,
-    lr_sim: float = 1e-3,
+    lr_leader: float = 1e-5,
+    lr_follower: float = 1e-5,
+    lr_sim: float = 1e-4,
     lambda_lead: float = 0.0,
     lambda_peer: float = 0.0,
     lambda_conf: float = 0.0,
     lambda_rank: float = 0.0,
-    leader_idx: int = 0,
+    leader_indices: list = None,
     conf_loss_type: str = "max",
     div_loss_type: str = "cos",
     keep_wandb_open: bool = False,
+    dynamic_leaders: bool = False,
 ):
     if design_layers is None:
         design_layers = [9]
+    if leader_indices is None:
+        leader_indices = [0]
+
+    if dynamic_leaders and len(design_layers) > 1:
+        logger.warning(
+            "--dynamic_leaders with multiple design_layers: "
+            "confidence scores are averaged over all layers."
+        )
+    if dynamic_leaders and len(leader_indices) != 2:
+        logger.warning(
+            f"--dynamic_leaders requiert exactement 2 leaders initiaux "
+            f"(reçu {leader_indices}). On utilise [0, 1] par défaut."
+        )
+        leader_indices = [0, 1]
+
     seed_everything(cfg.seed)
 
     device = get_device()
@@ -231,12 +275,15 @@ def train_stackelberg(
                 "conf_loss_type": conf_loss_type,
                 "div_loss_type": div_loss_type,
                 "design_layers": design_layers,
-                "leader_idx": leader_idx,
+                "leader_indices": leader_indices,
+                "n_leaders": len(leader_indices),
+                "dynamic_leaders": dynamic_leaders,
+                "optimization_process": 2,
             },
         )
 
-    # ── Model (float32, SDPA) ──
-    model, tokenizer = build_model_and_tokenizer(cfg)
+    # ── Model (full FT, no LoRA) ──
+    model, tokenizer = _build_fullft_model(cfg)
     model = model.to(device)
     if device.type == "cuda":
         logger.info(
@@ -249,63 +296,59 @@ def train_stackelberg(
         100 * cfg.seq_len * cfg.effective_batch_size if cfg.dry_run else None
     )
     train_ds = WikiTextDataset(
-        tokenizer,
-        cfg.seq_len,
-        split="train",
-        dataset_name=cfg.dataset_name,
-        dataset_config=cfg.dataset_config,
+        tokenizer, cfg.seq_len, split="train",
+        dataset_name=cfg.dataset_name, dataset_config=cfg.dataset_config,
         max_tokens=max_train_tokens,
     )
     val_ds = WikiTextDataset(
-        tokenizer,
-        cfg.seq_len,
-        split="validation",
-        dataset_name=cfg.dataset_name,
-        dataset_config=cfg.dataset_config,
+        tokenizer, cfg.seq_len, split="validation",
+        dataset_name=cfg.dataset_name, dataset_config=cfg.dataset_config,
     )
     g = make_generator(cfg.seed)
     train_loader = DataLoader(
-        train_ds,
-        batch_size=cfg.batch_size_per_gpu,
-        shuffle=True,
-        num_workers=cfg.num_workers,
-        pin_memory=torch.cuda.is_available(),
-        drop_last=True,
-        generator=g,
-        persistent_workers=(cfg.num_workers > 0),
+        train_ds, batch_size=cfg.batch_size_per_gpu, shuffle=True,
+        num_workers=cfg.num_workers, pin_memory=torch.cuda.is_available(),
+        drop_last=True, generator=g, persistent_workers=(cfg.num_workers > 0),
     )
     val_loader = DataLoader(
-        val_ds,
-        batch_size=cfg.batch_size_per_gpu,
-        shuffle=False,
-        num_workers=cfg.num_workers,
-        pin_memory=torch.cuda.is_available(),
-        drop_last=False,
-        persistent_workers=(cfg.num_workers > 0),
+        val_ds, batch_size=cfg.batch_size_per_gpu, shuffle=False,
+        num_workers=cfg.num_workers, pin_memory=torch.cuda.is_available(),
+        drop_last=False, persistent_workers=(cfg.num_workers > 0),
     )
     total_steps = 100 if cfg.dry_run else cfg.total_steps
 
-    # ── Single optimizer over all trainable params ──
-    all_params, grad_assembly = collect_lora_params(
+    # ── Param collection (full FT) ──
+    all_params, grad_assembly = collect_fullft_params(
         model,
         design_layers=design_layers,
         d_model=768,
         n_heads=12,
-        leader_idx=leader_idx,
+        leader_indices=leader_indices,
     )
 
-    # θ_L ∪ θ_F : tranches décomposables (qkv_lora_B + dense_lora_A), même tenseur
+    # Slices stables pour rebuild lors du changement de leaders
+    _d_head = 768 // 12
+    _head_slices = {
+        h: {
+            "q": slice(h * _d_head, (h + 1) * _d_head),
+            "k": slice(768 + h * _d_head, 768 + (h + 1) * _d_head),
+            "v": slice(2 * 768 + h * _d_head, 2 * 768 + (h + 1) * _d_head),
+            "o": slice(h * _d_head, (h + 1) * _d_head),
+        }
+        for h in range(12)
+    }
+    _assembly_roles = grad_assembly.roles
+
     n_design_params = sum(
         p.numel()
         for r in grad_assembly.roles
-        if r.kind in ("qkv_lora_B", "dense_lora_A")
+        if r.kind in ("qkv_weight", "dense_weight")
         for p in [r.param]
     )
-    # θ_S : partagés (qkv_lora_A + dense_lora_B) + autres layers
     n_shared_params = sum(
         p.numel()
         for r in grad_assembly.roles
-        if r.kind in ("qkv_lora_A", "dense_lora_B", "other")
+        if r.kind == "other"
         for p in [r.param]
     )
     logger.info(f"Total trainable params : {sum(p.numel() for p in all_params):,}")
@@ -314,48 +357,39 @@ def train_stackelberg(
         f"  |  Effective batch : {cfg.effective_batch_size}"
     )
     logger.info(
-        f"Design layers          : {design_layers}  |  Leader head idx : {leader_idx}"
+        f"Design layers          : {design_layers}  |  Leader heads : {leader_indices}"
     )
     logger.info(
-        f"Design params (θ_L∪θ_F) : {n_design_params:,}  |  Shared+other (θ_S) : {n_shared_params:,}"
+        f"Design params (θ_L∪θ_F) : {n_design_params:,}  |  Shared (θ_S) : {n_shared_params:,}"
     )
-    # lr_follower is the reference lr; leader uses lr_leader.
-    # Since there is a single optimizer we use lr_follower as base and apply
-    # a per-param-group lr_leader for the leader-only parameters.
-    # We split into two param groups for lr scheduling but share Adam state.
-    leader_param_ids = {
-        id(r.param) for r in grad_assembly.roles if r.kind == "dense_lora_A"
+
+    # 2 param groups: design layer W_QKV+W_dense vs all others
+    design_param_ids = {
+        id(r.param) for r in grad_assembly.roles if r.kind in ("qkv_weight", "dense_weight")
     }
-    # dense_lora_A (θ_L ∩ dense) → lr_leader ; everything else (θ_F, θ_S) → lr_follower.
-    # Simplification acceptée : tranches θ_F de dense_lora_A utilisent lr_leader
-    # et tranches θ_L de qkv_lora_B utilisent lr_follower (même tenseur, même lr).
     param_groups = [
         {
-            "params": [p for p in all_params if id(p) not in leader_param_ids],
+            "params": [p for p in all_params if id(p) not in design_param_ids],
             "lr": lr_follower,
-            "name": "follower_and_shared",
+            "name": "shared",
         },
         {
-            "params": [p for p in all_params if id(p) in leader_param_ids],
+            "params": [p for p in all_params if id(p) in design_param_ids],
             "lr": lr_leader,
-            "name": "leader",
+            "name": "design",
         },
     ]
 
     optimizer = torch.optim.AdamW(
-        param_groups,
-        betas=cfg.betas,
-        weight_decay=cfg.weight_decay,
+        param_groups, betas=cfg.betas, weight_decay=cfg.weight_decay,
     )
     scheduler = get_cosine_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=cfg.warmup_steps,
-        num_training_steps=total_steps,
+        optimizer, num_warmup_steps=cfg.warmup_steps, num_training_steps=total_steps,
     )
 
     # ── Diversity / confidence hook ──
     need_div = lambda_lead > 0 or lambda_peer > 0 or lambda_rank > 0
-    need_hook = need_div or lambda_conf > 0
+    need_hook = need_div or lambda_conf > 0 or dynamic_leaders
     d_head = 768 // 12  # 64
     if need_hook:
         gpt_neox_module = next(
@@ -402,22 +436,24 @@ def train_stackelberg(
     os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
 
-    # Batch fixe pour la heatmap A_0 (même input à chaque eval)
     _fixed_batch = next(iter(val_loader))
     fixed_ids = _fixed_batch["input_ids"][:1].to(device)
 
     history = {
         "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "conf": []},
         "val": {"step": [], "loss": [], "ppl": []},
+        "leaders": {"step": [], "indices": [], "conf_scores": []},
     }
+    if dynamic_leaders:
+        history["leaders"]["step"].append(0)
+        history["leaders"]["indices"].append(list(leader_indices))
+        history["leaders"]["conf_scores"].append([0.0] * 12)
     _ema_ce = None
     _ema_alpha = 0.05
 
     # ── Eval initiale ──
     logger.info("Eval initiale ...")
-    v_loss, v_ppl = evaluate(
-        model, val_loader, device, max_batches=cfg.eval_max_batches
-    )
+    v_loss, v_ppl = evaluate(model, val_loader, device, max_batches=cfg.eval_max_batches)
     history["val"]["step"].append(0)
     history["val"]["loss"].append(v_loss)
     history["val"]["ppl"].append(v_ppl)
@@ -435,7 +471,7 @@ def train_stackelberg(
 
     _step_start = time.perf_counter()
     pbar = tqdm(
-        total=total_steps, desc="Stackelberg Training (Pythia-160M)", unit="step",
+        total=total_steps, desc="Stackelberg Full FT (Pythia-160M exp5)", unit="step",
         disable=not sys.stderr.isatty(),
     )
 
@@ -451,8 +487,7 @@ def train_stackelberg(
             accum_labels.append(labels)
 
             # ==================================================================
-            # Phase 1: Follower forward — accumulate follower gradients
-            # L_F = L_CE  [+ L_div if λ > 0]  scaled by 1/grad_accum
+            # Phase 1: Follower forward
             # ==================================================================
             with torch.autocast(
                 device_type=device.type if device.type != "mps" else "cpu",
@@ -467,35 +502,25 @@ def train_stackelberg(
                 for dl in design_layers:
                     ctx = _layer_ctx[dl]
                     hidden = ctx["capture"].get()
-                    if div_loss_type in ("erank", "output_cos", "cka", "cos_output_cos"):
-                        A, Z = get_attention_outputs(
+                    if div_loss_type in ("erank", "output_cos", "cka"):
+                        _A_unused, Z = get_attention_outputs(
                             hidden, ctx["qkv_module"], n_heads=12, d_head=d_head,
                             rotary_emb=rotary_emb, rotary_ndims=ctx["rotary_ndims"],
                             input_layernorm=ctx["input_layernorm"],
                         )
                         if div_loss_type == "erank":
                             _div_losses.append(follower_erank_loss(
-                                Z, n_heads=12, leader_idx=leader_idx, lambda_rank=lambda_rank,
+                                Z, n_heads=12, leader_indices=leader_indices,
+                                lambda_rank=lambda_rank,
                             ))
                         elif div_loss_type == "cka":
                             _div_losses.append(follower_diversity_loss_cka(
-                                Z, n_heads=12, leader_idx=leader_idx,
+                                Z, n_heads=12, leader_indices=leader_indices,
                                 lambda_lead=lambda_lead, lambda_peer=lambda_peer,
                             ))
-                        elif div_loss_type == "cos_output_cos":
-                            _div_losses.append(
-                                follower_diversity_loss(
-                                    A, n_heads=12, leader_idx=leader_idx,
-                                    lambda_lead=lambda_lead, lambda_peer=lambda_peer,
-                                )
-                                + follower_output_diversity_loss(
-                                    Z, n_heads=12, leader_idx=leader_idx,
-                                    lambda_lead=lambda_lead, lambda_peer=lambda_peer,
-                                )
-                            )
                         else:
                             _div_losses.append(follower_output_diversity_loss(
-                                Z, n_heads=12, leader_idx=leader_idx,
+                                Z, n_heads=12, leader_indices=leader_indices,
                                 lambda_lead=lambda_lead, lambda_peer=lambda_peer,
                             ))
                     else:
@@ -505,7 +530,7 @@ def train_stackelberg(
                             input_layernorm=ctx["input_layernorm"],
                         )
                         _div_losses.append(_div_loss_fn(
-                            A, n_heads=12, leader_idx=leader_idx,
+                            A, n_heads=12, leader_indices=leader_indices,
                             lambda_lead=lambda_lead, lambda_peer=lambda_peer,
                         ))
                 div_loss = torch.stack(_div_losses).mean()
@@ -530,11 +555,9 @@ def train_stackelberg(
             if (global_step + 1) % cfg.grad_accum == 0:
                 opt_step = (global_step + 1) // cfg.grad_accum
 
-                # Mask leader slice out of follower gradients
                 with torch.no_grad():
                     mask_follower_grad(grad_assembly)
 
-                # Save masked follower gradients
                 g_follower = {
                     id(r.param): r.param.grad.clone()
                     if r.param.grad is not None
@@ -544,29 +567,25 @@ def train_stackelberg(
 
                 # ==============================================================
                 # Phase 2: Leader lookahead
-                # θ_F' = θ_F − η_sim · ĝ_F  (clipped vanilla SGD)
                 # ==============================================================
-
-                # Clip before simulated step to match Phase 3 clipping
                 sim_gnorm = torch.norm(
-                    torch.stack(
-                        [g.norm() for g in g_follower.values() if g.numel() > 0]
-                    )
+                    torch.stack([g.norm() for g in g_follower.values() if g.numel() > 0])
                 )
                 sim_clip = min(1.0, cfg.grad_clip / (sim_gnorm.item() + 1e-8))
 
+                # Design roles: W_QKV and W_dense of design layers
                 design_roles = [
-                    r
-                    for r in grad_assembly.roles
-                    if r.kind in ("qkv_lora_B", "dense_lora_A")
+                    r for r in grad_assembly.roles
+                    if r.kind in ("qkv_weight", "dense_weight")
                 ]
                 saved_data = {id(r.param): r.param.data.clone() for r in design_roles}
                 with torch.no_grad():
                     for r in design_roles:
                         gf = g_follower[id(r.param)]
+                        # gf has leader slices zeroed by mask_follower_grad
+                        # → sim step only moves follower slices
                         r.param.data.sub_(lr_sim * gf * sim_clip)
 
-                # Leader forward over all accumulated micro-batches
                 optimizer.zero_grad()
                 for inp, lab in zip(accum_inputs, accum_labels):
                     with torch.autocast(
@@ -585,17 +604,15 @@ def train_stackelberg(
                                 hidden_leader, ctx["qkv_module"], 12, d_head,
                                 rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
                             )
-                            _conf_losses.append(_conf_loss_fn(A_leader, leader_idx))
+                            _conf_losses.append(_conf_loss_fn(A_leader, leader_indices))
                         conf_raw = lambda_conf * torch.stack(_conf_losses).mean()
                         leader_ce_mb = leader_ce_mb + conf_raw / cfg.grad_accum
                         accum_conf += conf_raw.detach().item()
                     leader_ce_mb.backward()
 
-                # Mask: keep only leader slices, zero "other" params
                 with torch.no_grad():
                     mask_leader_grad(grad_assembly)
 
-                # Save masked leader gradients
                 g_leader = {
                     id(r.param): r.param.grad.clone()
                     if r.param.grad is not None
@@ -604,13 +621,12 @@ def train_stackelberg(
                 }
 
                 # ==============================================================
-                # Phase 3: Restore followers, assemble final gradient, single step
+                # Phase 3: Restore, assemble, step
                 # ==============================================================
                 with torch.no_grad():
                     for r in design_roles:
                         r.param.data.copy_(saved_data[id(r.param)])
 
-                # Write assembled gradient into p.grad
                 with torch.no_grad():
                     assemble_gradients(grad_assembly, g_follower, g_leader)
 
@@ -619,10 +635,8 @@ def train_stackelberg(
                 scheduler.step()
                 optimizer.zero_grad()
 
-                # EMA
                 _ema_ce = (
-                    accum_ce
-                    if _ema_ce is None
+                    accum_ce if _ema_ce is None
                     else _ema_alpha * accum_ce + (1 - _ema_alpha) * _ema_ce
                 )
 
@@ -632,10 +646,8 @@ def train_stackelberg(
 
                 pbar.update(1)
                 pbar.set_postfix(
-                    ce=f"{accum_ce:.4f}",
-                    ema=f"{_ema_ce:.4f}",
-                    div=f"{accum_div:.4f}",
-                    conf=f"{accum_conf:.4f}",
+                    ce=f"{accum_ce:.4f}", ema=f"{_ema_ce:.4f}",
+                    div=f"{accum_div:.4f}", conf=f"{accum_conf:.4f}",
                     tok_s=f"{tokens_per_sec:,}",
                 )
 
@@ -644,8 +656,7 @@ def train_stackelberg(
                     lr_f = scheduler.get_last_lr()[0]
                     lr_l = (
                         scheduler.get_last_lr()[1]
-                        if len(scheduler.get_last_lr()) > 1
-                        else lr_f
+                        if len(scheduler.get_last_lr()) > 1 else lr_f
                     )
                     logger.info(
                         f"[train] step {opt_step:>6d}/{total_steps}"
@@ -663,9 +674,7 @@ def train_stackelberg(
                                 "train/conf_loss": accum_conf,
                                 "train/lr_leader": lr_l,
                                 "train/lr_follower": lr_f,
-                                "train/tokens": opt_step
-                                * cfg.seq_len
-                                * cfg.effective_batch_size,
+                                "train/tokens": opt_step * cfg.seq_len * cfg.effective_batch_size,
                             },
                             step=opt_step,
                         )
@@ -678,16 +687,12 @@ def train_stackelberg(
                 # ── Eval périodique ──
                 if opt_step % cfg.eval_every == 0:
                     v_loss, v_ppl = evaluate(
-                        model,
-                        val_loader,
-                        device,
-                        max_batches=cfg.eval_max_batches,
+                        model, val_loader, device, max_batches=cfg.eval_max_batches,
                         autocast_dtype=torch.bfloat16,
                     )
                     logger.info(
                         f"[val]   step {opt_step:>6d}  val_loss={v_loss:.4f}  val_ppl={v_ppl:.3f}"
                     )
-                    # log_head_matrices désactivé
                     if use_wandb:
                         log_dict = {"val/loss": v_loss, "val/ppl": v_ppl}
                         if need_hook:
@@ -696,29 +701,30 @@ def train_stackelberg(
                             S_sum = torch.zeros(12, 12)
                             for dl in design_layers:
                                 ctx = _layer_ctx[dl]
-                                A0 = _compute_attn0_heatmap(
+                                heatmaps = _compute_leader_heatmaps(
                                     model, fixed_ids, ctx["qkv_module"], d_head,
                                     rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
-                                    ctx["capture"], leader_idx, device,
+                                    ctx["capture"], leader_indices, device,
                                 )
-                                fig, ax = plt.subplots(figsize=(7, 6))
-                                A0_np = A0.numpy()
-                                _vmax = float(np.percentile(A0_np, 99.5))
-                                _vmin = max(float(A0_np.min()), _vmax * 1e-4)
-                                im = ax.imshow(
-                                    A0_np.clip(_vmin, None),
-                                    cmap="inferno", aspect="auto",
-                                    norm=LogNorm(vmin=_vmin, vmax=_vmax),
-                                )
-                                plt.colorbar(im, ax=ax, label="attention weight (log)")
-                                ax.set_title(f"A_leader (head {leader_idx}, layer {dl}, step {opt_step})")
-                                log_dict[f"eval/A0_heatmap_layer{dl}"] = wandb.Image(fig)
-                                plt.close(fig)
+                                for rank, (k, A0) in enumerate(heatmaps.items()):
+                                    fig, ax = plt.subplots(figsize=(7, 6))
+                                    A0_np = A0.numpy()
+                                    _vmax = float(np.percentile(A0_np, 99.5))
+                                    _vmin = max(float(A0_np.min()), _vmax * 1e-4)
+                                    im = ax.imshow(
+                                        A0_np.clip(_vmin, None),
+                                        cmap="inferno", aspect="auto",
+                                        norm=LogNorm(vmin=_vmin, vmax=_vmax),
+                                    )
+                                    plt.colorbar(im, ax=ax, label="attention weight (log)")
+                                    ax.set_title(f"A_leader_{rank} (head {k}, layer {dl}, step {opt_step})")
+                                    log_dict[f"eval/A_leader_{rank}_layer{dl}_heatmap"] = wandb.Image(fig)
+                                    plt.close(fig)
 
                                 S, conf_max, conf_l2, h_entropy = _compute_val_head_metrics(
                                     model, val_loader, ctx["qkv_module"], d_head,
                                     rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
-                                    ctx["capture"], leader_idx, device,
+                                    ctx["capture"], leader_indices, device,
                                 )
                                 S_sum += S
                                 _conf_max_vals.append(conf_max)
@@ -731,8 +737,10 @@ def train_stackelberg(
                             _off = S_np[~np.eye(S_np.shape[0], dtype=bool)]
                             _vext = max(abs(float(np.percentile(_off, 1))),
                                         abs(float(np.percentile(_off, 99))), 0.05)
-                            im = ax.imshow(S_np, cmap="RdBu_r", vmin=-_vext, vmax=_vext, aspect="auto")
-                            plt.colorbar(im, ax=ax, label="cosine similarity (diag saturated)")
+                            im = ax.imshow(
+                                S_np, cmap="RdBu_r", vmin=-_vext, vmax=_vext, aspect="auto",
+                            )
+                            plt.colorbar(im, ax=ax, label="cosine similarity")
                             ax.set_title(f"S^A cosine similarity (step {opt_step})")
                             ax.set_xlabel("head j")
                             ax.set_ylabel("head i")
@@ -745,6 +753,81 @@ def train_stackelberg(
                     history["val"]["step"].append(opt_step)
                     history["val"]["loss"].append(v_loss)
                     history["val"]["ppl"].append(v_ppl)
+
+                    # ── Sélection dynamique des leaders ──
+                    if dynamic_leaders:
+                        _scores_per_layer = []
+                        for dl in design_layers:
+                            ctx = _layer_ctx[dl]
+                            _scores_per_layer.append(_compute_confidence_all_heads(
+                                model, val_loader, ctx["qkv_module"], d_head,
+                                rotary_emb, ctx["rotary_ndims"], ctx["input_layernorm"],
+                                ctx["capture"], device, conf_loss_type,
+                                n_batches=cfg.eval_max_batches,
+                            ))
+                        conf_per_head = torch.stack(_scores_per_layer).mean(0)
+                        new_leader_indices = sorted(
+                            torch.topk(conf_per_head, 2).indices.tolist()
+                        )
+                        if set(new_leader_indices) != set(leader_indices):
+                            logger.info(
+                                f"[leaders] step {opt_step}: "
+                                f"{leader_indices} → {new_leader_indices}"
+                            )
+                        else:
+                            logger.info(
+                                f"[leaders] step {opt_step}: "
+                                f"leaders inchangés {leader_indices}"
+                            )
+                        leader_indices = new_leader_indices
+                        grad_assembly = GradAssembly(
+                            roles=_assembly_roles,
+                            leader_q=[_head_slices[h]["q"] for h in leader_indices],
+                            leader_k=[_head_slices[h]["k"] for h in leader_indices],
+                            leader_v=[_head_slices[h]["v"] for h in leader_indices],
+                            leader_o=[_head_slices[h]["o"] for h in leader_indices],
+                        )
+                        history["leaders"]["step"].append(opt_step)
+                        history["leaders"]["indices"].append(leader_indices)
+                        history["leaders"]["conf_scores"].append(conf_per_head.tolist())
+                        if use_wandb:
+                            leader_log = {}
+                            leader_log["leader/leader_0"] = leader_indices[0]
+                            leader_log["leader/leader_1"] = leader_indices[1]
+                            steps_c = history["leaders"]["step"][1:]
+                            conf_c = history["leaders"]["conf_scores"][1:]
+                            if steps_c:
+                                fig_c, ax_c = plt.subplots(figsize=(10, 4))
+                                _cmap = plt.get_cmap("tab20", 12)
+                                for _h in range(12):
+                                    _ys = [conf_c[_i][_h] for _i in range(len(conf_c))]
+                                    ax_c.plot(steps_c, _ys, color=_cmap(_h), linewidth=1.5, label=f"head {_h}")
+                                ax_c.set_xlabel("optimizer step")
+                                ax_c.set_ylabel("confidence score")
+                                ax_c.set_title(f"Confidence scores — all heads (step {opt_step})")
+                                ax_c.legend(loc="upper right", ncol=3, fontsize=8)
+                                ax_c.grid(True, alpha=0.2)
+                                fig_c.tight_layout()
+                                leader_log["leader/conf_scores_all"] = wandb.Image(fig_c)
+                                plt.close(fig_c)
+                            steps_h = history["leaders"]["step"]
+                            indices_h = history["leaders"]["indices"]
+                            _xs = list(steps_h) + [total_steps]
+                            _y0 = [idx[0] for idx in indices_h] + [indices_h[-1][0]]
+                            _y1 = [idx[1] for idx in indices_h] + [indices_h[-1][1]]
+                            fig_l, ax_l = plt.subplots(figsize=(10, 3))
+                            ax_l.step(_xs, _y0, where="post", color="#4FC3F7", linewidth=2, label="leader_0")
+                            ax_l.step(_xs, _y1, where="post", color="#F48FB1", linewidth=2, label="leader_1")
+                            ax_l.set_xlabel("optimizer step")
+                            ax_l.set_ylabel("head index")
+                            ax_l.set_yticks(range(12))
+                            ax_l.set_title(f"Dynamic leaders — step {opt_step}")
+                            ax_l.legend(loc="upper right")
+                            ax_l.grid(True, alpha=0.2, axis="y")
+                            fig_l.tight_layout()
+                            leader_log["leader/leader_history"] = wandb.Image(fig_l)
+                            plt.close(fig_l)
+                            wandb.log(leader_log, step=opt_step)
 
                 # ── JSON ──
                 if (
@@ -786,9 +869,7 @@ def train_stackelberg(
 
     # ── Eval finale ──
     logger.info("Eval finale ...")
-    v_loss, v_ppl = evaluate(
-        model, val_loader, device, max_batches=cfg.eval_max_batches
-    )
+    v_loss, v_ppl = evaluate(model, val_loader, device, max_batches=cfg.eval_max_batches)
     history["val"]["step"].append(opt_step)
     history["val"]["loss"].append(v_loss)
     history["val"]["ppl"].append(v_ppl)
@@ -802,43 +883,24 @@ def train_stackelberg(
     tokenizer.save_pretrained(final_path)
     logger.info(f"Modèle final sauvegardé → {final_path}")
 
+    os.makedirs(logs_dir, exist_ok=True)
     with open(os.path.join(logs_dir, "history.json"), "w") as _f:
         json.dump(history, _f, indent=2)
 
     # ── Plots ──
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(
-        history["train"]["step"],
-        history["train"]["ce"],
-        alpha=0.25,
-        color="darkorange",
-        label="CE (raw)",
-    )
-    ax.plot(
-        history["train"]["step"],
-        history["train"]["ce_ema"],
-        color="darkorange",
-        label="CE (EMA)",
-    )
+    ax.plot(history["train"]["step"], history["train"]["ce"],
+            alpha=0.25, color="darkorange", label="CE (raw)")
+    ax.plot(history["train"]["step"], history["train"]["ce_ema"],
+            color="darkorange", label="CE (EMA)")
     if any(v > 0 for v in history["train"]["div"]):
-        ax.plot(
-            history["train"]["step"],
-            history["train"]["div"],
-            color="green",
-            alpha=0.6,
-            label="diversity loss",
-        )
-    ax.plot(
-        history["val"]["step"],
-        history["val"]["loss"],
-        color="steelblue",
-        marker="o",
-        markersize=4,
-        label="val loss",
-    )
+        ax.plot(history["train"]["step"], history["train"]["div"],
+                color="green", alpha=0.6, label="diversity loss")
+    ax.plot(history["val"]["step"], history["val"]["loss"],
+            color="steelblue", marker="o", markersize=4, label="val loss")
     ax.set_xlabel("optimizer step")
     ax.set_ylabel("Loss")
-    ax.set_title("Training — Pythia-160M Stackelberg exp2")
+    ax.set_title(f"Training — Pythia-160M Stackelberg exp5 Full FT (leaders={leader_indices})")
     ax.legend(loc="upper right")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -846,16 +908,11 @@ def train_stackelberg(
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(
-        history["val"]["step"],
-        history["val"]["ppl"],
-        color="steelblue",
-        marker="o",
-        markersize=4,
-    )
+    ax.plot(history["val"]["step"], history["val"]["ppl"],
+            color="steelblue", marker="o", markersize=4)
     ax.set_xlabel("optimizer step")
     ax.set_ylabel("Validation perplexity")
-    ax.set_title("Validation perplexity — WikiText-103 (Stackelberg exp2)")
+    ax.set_title("Validation perplexity — WikiText-103 (Stackelberg exp5 Full FT)")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(os.path.join(plots_dir, "val_ppl.png"), dpi=150)
@@ -876,76 +933,59 @@ def train_stackelberg(
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Stackelberg Attention Diversity Training — Pythia-160M exp2"
+        description="Stackelberg Full Fine-Tuning — Pythia-160M exp5"
     )
     parser = add_common_args(parser)
     parser.add_argument("--output_dir", default=os.path.join(_HERE, "checkpoints"))
-    parser.add_argument("--run_name", default="stackelberg_exp2_pythia")
+    parser.add_argument("--run_name", default="stackelberg_exp5_pythia")
     parser.add_argument(
-        "--design_layer",
-        nargs="+",
-        type=int,
-        default=[9],
-        help="Design layer(s) for the Stackelberg game. Ex: --design_layer 9  or  --design_layer 6 7 8 9",
+        "--design_layer", nargs="+", type=int, default=[9],
+        help="Design layer(s) for the Stackelberg game.",
     )
-    parser.add_argument("--lr_leader", type=float, default=1e-4)
-    parser.add_argument("--lr_follower", type=float, default=3e-4)
+    parser.add_argument("--lr_leader", type=float, default=1e-5)
+    parser.add_argument("--lr_follower", type=float, default=1e-5)
     parser.add_argument(
-        "--lr_sim",
-        type=float,
-        default=1e-3,
+        "--lr_sim", type=float, default=1e-4,
         help="LR for simulated follower step (vanilla SGD, no momentum)",
     )
     parser.add_argument(
-        "--lambda_lead",
-        type=float,
-        default=0.0,
-        help="Penalty weight for leader-follower similarity (0 = CE only)",
+        "--lambda_lead", type=float, default=0.0,
+        help="Penalty per leader-follower pair (0 = CE only)",
     )
     parser.add_argument(
-        "--lambda_peer",
-        type=float,
-        default=0.0,
-        help="Penalty weight for peer-follower similarity (0 = CE only)",
+        "--lambda_peer", type=float, default=0.0,
+        help="Penalty per follower-follower pair (0 = CE only)",
     )
     parser.add_argument(
-        "--lambda_conf",
-        type=float,
-        default=0.0,
-        help="Penalty weight for leader confidence loss (0 = désactivé)",
+        "--lambda_conf", type=float, default=0.0,
+        help="Confidence penalty averaged over leader heads (0 = disabled)",
     )
     parser.add_argument(
-        "--lambda_rank",
-        type=float,
-        default=0.0,
-        help="Coefficient pour la loss de rang effectif des followers (utilisé si --div_loss_type erank)",
+        "--lambda_rank", type=float, default=0.0,
+        help="Effective rank coefficient for followers (used with --div_loss_type erank)",
     )
     parser.add_argument(
-        "--leader_idx", type=int, default=0, help="Index of the leader head"
+        "--leader_idx", nargs="+", type=int, default=[0],
+        help="Indices of leader heads (others are followers).",
     )
     parser.add_argument(
         "--conf_loss_type", choices=["max", "smooth", "entropy"], default="max",
-        help="Confidence loss variant: max=leader_confidence_loss, smooth=leader_confidence_loss_smooth, entropy=minus_entropy_head",
     )
     parser.add_argument(
-        "--div_loss_type", choices=["cos", "cos_sq", "hadamard", "erank", "output_cos", "cka", "cos_output_cos"], default="cos",
-        help=(
-            "Diversity loss variant: "
-            "cos=cosine similarity sur A_i (Exp2_1–4), "
-            "cos_sq=squared cosine similarity sur A_i (Exp2_5), "
-            "hadamard=|A_i ⊙ A_j| dot product sur A_i (Exp2_6), "
-            "erank=-effective rank des sorties followers (Exp2_7, utilise --lambda_rank), "
-            "output_cos=cosine similarity sur Z_i=A_i@V_i (Exp2_8, utilise --lambda_lead/peer), "
-            "cka=CKA linéaire sur Z_i=A_i@V_i (utilise --lambda_lead/peer, évite artefacts simplexe)"
-        ),
+        "--div_loss_type",
+        choices=["cos", "cos_sq", "hadamard", "erank", "output_cos", "cka"],
+        default="cos",
     )
     parser.add_argument(
-        "--nb_runs", type=int, default=5,
-        help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …). Chaque run sauvegardé dans output_dir/run_i/",
+        "--nb_runs", type=int, default=1,
+        help="Number of consecutive training runs.",
+    )
+    parser.add_argument(
+        "--dynamic_leaders", action="store_true", default=False,
     )
     parser.add_argument(
         "--run_eval", action="store_true", default=True,
-        help="Lancer l'évaluation après l'entraînement et logger les métriques dans le même run wandb.",
+        help="Run evaluation after training and log metrics into the same wandb run.",
     )
     return parser.parse_args()
 
@@ -975,18 +1015,19 @@ if __name__ == "__main__":
     )
 
     log_config(cfg)
-    logger.info(f"  Design layers : {args.design_layer}")
-    logger.info(f"  LR leader     : {args.lr_leader}")
-    logger.info(f"  LR follower   : {args.lr_follower}")
-    logger.info(f"  LR sim step   : {args.lr_sim}")
-    logger.info(f"  λ_lead        : {args.lambda_lead}")
-    logger.info(f"  λ_peer        : {args.lambda_peer}")
-    logger.info(f"  λ_conf        : {args.lambda_conf}")
-    logger.info(f"  λ_rank        : {args.lambda_rank}")
-    logger.info(f"  Leader head   : {args.leader_idx}")
-    logger.info(f"  Nb runs       : {args.nb_runs}")
-    logger.info(f"  Conf loss     : {args.conf_loss_type}")
-    logger.info(f"  Div loss      : {args.div_loss_type}")
+    logger.info(f"  Design layers  : {args.design_layer}")
+    logger.info(f"  LR leader      : {args.lr_leader}")
+    logger.info(f"  LR follower    : {args.lr_follower}")
+    logger.info(f"  LR sim step    : {args.lr_sim}")
+    logger.info(f"  λ_lead         : {args.lambda_lead}")
+    logger.info(f"  λ_peer         : {args.lambda_peer}")
+    logger.info(f"  λ_conf         : {args.lambda_conf}")
+    logger.info(f"  λ_rank         : {args.lambda_rank}")
+    logger.info(f"  Leader heads   : {args.leader_idx}")
+    logger.info(f"  Nb runs        : {args.nb_runs}")
+    logger.info(f"  Conf loss      : {args.conf_loss_type}")
+    logger.info(f"  Div loss       : {args.div_loss_type}")
+    logger.info(f"  Dynamic leaders: {args.dynamic_leaders}")
 
     if os.path.exists(args.output_dir):
         shutil.rmtree(args.output_dir)
@@ -1019,10 +1060,11 @@ if __name__ == "__main__":
             lambda_peer=args.lambda_peer,
             lambda_conf=args.lambda_conf,
             lambda_rank=args.lambda_rank,
-            leader_idx=args.leader_idx,
+            leader_indices=args.leader_idx,
             conf_loss_type=args.conf_loss_type,
             div_loss_type=args.div_loss_type,
             keep_wandb_open=keep_open,
+            dynamic_leaders=args.dynamic_leaders,
         )
         _run_durations.append(time.perf_counter() - _t0)
         logger.info(f"  Run {i} duration : {_run_durations[-1]/60:.1f} min")
@@ -1037,11 +1079,11 @@ if __name__ == "__main__":
 
         _total_train_s = time.perf_counter() - _train_wall_start
         wandb.run.summary["train/total_duration_s"] = round(_total_train_s)
-        wandb.run.summary["train/mean_run_duration_s"] = round(_total_train_s / len(_run_durations))
+        wandb.run.summary["train/mean_run_duration_s"] = round(
+            _total_train_s / len(_run_durations)
+        )
         for _i, _d in enumerate(_run_durations):
             wandb.run.summary[f"train/run_{_i}_duration_s"] = round(_d)
-        logger.info(f"  Total training : {_total_train_s/60:.1f} min  "
-                    f"(mean/run={_total_train_s/len(_run_durations)/60:.1f} min)")
 
         logger.info(f"\n{'='*60}\nÉvaluation sur {len(run_dirs)} checkpoint(s)\n{'='*60}")
         all_results = []
@@ -1056,7 +1098,9 @@ if __name__ == "__main__":
 
         all_keys = list(all_results[0].keys())
         results = {k: round(float(np.mean([r[k] for r in all_results])), 4) for k in all_keys}
-        results_std = {k: round(float(np.std([r[k] for r in all_results])), 4) for k in all_keys}
+        results_std = {
+            k: round(float(np.std([r[k] for r in all_results])), 4) for k in all_keys
+        }
 
         logger.info("=== Résultats eval (moyenne ± std) ===")
         for k in METRIC_ORDER:

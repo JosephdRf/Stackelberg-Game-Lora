@@ -31,7 +31,7 @@ RUN_NAME=Exp4_2_1
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp4/$RUN_NAME
 
-python pythia160M/exp2/train_exp2.py \
+python pythia160M/exp3/train_exp3.py \
     --output_dir $CKPT_DIR \
     --wandb_project Stackelberg-Pythia160M --wandb_group Exp4 --run_name $RUN_NAME \
     --design_layer 6 7 8 9 \

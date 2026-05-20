@@ -184,10 +184,10 @@ def train_stackelberg(
     # ── Single optimizer over all trainable params ──
     all_params, grad_assembly = collect_lora_params(
         model,
-        design_layer=design_layer,
+        design_layers=[design_layer],
         d_model=768,
         n_heads=12,
-        leader_idx=leader_idx,
+        leader_indices=[leader_idx],
     )
 
     # θ_L ∪ θ_F : tranches décomposables (qkv_lora_B + dense_lora_A), même tenseur

@@ -1,10 +1,10 @@
 """
-Stackelberg losses — exp3.
+Stackelberg losses (Pythia-160M / GPT-NeoX).
 
-Identical to pythia160M/stackelberg_losses.py except that all functions
-accept leader_indices (list[int]) instead of leader_idx (int).
+All loss functions accept leader_indices (List[int]) for an arbitrary subset
+of heads to act as leaders. The single-leader case is leader_indices=[k].
 
-Normalization convention (new in exp3):
+Normalization convention:
   - Leader-follower term  : mean over |F| × |L| pairs.
   - Peer-peer term        : mean over |F| × (|F|−1) ordered off-diagonal pairs.
   → λ_lead / λ_peer have the same "cost per pair" semantics regardless of the
@@ -71,10 +71,13 @@ def get_attention_maps(
         hidden = input_layernorm(hidden)
 
     W_base = qkv_module.weight
-    lora_A = qkv_module.lora_A["default"].weight
-    lora_B = qkv_module.lora_B["default"].weight
-    scale = qkv_module.scaling["default"]
-    W_eff = W_base + lora_B @ lora_A * scale
+    if hasattr(qkv_module, 'lora_A') and 'default' in qkv_module.lora_A:
+        lora_A = qkv_module.lora_A["default"].weight
+        lora_B = qkv_module.lora_B["default"].weight
+        scale = qkv_module.scaling["default"]
+        W_eff = W_base + lora_B @ lora_A * scale
+    else:
+        W_eff = W_base
 
     bias = getattr(qkv_module, "bias", None)
     qkv_out = F.linear(hidden, W_eff, bias)
@@ -118,10 +121,13 @@ def get_attention_outputs(
         hidden = input_layernorm(hidden)
 
     W_base = qkv_module.weight
-    lora_A = qkv_module.lora_A["default"].weight
-    lora_B = qkv_module.lora_B["default"].weight
-    scale = qkv_module.scaling["default"]
-    W_eff = W_base + lora_B @ lora_A * scale
+    if hasattr(qkv_module, 'lora_A') and 'default' in qkv_module.lora_A:
+        lora_A = qkv_module.lora_A["default"].weight
+        lora_B = qkv_module.lora_B["default"].weight
+        scale = qkv_module.scaling["default"]
+        W_eff = W_base + lora_B @ lora_A * scale
+    else:
+        W_eff = W_base
 
     bias = getattr(qkv_module, "bias", None)
     qkv_out = F.linear(hidden, W_eff, bias)
@@ -152,7 +158,7 @@ def get_attention_outputs(
 
 
 def _fl_indices(n_heads: int, leader_indices: List[int], device):
-    """Return (fi_t, li_t) tensors of follower / leader head indices."""
+    """Return (fi, li, fi_t, li_t) — follower / leader head indices as lists and tensors."""
     leader_set = set(leader_indices)
     fi = [i for i in range(n_heads) if i not in leader_set]
     li = list(leader_indices)
@@ -259,7 +265,6 @@ def follower_diversity_loss_hadamard(
     if lambda_lead > 0 and len(fi) > 0 and len(li) > 0:
         A_followers = A_flat[:, fi_t, :]   # (B, n_F, L²)
         A_leaders   = A_flat[:, li_t, :]   # (B, n_L, L²)
-        # (B, n_F, n_L) inner products, then mean over B, n_F, n_L
         lf = torch.einsum('bfx,blx->bfl', A_followers, A_leaders).mean()
         loss = loss + lambda_lead * lf
 

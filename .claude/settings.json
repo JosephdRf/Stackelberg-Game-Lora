@@ -15,7 +15,10 @@
       "Bash(mkdir -p /home/joseph63/.claude/plans/)",
       "Bash(bash -c ' *)",
       "Bash(/home/joseph63/scratch/Stackelberg-Game-Lora/.venv/bin/python3.11 pythia160M/exp2/train_exp2.py --help)",
-      "Bash(/home/joseph63/scratch/Stackelberg-Game-Lora/.venv/bin/python3.11 -)"
+      "Bash(/home/joseph63/scratch/Stackelberg-Game-Lora/.venv/bin/python3.11 -)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('/home/joseph63/scratch/Stackelberg-Game-Lora/pythia160M/exp5/gradient_mask.py'\\).read\\(\\)\\); print\\('GM OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('/home/joseph63/scratch/Stackelberg-Game-Lora/pythia160M/exp5/train_exp5.py'\\).read\\(\\)\\); print\\('Train OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('/home/joseph63/scratch/Stackelberg-Game-Lora/pythia160M/stackelberg_losses.py'\\).read\\(\\)\\); print\\('Losses OK'\\)\")"
     ],
     "additionalDirectories": [
       "/home/joseph63/scratch/Stackelberg-Game-Lora"
