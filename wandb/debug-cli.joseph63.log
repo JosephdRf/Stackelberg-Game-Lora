@@ -253,3 +253,5 @@
 2026-05-20 10:20:33 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
 2026-05-20 10:21:43 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
 2026-05-20 10:22:13 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-05-21 11:20:54 WARNING Connection pool is full, discarding connection: storage.googleapis.com. Connection pool size: 10
+2026-05-21 11:22:56 WARNING Connection pool is full, discarding connection: api.wandb.ai. Connection pool size: 10

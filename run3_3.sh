@@ -26,6 +26,10 @@ module load arrow/21.0.0
 # Aller au projet
 cd "$SLURM_SUBMIT_DIR"
 
+# Purge des anciens logs (garder les 10 derniers)
+ls -t logs/*.out 2>/dev/null | tail -n +11 | xargs -r rm --
+ls -t logs/*.err 2>/dev/null | tail -n +11 | xargs -r rm --
+
 # Virtualenv
 source $SLURM_SUBMIT_DIR/.venv/bin/activate
 

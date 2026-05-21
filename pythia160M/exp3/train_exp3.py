@@ -688,6 +688,9 @@ def train_stackelberg(
                                     A0_np = A0.numpy()
                                     _vmax = float(np.percentile(A0_np, 99.5))
                                     _vmin = max(float(A0_np.min()), _vmax * 1e-4)
+                                    _vmin = max(_vmin, 1e-9)
+                                    if _vmax <= _vmin:
+                                        _vmax = _vmin * 100
                                     im = ax.imshow(
                                         A0_np.clip(_vmin, None),
                                         cmap="inferno", aspect="auto",
