@@ -2,7 +2,7 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=5:00:00
+#SBATCH --time=6:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --array=5-10
 #SBATCH --output=logs/%j_%a.out
