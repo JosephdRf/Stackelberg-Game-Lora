@@ -2,7 +2,7 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=5:00:00
+#SBATCH --time=6:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
@@ -40,6 +40,6 @@ python pythia160M/exp3/train_exp3.py \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
     --div_loss_type hadamard \
-    --lambda_lead 1e-3 \
-    --lambda_peer 1e-4 \
+    --lambda_lead 1e-2 \
+    --lambda_peer 1e-2 \
     --lambda_conf 0.0 \

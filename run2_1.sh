@@ -2,7 +2,7 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=5:00:00
+#SBATCH --time=6:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=logs/%A_%a.out
 #SBATCH --error=logs/%A_%a.err
@@ -12,8 +12,8 @@
 
 x=$SLURM_ARRAY_TASK_ID
 
-LAMBDA_LEADS=(0.0 1e-5 3e-4 1e-3 3e-3 1e-2 3e-2 1e-1 3e-1)
-LAMBDA_PEERS=(0.0 1e-6 3e-5 1e-4 3e-4 1e-3 3e-3 1e-2 1e-2)
+LAMBDA_LEADS=(0.0 1e-4 3e-3 1e-2 3e-2 1e-1 3e-1 1.0 3.0)
+LAMBDA_PEERS=(0.0 1e-4 3e-3 1e-2 3e-2 1e-1 3e-1 1.0 3.0)
 
 RUN_NAME=Exp2_1_${x}
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME

@@ -2,7 +2,7 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=5:00:00
+#SBATCH --time=6:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=logs/%A_%a.out
 #SBATCH --error=logs/%A_%a.err
@@ -47,5 +47,5 @@ python pythia160M/exp3/train_exp3.py \
     --conf_loss_type entropy \
     --lambda_conf ${LAMBDA_CONFS[$x]} \
     --div_loss_type cos \
-    --lambda_lead 1e-3 \
-    --lambda_peer 1e-4 \
+    --lambda_lead 1e-2 \
+    --lambda_peer 1e-2 \
