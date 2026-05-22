@@ -2,18 +2,14 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=7:00:00
+#SBATCH --time=6:00:00
 #SBATCH --gres=gpu:a100:1
-#SBATCH --output=logs/%A_%a.out
-#SBATCH --error=logs/%A_%a.err
+#SBATCH --output=logs/%j.out
+#SBATCH --error=logs/%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
-#SBATCH --array=0-4
 
-RANKS=(16 32 64 128 256)
-RANK=${RANKS[$SLURM_ARRAY_TASK_ID]}
-
-RUN_NAME=Exp3_3_${RANK}
+RUN_NAME=Exp2_10
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 
 # Modules
@@ -38,18 +34,18 @@ export WANDB_MODE=offline
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp3/$RUN_NAME
+CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME
 
 python pythia160M/exp3/train_exp3.py \
     --output_dir $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp3 --run_name $RUN_NAME \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp2 --run_name $RUN_NAME \
     --leader_idx 0 \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
-    --lambda_lead 0.01 \
-    --lambda_peer 0.01 \
-    --lambda_conf 0.0 \
-    --div_loss_type cos \
-    --lora_rank $RANK \
- 
+    --conf_loss_type entropy \
+    --lambda_conf 0.2 \
+    --div_loss_type erank \
+    --lambda_rank 0.0002 \
+    --lambda_lead 0.0 \
+    --lambda_peer 0.0 \

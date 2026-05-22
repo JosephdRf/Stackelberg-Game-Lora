@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 def train(cfg: TrainConfig, head_log_layer: int = 9,
           attention_eager: bool = False, bfloat16: bool = False,
-          keep_wandb_open: bool = False):
+          keep_wandb_open: bool = False, use_lora: bool = True):
     seed_everything(cfg.seed)
 
     device = get_device()
@@ -70,6 +70,7 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
         cfg,
         attn_implementation="eager" if attention_eager else None,
         torch_dtype=torch.bfloat16 if bfloat16 else torch.float32,
+        use_lora=use_lora,
     )
     model = model.to(device)
 
@@ -116,7 +117,8 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
-    pbar = tqdm(total=total_steps, desc="Training (Pythia-160M LoRA baseline)", unit="step",
+    _mode = "LoRA" if use_lora else "Full FT"
+    pbar = tqdm(total=total_steps, desc=f"Training (Pythia-160M {_mode} baseline)", unit="step",
                 disable=not sys.stderr.isatty())
 
     _autocast_dtype = torch.bfloat16
@@ -258,7 +260,7 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
              color="steelblue", marker="o", markersize=4, label="val loss")
     ax1.set_xlabel("optimizer step")
     ax1.set_ylabel("Cross-entropy loss")
-    ax1.set_title("Training — Pythia-160M LoRA baseline on WikiText-103")
+    ax1.set_title(f"Training — Pythia-160M {_mode} baseline on WikiText-103")
     ax1.legend(loc="upper right")
     ax1.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -271,7 +273,7 @@ def train(cfg: TrainConfig, head_log_layer: int = 9,
             color="steelblue", marker="o", markersize=4)
     ax.set_xlabel("optimizer step")
     ax.set_ylabel("Validation perplexity")
-    ax.set_title("Validation perplexity — WikiText-103")
+    ax.set_title(f"Validation perplexity ({_mode}) — WikiText-103")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(os.path.join(plots_dir, "val_ppl.png"), dpi=150)
@@ -297,6 +299,8 @@ def parse_args():
     parser = add_common_args(parser)
     parser.add_argument("--output_dir",      default=os.path.join(_HERE, "checkpoints"))
     parser.add_argument("--run_name",        default="baseline_fullft_pythia")
+    parser.add_argument("--lora", action=argparse.BooleanOptionalAction, default=True,
+                        help="Utiliser LoRA (défaut). Passer --no-lora pour full fine-tuning.")
     parser.add_argument("--attention_eager", action="store_true", default=False)
     parser.add_argument("--bfloat16",        action="store_true", default=False)
     parser.add_argument(
@@ -360,7 +364,8 @@ if __name__ == "__main__":
         train(cfg_i, head_log_layer=args.head_log_layer,
               attention_eager=args.attention_eager,
               bfloat16=args.bfloat16,
-              keep_wandb_open=keep_open)
+              keep_wandb_open=keep_open,
+              use_lora=args.lora)
         _run_durations.append(time.perf_counter() - _t0)
         logger.info(f"  Run {i} duration : {_run_durations[-1]/60:.1f} min")
 

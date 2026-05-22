@@ -193,6 +193,7 @@ def build_model_and_tokenizer(
     cfg: TrainConfig,
     attn_implementation=None,
     torch_dtype=torch.float32,
+    use_lora: bool = True,
 ):
     logger.info(f"Chargement de {cfg.model_name} ...")
 
@@ -210,15 +211,16 @@ def build_model_and_tokenizer(
             kwargs["attn_implementation"] = attn_implementation
         model = AutoModelForCausalLM.from_pretrained(cfg.model_name, **kwargs)
 
-    lora_cfg = LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        r=cfg.lora_rank,
-        lora_alpha=cfg.lora_alpha,
-        lora_dropout=cfg.lora_dropout,
-        target_modules=cfg.lora_target_modules,
-        bias="none",
-    )
-    model = get_peft_model(model, lora_cfg)
+    if use_lora:
+        lora_cfg = LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            r=cfg.lora_rank,
+            lora_alpha=cfg.lora_alpha,
+            lora_dropout=cfg.lora_dropout,
+            target_modules=cfg.lora_target_modules,
+            bias="none",
+        )
+        model = get_peft_model(model, lora_cfg)
     model.print_trainable_parameters()
 
     return model, tokenizer
