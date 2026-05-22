@@ -42,7 +42,7 @@ CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp3/$RUN_NAME
 
 python pythia160M/exp3/train_exp3.py \
     --output_dir $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp3_sliced --run_name $RUN_NAME \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp3 --run_name $RUN_NAME \
     --leader_idx 0 \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \

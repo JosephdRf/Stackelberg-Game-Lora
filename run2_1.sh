@@ -8,12 +8,12 @@
 #SBATCH --error=logs/%A_%a.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
-#SBATCH --array=0-8
+#SBATCH --array=0-0
 
 x=$SLURM_ARRAY_TASK_ID
 
-LAMBDA_LEADS=(0.0 1e-4 3e-3 1e-2 3e-2 1e-1 3e-1 1.0 3.0)
-LAMBDA_PEERS=(0.0 1e-4 3e-3 1e-2 3e-2 1e-1 3e-1 1.0 3.0)
+LAMBDA_LEADS=(1e-2)
+LAMBDA_PEERS=(1e-2)
 
 RUN_NAME=Exp2_1_${x}
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
@@ -44,7 +44,7 @@ CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp2/$RUN_NAME
 
 python pythia160M/exp3/train_exp3.py \
     --output_dir $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp2_sliced --run_name $RUN_NAME \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp2 --run_name $RUN_NAME \
     --leader_idx 0 \
     --lr_sim 1e-5 \
     --lr_leader 3e-5 \
