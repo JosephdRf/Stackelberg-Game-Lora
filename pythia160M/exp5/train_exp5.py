@@ -976,7 +976,7 @@ def parse_args():
         default="cos",
     )
     parser.add_argument(
-        "--nb_runs", type=int, default=1,
+        "--nb_runs", type=int, default=5,
         help="Number of consecutive training runs.",
     )
     parser.add_argument(

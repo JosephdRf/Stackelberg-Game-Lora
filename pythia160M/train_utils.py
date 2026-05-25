@@ -221,7 +221,11 @@ def build_model_and_tokenizer(
             bias="none",
         )
         model = get_peft_model(model, lora_cfg)
-    model.print_trainable_parameters()
+        model.print_trainable_parameters()
+    else:
+        n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        n_total = sum(p.numel() for p in model.parameters())
+        logger.info(f"trainable params: {n_trainable:,} || all params: {n_total:,} || trainable%: {100*n_trainable/n_total:.4f}")
 
     return model, tokenizer
 

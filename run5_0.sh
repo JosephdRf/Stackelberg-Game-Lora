@@ -40,4 +40,3 @@ python pythia160M/baseline/train_baseline.py \
     --output_dir $CKPT_DIR \
     --wandb_project Stackelberg-Pythia160M --wandb_group Exp5 --run_name $RUN_NAME \
     --no-lora \
-    --nb_runs 5 \
