@@ -73,12 +73,12 @@ EVAL_PARAMS = {
 
 BENCHMARKS_TO_EVALUATE = [
     "WikiText103_PPL",   # (A) métrique cible
-    #"PTB_BPB",           # (B) OOD léger
+    "PTB_BPB",           # (B) OOD léger
     "LAMBADA",           # (B) complétion, sensible
     "HellaSwag",         # (B) sens commun
-    #"PIQA",              # (B) raisonnement physique
-    #"ARC-Easy",          # (B) QA facile
-    #"MemoTrap",          # (B) diversité / anti-mémorisation
+    "PIQA",              # (B) raisonnement physique
+    "ARC-Easy",          # (B) QA facile
+    "MemoTrap",          # (B) diversité / anti-mémorisation
 ]
 
 
@@ -445,11 +445,15 @@ def eval_memotrap(model, tokenizer, device, n, seed):
     MemoTrap (Inverse Scaling Prize) : suivre une instruction contre un
     pattern mémorisé. Les prompts contiennent déjà leur propre formatage,
     on ne rajoute PAS d'espace devant les classes.
+
+    Lit d'abord les CSVs depuis `<repo>/datasets/memotrap/` (offline-safe
+    sur les nœuds de calcul) ; fallback sur GitHub si absent.
     """
     import ast, csv, io
     import urllib.request
 
     BASE_URL = "https://raw.githubusercontent.com/liujch1998/memo-trap/master/data/"
+    LOCAL_DIR = os.path.join(_DATASETS_CACHE, "memotrap")
     FILES = [
         "1-proverb-ending.csv",
         "2-proverb-translation.csv",
@@ -459,10 +463,22 @@ def eval_memotrap(model, tokenizer, device, n, seed):
 
     all_examples = []
     for fname in FILES:
-        url = BASE_URL + fname
+        local_path = os.path.join(LOCAL_DIR, fname)
+        content = None
+        if os.path.exists(local_path):
+            try:
+                with open(local_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except Exception as e:
+                logger.warning(f"MemoTrap — lecture locale {fname} échouée : {e}")
+        if content is None:
+            try:
+                with urllib.request.urlopen(BASE_URL + fname, timeout=30) as resp:
+                    content = resp.read().decode("utf-8")
+            except Exception as e:
+                logger.warning(f"MemoTrap — téléchargement {fname} échoué : {e}")
+                continue
         try:
-            with urllib.request.urlopen(url, timeout=30) as resp:
-                content = resp.read().decode("utf-8")
             reader = csv.DictReader(io.StringIO(content))
             for row in reader:
                 all_examples.append({
@@ -471,7 +487,7 @@ def eval_memotrap(model, tokenizer, device, n, seed):
                     "answer_index": int(row["answer_index"]),
                 })
         except Exception as e:
-            logger.warning(f"MemoTrap — impossible de charger {fname} : {e}")
+            logger.warning(f"MemoTrap — parsing {fname} échoué : {e}")
 
     if not all_examples:
         return None
@@ -502,12 +518,12 @@ def eval_memotrap(model, tokenizer, device, n, seed):
 
 METRIC_ORDER = [
     "WikiText103_PPL", "WikiText103_BPB",
-    "PTB_BPB", "PTB_PPL",
     "LAMBADA_ppl",
     "HellaSwag_acc", "HellaSwag_acc_norm",
+    "PTB_BPB", "PTB_PPL",
     "PIQA_acc", "PIQA_acc_norm",
     "ARC-Easy_acc", "ARC-Easy_acc_norm",
-    "MemoTrap",
+    "MemoTrap"
 ]
 
 

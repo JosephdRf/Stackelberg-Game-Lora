@@ -1,26 +1,56 @@
 """
-Évaluation — benchmarks identiques à l'article
-Table 1 : HaluEval (dial/QA/summ), TruthfulQA MC1/MC2, MemoTrap
-           MMLU, NQ, PopQA, WikiText BPB, WinoGrande
+Évaluation Qwen2.5-0.5B — port du eval Pythia-160M (7 benchmarks).
+
+Port de pythia160M/eval.py. Les benchmarks sont identiques pour permettre
+une comparaison directe Pythia↔Qwen sur les mêmes tâches.
+
+DEUX catégories :
+
+  (A) Métrique cible (sanity check du FT WikiText-103) :
+        - WikiText-103 BPB/PPL (in-domain test split)
+
+  (B) Métriques pour discriminer différentes méthodes de FT :
+        - PTB_BPB           : OOD (Penn Treebank, généralisation LM)
+        - LAMBADA           : complétion long-contexte
+        - HellaSwag         : sens commun
+        - PIQA              : raisonnement physique
+        - ARC-Easy          : QA facile
+        - MemoTrap          : résistance à la mémorisation
+
+Différences vs port Pythia :
+  - load_model accepte AutoModelForCausalLM (adapter dirs PEFT autodétectés
+    par transformers ; sinon fallback PeftModel.from_pretrained explicite).
+  - cache des datasets partagé avec Pythia (datasets/ au repo root).
+  - tokenizer Qwen : add_special_tokens=False pour matcher lm-eval-harness ;
+    pas de chat template appliqué.
 
 Usage :
-    python eval.py --model_path ./checkpoints/baseline/final
-    python eval.py --model_path Qwen/Qwen2.5-0.5B  # évaluation du modèle de base
+    python qwen2.5_0.5B/eval.py --model_path Qwen/Qwen2.5-0.5B \\
+        --wandb_run_name eval_qwen_base --wandb_group base
+
+    python qwen2.5_0.5B/eval.py --model_path qwen2.5_0.5B/baseline/checkpoints/run_0/final \\
+        --wandb_run_name eval_baseline_seed42 --wandb_group baseline
 """
 
 import os
 import re
-import string
-import json
+import glob
+import math
 import argparse
 import logging
-from typing import Optional
 
+_DATASETS_CACHE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "datasets"
+)
+
+import sys
 import torch
+import torch.nn.functional as F
 import numpy as np
-from tqdm import tqdm
+from functools import partial
+from tqdm import tqdm as _tqdm
+tqdm = partial(_tqdm, file=sys.stderr)
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import PeftModel
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -29,53 +59,70 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Paramètres d'évaluation identiques à l'article (Appendix A)
 EVAL_PARAMS = {
-    "n_samples": 1024,    # "N=1024 samples per task"
-    "seed": 42,           # "seed=42"
-    "temperature": 0.0,   # "greedy decoding (temperature=0)"
+    "n_samples": None,   # None = set complet (recommandé)
+    "seed":      42,
 }
 
-# Benchmarks à évaluer. Supprimer une entrée pour sauter ce benchmark
-# (la colonne correspondante dans results.csv restera vide).
 BENCHMARKS_TO_EVALUATE = [
-    "HE-Dial",
-    "HE-QA",
-    "HE-Summ",
-    #"MemoTrap",
-    #"TFQA",         # couvre TFQA-MC1 et TFQA-MC2
-    #"MMLU",
-    #"NQ",
-    #"PopQA",
-    #"Winogrande",
-    "WikiText_BPB",
+    "WikiText103_PPL",   # (A) métrique cible
+    "PTB_BPB",           # (B) OOD léger
+    "LAMBADA",           # (B) complétion, sensible
+    "HellaSwag",         # (B) sens commun
+    "PIQA",              # (B) raisonnement physique
+    "ARC-Easy",          # (B) QA facile
+    "MemoTrap",          # (B) diversité / anti-mémorisation
 ]
 
 
 # ---------------------------------------------------------------------------
-# Utilitaires
+# Chargement du modèle (support full checkpoints + PEFT adapter dirs)
 # ---------------------------------------------------------------------------
 
-def load_model(model_path: str, base_model: Optional[str] = None):
+
+def load_model(model_path: str, base_model: str = None):
     """
     Charge soit :
-    - Un modèle LoRA fine-tuné (model_path = dossier peft)
-    - Le modèle de base directement
+      - Un modèle HF complet (model_path = HF id ou dir avec config.json + weights)
+      - Un dossier PEFT adapter (model_path = dir avec adapter_config.json) ; le
+        base model est résolu via adapter_config.base_model_name_or_path ou
+        l'argument explicite `base_model`.
+
+    Returns: (model, tokenizer, device).
     """
     logger.info(f"Chargement du modèle depuis {model_path} ...")
 
+    is_local = os.path.isdir(model_path)
+    is_peft_dir = is_local and os.path.exists(os.path.join(model_path, "adapter_config.json"))
+
+    # Tokenizer : depuis le model_path si possible, sinon depuis le base model
+    if is_peft_dir:
+        # Si tokenizer n'est pas dans le dossier adapter, charger depuis le base
+        if os.path.exists(os.path.join(model_path, "tokenizer_config.json")):
+            _tok_src = model_path
+        else:
+            _tok_src = base_model if base_model is not None else "Qwen/Qwen2.5-0.5B"
+    else:
+        _tok_src = model_path
+
     tokenizer = AutoTokenizer.from_pretrained(
-        model_path if base_model is None else base_model,
-        trust_remote_code=True,
+        _tok_src, trust_remote_code=True, local_files_only=is_local and _tok_src == model_path
     )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    if base_model is not None:
-        # Charger base + adaptateurs LoRA
+    # float32 par défaut (cohérence avec eval Pythia : bfloat16 dégrade LAMBADA).
+    if is_peft_dir:
+        from peft import PeftModel
+        # Résolution du base model
+        if base_model is None:
+            import json
+            with open(os.path.join(model_path, "adapter_config.json")) as _f:
+                base_model = json.load(_f).get("base_model_name_or_path", "Qwen/Qwen2.5-0.5B")
+        logger.info(f"  PEFT adapter détecté → base model: {base_model}")
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
-            torch_dtype=torch.float32,  # LoRA fine-tuning done in float32 for better stability
+            torch_dtype=torch.float32,
             trust_remote_code=True,
         )
         model = PeftModel.from_pretrained(model, model_path)
@@ -83,8 +130,9 @@ def load_model(model_path: str, base_model: Optional[str] = None):
     else:
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            torch_dtype=torch.float32,  # inference en float32 pour stabilité (pas de LoRA fine-tuning)
+            torch_dtype=torch.float32,
             trust_remote_code=True,
+            local_files_only=is_local,
         )
 
     model.eval()
@@ -93,341 +141,340 @@ def load_model(model_path: str, base_model: Optional[str] = None):
     return model, tokenizer, device
 
 
-def log_likelihood(model, tokenizer, device, text: str) -> float:
-    """Total log-likelihood of a full text. Used only for WikiText BPB."""
-    ids = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
-    input_ids = ids["input_ids"].to(device)
-    with torch.no_grad():
-        out = model(input_ids=input_ids, labels=input_ids)
-    return -out.loss.item() * (input_ids.shape[1] - 1)
+# ---------------------------------------------------------------------------
+# Utilitaires log-vraisemblance (prompts QCM)
+# ---------------------------------------------------------------------------
 
 
-def conditional_log_likelihood(model, tokenizer, device, context: str, completion: str, max_length: int = 2048) -> float:
-    # CORRECTION bug 3 : n_ctx calculé sur les ids tronqués
-    # Le contexte et la complétion sont concaténés, mais seuls les tokens de la complétion contribuent à la vraisemblance conditionnelle.
-    ctx_ids  = tokenizer(context,             add_special_tokens=True,
+def conditional_log_likelihood(
+    model, tokenizer, device,
+    context: str, completion: str,
+    max_length: int = 2048,
+):
+    """
+    Reproduit exactement la procédure lm-eval-harness (loglikelihood request).
+
+    Returns:
+        ll         : somme des log-probs des tokens du target
+        is_greedy  : True si argmax de chaque position du target = gold
+        n_tokens   : nombre de tokens du target
+        n_bytes    : longueur UTF-8 du completion (pour acc_norm byte-normalized)
+    """
+    ctx_ids  = tokenizer(context,              add_special_tokens=False,
                          truncation=True, max_length=max_length)["input_ids"]
-    full_ids = tokenizer(context + completion, add_special_tokens=True,
+    full_ids = tokenizer(context + completion, add_special_tokens=False,
                          truncation=True, max_length=max_length)["input_ids"]
+
     n_ctx = len(ctx_ids)
+    n_bytes = len(completion.encode("utf-8"))
+
     if len(full_ids) <= n_ctx:
-        return float("-inf")
+        return float("-inf"), False, 0, n_bytes
+    n_completion = len(full_ids) - n_ctx
+
     input_ids = torch.tensor([full_ids], dtype=torch.long).to(device)
-    labels    = input_ids.clone()
-    labels[0, :n_ctx] = -100
     with torch.no_grad():
-        out = model(input_ids=input_ids, labels=labels)
-    return -out.loss.item()
+        out = model(input_ids=input_ids)
+    logits = out.logits[0]
 
+    target_logits = logits[n_ctx - 1 : n_ctx - 1 + n_completion]
+    log_probs = F.log_softmax(target_logits.float(), dim=-1)
+    cont_ids  = torch.tensor(full_ids[n_ctx:], dtype=torch.long, device=device)
+    ll = log_probs.gather(1, cont_ids.unsqueeze(1)).sum().item()
 
-def multiple_choice_accuracy(model, tokenizer, device, examples: list) -> float:
-    """
-    Accuracy par log-vraisemblance sur des QCM.
-    Chaque exemple : {"question": str, "choices": [str], "answer": int}
-    Protocole standard : on choisit la réponse avec la plus haute p(réponse|question).
-    """
-    correct = 0
-    for ex in tqdm(examples, desc="MC eval", leave=False):
-        q = ex["question"]
-        scores = []
-        for choice in ex["choices"]:
-            text = q + " " + choice
-            scores.append(log_likelihood(model, tokenizer, device, text))
-        pred = int(np.argmax(scores))
-        if pred == ex["answer"]:
-            correct += 1
-    return correct / len(examples)
+    pred_ids  = target_logits.argmax(dim=-1)
+    is_greedy = bool(torch.equal(pred_ids, cont_ids))
+
+    return ll, is_greedy, n_completion, n_bytes
 
 
 # ---------------------------------------------------------------------------
-# Chargement des benchmarks
+# Perplexité / BPB sur corpus LM (sliding window)
 # ---------------------------------------------------------------------------
 
-def load_halueval(subset: str, n: int = 1024, seed: int = 42):
-    """
-    HaluEval — 3 subsets : dialogue, qa, summarization
-    Format : classification binaire (hallucination ou non)
-    """
-    from datasets import load_dataset
-    ds = load_dataset("pminervini/HaluEval", subset, split="data")
-    ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    return ds
+
+def _eval_lm_sliding(model, tokenizer, device, full_text: str,
+                     seq_len: int = 512, stride: int = 256, desc: str = "LM"):
+    """NLL moyen (nats/token), perplexité et BPB avec fenêtre glissante."""
+    encodings  = tokenizer(full_text, return_tensors="pt", truncation=False)
+    input_ids  = encodings["input_ids"]
+    num_bytes  = len(full_text.encode("utf-8"))
+    n_tok      = input_ids.shape[1]
+    bytes_per_token = num_bytes / n_tok
+
+    nlls     = []
+    prev_end = 0
+    for begin in tqdm(range(0, n_tok - 1, stride), desc=desc, leave=False):
+        end        = min(begin + seq_len, n_tok)
+        target_len = end - prev_end
+        chunk      = input_ids[:, begin:end].to(device)
+        labels     = chunk.clone()
+        labels[:, :-target_len] = -100
+        with torch.no_grad():
+            out = model(chunk, labels=labels)
+        nlls.append(out.loss.item() * target_len)
+        prev_end = end
+        if end == n_tok:
+            break
+
+    avg_nll = sum(nlls) / (n_tok - 1)
+    ppl     = math.exp(min(avg_nll, 20))
+    bpb     = avg_nll / math.log(2) / bytes_per_token
+    logger.debug(f"  [{desc}] n_tok={n_tok}  bytes={num_bytes}  "
+                 f"bytes/tok={bytes_per_token:.3f}")
+    return {"nll": avg_nll, "ppl": ppl, "bpb": bpb}
 
 
-def load_truthfulqa(n: int = 1024, seed: int = 42):
-    """TruthfulQA — MC1 et MC2"""
-    from datasets import load_dataset
-    ds = load_dataset("truthful_qa", "multiple_choice", split="validation")
-    ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    return ds
+def eval_wikitext103_ppl(model, tokenizer, device):
+    """Métrique cible du FT WikiText-103."""
+    try:
+        from datasets import load_dataset
+        ds = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1",
+                          split="test", cache_dir=_DATASETS_CACHE)
+    except Exception as e:
+        logger.warning(f"WikiText-103 non disponible : {e}")
+        return None
+
+    full_text = "\n\n".join([ex["text"] for ex in ds if ex["text"].strip()])
+    return _eval_lm_sliding(model, tokenizer, device, full_text,
+                            desc="WikiText-103")
 
 
-def load_mmlu(n: int = 1024, seed: int = 42):
-    """MMLU — toutes les catégories, split test"""
-    from datasets import load_dataset
-    ds = load_dataset("cais/mmlu", "all", split="test")
-    ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    return ds
+def eval_ptb_bpb(model, tokenizer, device):
+    """Penn Treebank (test split). OOD vs WikiText-103."""
+    try:
+        from datasets import load_dataset
+        ds = load_dataset("ptb_text_only", split="test",
+                          cache_dir=_DATASETS_CACHE, trust_remote_code=True)
+    except Exception as e:
+        logger.warning(f"PTB non disponible : {e}")
+        return None
 
-
-def load_wikitext(n: int = 1024, seq_len: int = 512):
-    """WikiText-2 BPB (bits per byte)"""
-    from datasets import load_dataset
-    ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
-    return ds
-
-
-def load_winogrande(n: int = 1024, seed: int = 42):
-    """WinoGrande"""
-    from datasets import load_dataset
-    ds = load_dataset("winogrande", "winogrande_xl", split="validation")
-    ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    return ds
+    full_text = "\n".join([ex["sentence"] for ex in ds if ex["sentence"].strip()])
+    return _eval_lm_sliding(model, tokenizer, device, full_text, desc="PTB")
 
 
 # ---------------------------------------------------------------------------
-# Génération et métriques (NQ / PopQA)
+# LAMBADA
 # ---------------------------------------------------------------------------
 
-def generate_greedy(model, tokenizer, device, prompt: str, max_new_tokens: int = 32) -> str:
-    """Greedy decode; returns only the generated continuation (first line)."""
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=450).to(device)
-    with torch.no_grad():
-        output = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False,
-                                pad_token_id=tokenizer.eos_token_id)
-    text = tokenizer.decode(output[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-    return text.split("\n")[0].strip()
 
+def eval_lambada(model, tokenizer, device, n, seed):
+    """LAMBADA (protocole lm-eval-harness `lambada_openai`)."""
+    try:
+        from datasets import load_dataset
+        ds = load_dataset("EleutherAI/lambada_openai", "en", split="test",
+                          cache_dir=_DATASETS_CACHE)
+    except Exception as e:
+        logger.warning(f"LAMBADA non disponible : {e}")
+        return None
 
-def normalize_answer(s: str) -> str:
-    """Lower-case, strip articles/punctuation/whitespace (standard EM normalization)."""
-    s = s.lower().strip()
-    s = re.sub(r"\b(a|an|the)\b", " ", s)
-    s = s.translate(str.maketrans("", "", string.punctuation))
-    return " ".join(s.split())
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
 
+    nll_sum   = 0.0
+    n_tok_sum = 0
+    n_used    = 0
 
-def exact_match_any(prediction: str, gold_answers: list) -> bool:
-    """Return True if normalized prediction matches or contains any gold answer."""
-    pred_norm = normalize_answer(prediction)
-    for g in gold_answers:
-        g_norm = normalize_answer(g)
-        if not g_norm:
+    for ex in tqdm(ds, desc="LAMBADA", leave=False):
+        text = ex["text"]
+        parts = text.rsplit(" ", 1)
+        if len(parts) != 2:
             continue
-        # exact match or gold contained in prediction
-        if g_norm == pred_norm or g_norm in pred_norm:
-            return True
-    return False
+        context = parts[0]
+        target  = " " + parts[1]
+
+        ll, _, n_tgt, _ = conditional_log_likelihood(
+            model, tokenizer, device, context, target
+        )
+        if n_tgt == 0:
+            continue
+
+        nll_sum   += -ll
+        n_tok_sum += n_tgt
+        n_used    += 1
+
+    ppl = math.exp(min(nll_sum / max(1, n_tok_sum), 20))
+    return {"ppl": ppl}
 
 
 # ---------------------------------------------------------------------------
-# Évaluations spécifiques
+# HellaSwag
 # ---------------------------------------------------------------------------
 
-def eval_halueval_dial(model, tokenizer, device, n, seed):
+
+def eval_hellaswag(model, tokenizer, device, n, seed):
+    """HellaSwag (lm-eval-harness `hellaswag`) : 4 completions, choisir la plus plausible."""
     try:
         from datasets import load_dataset
-        ds = load_dataset("pminervini/HaluEval", "dialogue", split="data")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        ds = load_dataset("Rowan/hellaswag", split="validation",
+                          cache_dir=_DATASETS_CACHE)
     except Exception as e:
-        logger.warning(f"HaluEval Dialogue non disponible : {e}")
+        logger.warning(f"HellaSwag non disponible : {e}")
         return None
 
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+
+    def preprocess(text):
+        text = text.strip()
+        text = text.replace(" [title]", ". ")
+        text = re.sub(r"\[.*?\]", "", text)
+        text = text.replace("  ", " ")
+        return text
+
     correct = 0
-    for ex in tqdm(ds, desc="HaluEval-Dial", leave=False):
-        knowledge  = ex.get("knowledge", "")
-        history    = ex.get("dialogue_history", "")
-        right_resp = ex.get("right_response", "")
-        hall_resp  = ex.get("hallucinated_response", "")
+    correct_norm = 0
+    for ex in tqdm(ds, desc="HellaSwag", leave=False):
+        ctx = preprocess(ex["activity_label"] + ": "
+                         + ex["ctx_a"] + " "
+                         + ex["ctx_b"].capitalize())
+        endings = [preprocess(e) for e in ex["endings"]]
+        gold    = int(ex["label"])
 
-        context = history.strip() + "\n"
+        lls, lls_norm = [], []
+        for e in endings:
+            ll, _, _, nb = conditional_log_likelihood(
+                model, tokenizer, device, ctx, " " + e
+            )
+            lls.append(ll)
+            lls_norm.append(ll / max(nb, 1))
 
-        score_right = conditional_log_likelihood(model, tokenizer, device, context, right_resp)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_resp)
-
-        if score_right > score_hall:
+        if int(np.argmax(lls)) == gold:
             correct += 1
+        if int(np.argmax(lls_norm)) == gold:
+            correct_norm += 1
+    return {"acc": correct / len(ds), "acc_norm": correct_norm / len(ds)}
 
-    return correct / len(ds)
+
+# ---------------------------------------------------------------------------
+# PIQA
+# ---------------------------------------------------------------------------
 
 
-def eval_halueval_qa(model, tokenizer, device, n, seed):
+def eval_piqa(model, tokenizer, device, n, seed):
+    """PIQA (lm-eval-harness `piqa`) : choix binaire."""
     try:
         from datasets import load_dataset
-        ds = load_dataset("pminervini/HaluEval", "qa", split="data")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        ds = load_dataset("ybisk/piqa", split="validation",
+                          trust_remote_code=True, cache_dir=_DATASETS_CACHE)
     except Exception as e:
-        logger.warning(f"HaluEval QA non disponible : {e}")
+        logger.warning(f"PIQA non disponible : {e}")
         return None
 
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+
     correct = 0
-    for ex in tqdm(ds, desc="HaluEval-QA", leave=False):
-        q         = ex.get("question", "")
-        right_ans = ex.get("right_answer", "")
-        hall_ans  = ex.get("hallucinated_answer", "")
+    correct_norm = 0
+    for ex in tqdm(ds, desc="PIQA", leave=False):
+        ctx  = "Question: " + ex["goal"] + "\nAnswer:"
+        sols = [ex["sol1"], ex["sol2"]]
+        gold = int(ex["label"])
 
-        context = q.strip() + " "
+        lls, lls_norm = [], []
+        for s in sols:
+            ll, _, _, nb = conditional_log_likelihood(
+                model, tokenizer, device, ctx, " " + s
+            )
+            lls.append(ll)
+            lls_norm.append(ll / max(nb, 1))
 
-        score_right = conditional_log_likelihood(model, tokenizer, device, context, right_ans)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_ans)
-
-        if score_right > score_hall:
+        if int(np.argmax(lls)) == gold:
             correct += 1
+        if int(np.argmax(lls_norm)) == gold:
+            correct_norm += 1
+    return {"acc": correct / len(ds), "acc_norm": correct_norm / len(ds)}
 
-    return correct / len(ds)
+
+# ---------------------------------------------------------------------------
+# ARC-Easy
+# ---------------------------------------------------------------------------
 
 
-def eval_halueval_summ(model, tokenizer, device, n, seed):
+def eval_arc_easy(model, tokenizer, device, n, seed):
+    """ARC-Easy (lm-eval-harness `arc_easy`) : QA scientifique, 3-5 choix."""
     try:
         from datasets import load_dataset
-        ds = load_dataset("pminervini/HaluEval", "summarization", split="data")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        ds = load_dataset("allenai/ai2_arc", "ARC-Easy", split="test",
+                          cache_dir=_DATASETS_CACHE)
     except Exception as e:
-        logger.warning(f"HaluEval Summarization non disponible : {e}")
+        logger.warning(f"ARC-Easy non disponible : {e}")
         return None
 
+    if n is not None:
+        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+
     correct = 0
-    for ex in tqdm(ds, desc="HaluEval-Summ", leave=False):
-        doc     = ex.get("document", "")
-        right_s = ex.get("right_summary", "")
-        hall_s  = ex.get("hallucinated_summary", "")
+    correct_norm = 0
+    total   = 0
+    for ex in tqdm(ds, desc="ARC-Easy", leave=False):
+        q       = ex["question"]
+        choices = ex["choices"]["text"]
+        labels  = ex["choices"]["label"]
+        gold    = ex["answerKey"]
+        if gold not in labels:
+            continue
 
-        # Bug 3 déjà corrigé dans conditional_log_likelihood ci-dessus
-        # Le document long sera tronqué correctement côté n_ctx
-        score_right = conditional_log_likelihood(model, tokenizer, device, doc + " ", right_s)
-        score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + " ", hall_s)
+        ctx = "Question: " + q + "\nAnswer:"
+        lls, lls_norm = [], []
+        for c in choices:
+            ll, _, _, nb = conditional_log_likelihood(
+                model, tokenizer, device, ctx, " " + c
+            )
+            lls.append(ll)
+            lls_norm.append(ll / max(nb, 1))
 
-        if score_right > score_hall:
+        if labels[int(np.argmax(lls))] == gold:
             correct += 1
-
-    return correct / len(ds)
-
-
-# def eval_halueval_dial(model, tokenizer, device, n, seed):
-#     """
-#     HaluEval Dialogue — paired right/hallucinated response comparison.
-#     Dataset schema (pminervini/HaluEval, 'dialogue' subset):
-#       knowledge, dialogue_history, right_response, hallucinated_response
-#     """
-#     try:
-#         from datasets import load_dataset
-#         # 'dialogue' has paired right_response / hallucinated_response fields.
-#         # 'dialogue_samples' has binary labels only — wrong for this protocol.
-#         ds = load_dataset("pminervini/HaluEval", "dialogue", split="data")
-#         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-#     except Exception as e:
-#         logger.warning(f"HaluEval Dialogue non disponible : {e}")
-#         return None
-
-#     correct = 0
-#     for ex in tqdm(ds, desc="HaluEval-Dial", leave=False):
-#         knowledge  = ex.get("knowledge", "")
-#         history    = ex.get("dialogue_history", "")
-#         right_resp = ex.get("right_response", "")
-#         hall_resp  = ex.get("hallucinated_response", "")
-
-#         # Use natural dialogue format (matches Qwen pre-training distribution better
-#         # than [Assistant]: which caused below-chance scores)
-#         context = ""
-#         if knowledge:
-#             context += knowledge.strip() + "\n\n"
-#         context += history.strip() + "\n"
-#         score_right = conditional_log_likelihood(model, tokenizer, device, context, right_resp)
-#         score_hall  = conditional_log_likelihood(model, tokenizer, device, context, hall_resp)
-
-#         if score_right > score_hall:
-#             correct += 1
-
-#     return correct / len(ds)
+        if labels[int(np.argmax(lls_norm))] == gold:
+            correct_norm += 1
+        total += 1
+    return {"acc": correct / max(1, total),
+            "acc_norm": correct_norm / max(1, total)}
 
 
-# def eval_halueval_qa(model, tokenizer, device, n, seed):
-#     """HaluEval QA — accuracy de détection d'hallucination"""
-#     try:
-#         from datasets import load_dataset
-#         # "qa" subset has paired right_answer / hallucinated_answer fields.
-#         # "qa_samples" has binary hallucination labels only — wrong format.
-#         ds = load_dataset("pminervini/HaluEval", "qa", split="data")
-#         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-#     except Exception as e:
-#         logger.warning(f"HaluEval QA non disponible : {e}")
-#         return None
-
-#     correct = 0
-#     for ex in tqdm(ds, desc="HaluEval-QA", leave=False):
-#         q = ex.get("question", "")
-#         right_ans = ex.get("right_answer", "")
-#         hall_ans  = ex.get("hallucinated_answer", "")
-
-#         score_right = conditional_log_likelihood(model, tokenizer, device, q + " ", right_ans)
-#         score_hall  = conditional_log_likelihood(model, tokenizer, device, q + " ", hall_ans)
-
-#         # Le modèle "détecte" correctement si il préfère la vraie réponse
-#         if score_right > score_hall:
-#             correct += 1
-
-#     return correct / len(ds)
-
-
-# def eval_halueval_summ(model, tokenizer, device, n, seed):
-#     """
-#     HaluEval Summarization — paired right/hallucinated summary comparison.
-#     Dataset schema (pminervini/HaluEval, 'summarization' subset):
-#       document, right_summary, hallucinated_summary
-#     """
-#     try:
-#         from datasets import load_dataset
-#         ds = load_dataset("pminervini/HaluEval", "summarization", split="data")
-#         ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-#     except Exception as e:
-#         logger.warning(f"HaluEval Summarization non disponible : {e}")
-#         return None
-
-#     correct = 0
-#     for ex in tqdm(ds, desc="HaluEval-Summ", leave=False):
-#         doc       = ex.get("document", "")
-#         right_s   = ex.get("right_summary", "")
-#         hall_s    = ex.get("hallucinated_summary", "")
-
-#         # Use max_length=4096 to avoid truncating long CNN/DM documents
-#         score_right = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", right_s, max_length=4096)
-#         score_hall  = conditional_log_likelihood(model, tokenizer, device, doc + "\n\nSummary: ", hall_s, max_length=4096)
-
-#         if score_right > score_hall:
-#             correct += 1
-
-#     return correct / len(ds)
-
+# ---------------------------------------------------------------------------
+# MemoTrap
+# ---------------------------------------------------------------------------
 
 
 def eval_memotrap(model, tokenizer, device, n, seed):
     """
-    MemoTrap (liujch1998/memo-trap, Inverse Scaling Prize).
-    Charge les 4 CSV depuis GitHub et évalue par log-likelihood.
-    
-    Format : prompt, classes (string de liste), answer_index
-    Score = proportion où le modèle préfère la completion correcte
-            (celle qui suit l'instruction) à la completion mémorisée.
-    
-    Petits modèles ≈ meilleurs scores (inverse scaling) — attendu.
+    MemoTrap (Inverse Scaling Prize). Lit d'abord les CSVs depuis
+    `<repo>/datasets/memotrap/` (offline-safe sur les nœuds de calcul) ;
+    fallback sur GitHub si absent.
     """
     import ast, csv, io
     import urllib.request
 
-    BASE_URL = "https://raw.githubusercontent.com/liujch1998/memo-trap/main/data/"
+    BASE_URL = "https://raw.githubusercontent.com/liujch1998/memo-trap/master/data/"
+    LOCAL_DIR = os.path.join(_DATASETS_CACHE, "memotrap")
     FILES = [
         "1-proverb-ending.csv",
         "2-proverb-translation.csv",
-        "3-prompt-continuation.csv",
-        "4-instruction-following.csv",
+        "3-hate-speech-ending.csv",
+        "4-history-of-science-qa.csv",
     ]
 
     all_examples = []
     for fname in FILES:
-        url = BASE_URL + fname
+        local_path = os.path.join(LOCAL_DIR, fname)
+        content = None
+        if os.path.exists(local_path):
+            try:
+                with open(local_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except Exception as e:
+                logger.warning(f"MemoTrap — lecture locale {fname} échouée : {e}")
+        if content is None:
+            try:
+                with urllib.request.urlopen(BASE_URL + fname, timeout=30) as resp:
+                    content = resp.read().decode("utf-8")
+            except Exception as e:
+                logger.warning(f"MemoTrap — téléchargement {fname} échoué : {e}")
+                continue
         try:
-            with urllib.request.urlopen(url, timeout=30) as resp:
-                content = resp.read().decode("utf-8")
             reader = csv.DictReader(io.StringIO(content))
             for row in reader:
                 all_examples.append({
@@ -436,351 +483,110 @@ def eval_memotrap(model, tokenizer, device, n, seed):
                     "answer_index": int(row["answer_index"]),
                 })
         except Exception as e:
-            logger.warning(f"MemoTrap — impossible de charger {fname} : {e}")
+            logger.warning(f"MemoTrap — parsing {fname} échoué : {e}")
 
     if not all_examples:
-        logger.warning("MemoTrap : aucun exemple chargé.")
         return None
 
-    rng = np.random.default_rng(seed)
-    idxs = rng.permutation(len(all_examples))[:min(n, len(all_examples))]
-    examples = [all_examples[i] for i in idxs]
+    if n is not None:
+        rng  = np.random.default_rng(seed)
+        idxs = rng.permutation(len(all_examples))[:min(n, len(all_examples))]
+        examples = [all_examples[i] for i in idxs]
+    else:
+        examples = all_examples
 
     correct = 0
     for ex in tqdm(examples, desc="MemoTrap", leave=False):
-        prompt   = ex["prompt"]
-        classes  = ex["classes"]   # [completion_correcte, completion_memorisee] ou inverse
-        ans_idx  = ex["answer_index"]
-        scores   = [
-            conditional_log_likelihood(
-                model, tokenizer, device, prompt, c, length_normalize=True
+        lls = []
+        for c in ex["classes"]:
+            ll, _, _, _ = conditional_log_likelihood(
+                model, tokenizer, device, ex["prompt"], c
             )
-            for c in classes
-        ]
-        if int(np.argmax(scores)) == ans_idx:
+            lls.append(ll)
+        if int(np.argmax(lls)) == ex["answer_index"]:
             correct += 1
-
     return correct / len(examples)
 
 
-
-def eval_nq(model, tokenizer, device, n, seed):
-    """Natural Questions (open) — exact match after greedy generation."""
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("google-research-datasets/nq_open", split="validation")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"NQ non disponible : {e}")
-        return None
-
-    # 5-shot examples (standard NQ-open few-shot context)
-    NQ_FEWSHOT = (
-        "Q: when was the last time anyone was on the moon\nA: December 1972\n\n"
-        "Q: who wrote he ain't heavy he's my brother lyrics\nA: Bobby Scott\n\n"
-        "Q: who is the founder of virgin group\nA: Richard Branson\n\n"
-        "Q: who played the lead in grease the movie\nA: John Travolta\n\n"
-        "Q: where was the battle of vimy ridge fought\nA: France\n\n"
-    )
-
-    correct = 0
-    for ex in tqdm(ds, desc="NQ", leave=False):
-        question     = ex["question"]
-        gold_answers = ex["answer"]  # list[str]
-
-        prompt = NQ_FEWSHOT + f"Q: {question}\nA:"
-        pred   = generate_greedy(model, tokenizer, device, prompt, max_new_tokens=32)
-
-        if exact_match_any(pred, gold_answers):
-            correct += 1
-
-    return correct / len(ds)
-
-
-def eval_popqa(model, tokenizer, device, n, seed):
-    """PopQA — exact match after greedy generation."""
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("akariasai/PopQA", split="test")
-        ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
-    except Exception as e:
-        logger.warning(f"PopQA non disponible : {e}")
-        return None
-
-    POPQA_FEWSHOT = (
-        "Q: What is George Rankin's occupation?\nA: politician\n\n"
-        "Q: What is John Mayne's occupation?\nA: journalist\n\n"
-        "Q: Who is the spouse of Barack Obama?\nA: Michelle Obama\n\n"
-        "Q: What country is Mount Everest located in?\nA: Nepal\n\n"
-        "Q: Who directed the movie The Godfather?\nA: Francis Ford Coppola\n\n"
-    )
-
-    correct = 0
-    for ex in tqdm(ds, desc="PopQA", leave=False):
-        question = ex["question"]
-        # possible_answers is a JSON-encoded list of strings
-        try:
-            gold_answers = json.loads(ex.get("possible_answers", "[]"))
-        except (ValueError, TypeError):
-            gold_answers = [ex.get("possible_answers", "")]
-
-        prompt = POPQA_FEWSHOT + f"Q: {question}\nA:"
-        pred   = generate_greedy(model, tokenizer, device, prompt, max_new_tokens=32)
-
-        if exact_match_any(pred, gold_answers):
-            correct += 1
-
-    return correct / len(ds)
-
-
-def eval_truthfulqa(model, tokenizer, device, n, seed):
-    """TruthfulQA MC1 et MC2"""
-    try:
-        ds = load_truthfulqa(n, seed)
-    except Exception as e:
-        logger.warning(f"TruthfulQA non disponible : {e}")
-        return None, None
-
-    mc1_correct = 0
-    mc2_correct = 0.0  # accumulates normalized probability mass (continuous MC2 score)
-
-    for ex in tqdm(ds, desc="TruthfulQA", leave=False):
-        q = ex["question"]
-        mc = ex["mc1_targets"]
-
-        # MC1 : une seule bonne réponse
-        choices_mc1 = mc["choices"]
-        labels_mc1  = mc["labels"]
-        scores = [conditional_log_likelihood(model, tokenizer, device, q + " ", c)
-                  for c in choices_mc1]
-        pred_mc1 = int(np.argmax(scores))
-        if labels_mc1[pred_mc1] == 1:
-            mc1_correct += 1
-
-        # MC2 : somme des probabilités softmax assignées aux bonnes réponses
-        mc2 = ex["mc2_targets"]
-        choices_mc2 = mc2["choices"]
-        labels_mc2  = mc2["labels"]
-        scores2 = [conditional_log_likelihood(model, tokenizer, device, q + " ", c)
-                   for c in choices_mc2]
-        # Standard MC2 metric: normalize scores via softmax, sum probs of correct answers
-        import torch.nn.functional as F
-        scores2_t = torch.tensor(scores2, dtype=torch.float32)
-        probs2 = F.softmax(scores2_t, dim=0)
-        mask2 = torch.tensor([bool(l) for l in labels_mc2])
-        mc2_correct += probs2[mask2].sum().item()
-
-    return mc1_correct / len(ds), mc2_correct / len(ds)
-
-
-def eval_mmlu(model, tokenizer, device, n, seed):
-    """MMLU — 4-way multiple choice"""
-    try:
-        ds = load_mmlu(n, seed)
-    except Exception as e:
-        logger.warning(f"MMLU non disponible : {e}")
-        return None
-
-    correct = 0
-    choices_letters = ["A", "B", "C", "D"]
-
-    for ex in tqdm(ds, desc="MMLU", leave=False):
-        q = ex["question"]
-        choices = ex["choices"]
-        answer_idx = ex["answer"]  # 0-3
-
-        # Build a prompt ending with "Answer:" and score each letter " A".." D".
-        # This is the standard lm-eval-harness MMLU protocol.
-        prompt = (
-            f"{q}\n"
-            f"A. {choices[0]}\nB. {choices[1]}\nC. {choices[2]}\nD. {choices[3]}\n"
-            f"Answer:"
-        )
-        scores = [
-            conditional_log_likelihood(model, tokenizer, device, prompt, f" {letter}")
-            for letter in choices_letters
-        ]
-
-        pred = int(np.argmax(scores))
-        if pred == answer_idx:
-            correct += 1
-
-    return correct / len(ds)
-
-
-def eval_winogrande(model, tokenizer, device, n, seed):
-    """WinoGrande — complétion de phrase avec 2 options"""
-    try:
-        ds = load_winogrande(n, seed)
-    except Exception as e:
-        logger.warning(f"WinoGrande non disponible : {e}")
-        return None
-
-    correct = 0
-    for ex in tqdm(ds, desc="WinoGrande", leave=False):
-        sentence = ex["sentence"]
-        opt1, opt2 = ex["option1"], ex["option2"]
-        answer = ex["answer"]  # "1" ou "2"
-
-        # Partial scoring: context = text before blank, completion = option + rest.
-        # This avoids length bias from the two options having different token counts.
-        blank_idx = sentence.index("_")
-        prefix = sentence[:blank_idx]
-        suffix = sentence[blank_idx + 1:]  # text after the blank
-
-        s1 = conditional_log_likelihood(model, tokenizer, device, prefix, opt1 + suffix)
-        s2 = conditional_log_likelihood(model, tokenizer, device, prefix, opt2 + suffix)
-
-        pred = "1" if s1 > s2 else "2"
-        if pred == answer:
-            correct += 1
-
-    return correct / len(ds)
-
-
-def eval_wikitext_bpb(model, tokenizer, device):
-    """WikiText BPB (bits per byte) — métrique de perplexité normalisée"""
-    try:
-        from datasets import load_dataset
-        ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
-    except Exception as e:
-        logger.warning(f"WikiText non disponible : {e}")
-        return None
-
-    # Concatène tout le texte de test
-    full_text = "\n\n".join([ex["text"] for ex in ds if ex["text"].strip()])
-    encodings = tokenizer(full_text, return_tensors="pt", truncation=False)
-    input_ids = encodings["input_ids"]
-
-    # Compute actual bytes-per-token for this tokenizer/text combination
-    num_bytes = len(full_text.encode("utf-8"))
-    num_tokens = input_ids.shape[1]
-    bytes_per_token = num_bytes / num_tokens
-
-    # Calcul NLL par blocs de 512 tokens avec stride 256 (standard)
-    # Context tokens are masked so only new tokens contribute to the loss.
-    stride = 256
-    seq_len = 512
-    nlls = []
-    prev_end = 0
-
-    for begin in tqdm(range(0, input_ids.shape[1] - 1, stride),
-                      desc="WikiText BPB", leave=False):
-        end = min(begin + seq_len, input_ids.shape[1])
-        target_len = end - prev_end
-        chunk = input_ids[:, begin:end].to(device)
-
-        # Mask context tokens so loss is computed only over new tokens
-        labels = chunk.clone()
-        labels[:, :-target_len] = -100
-
-        with torch.no_grad():
-            out = model(chunk, labels=labels)
-            nll = out.loss.item()
-
-        nlls.append(nll * target_len)
-        prev_end = end
-        if end == input_ids.shape[1]:
-            break
-
-    total_nll = sum(nlls)
-    total_tokens = input_ids.shape[1] - 1
-    avg_nll = total_nll / total_tokens
-
-    # BPB = avg_NLL_nats / (log(2) * bytes_per_token)
-    bpb = avg_nll / math.log(2) / bytes_per_token
-    return bpb
-
-
 # ---------------------------------------------------------------------------
-# Pipeline d'évaluation complète
+# Pipeline d'évaluation
 # ---------------------------------------------------------------------------
 
-def run_eval(model, tokenizer, device, n=1024, seed=42):
-    import math
+METRIC_ORDER = [
+    "WikiText103_PPL", "WikiText103_BPB",
+    "LAMBADA_ppl",
+    "HellaSwag_acc", "HellaSwag_acc_norm",
+    "PTB_BPB", "PTB_PPL",
+    "PIQA_acc", "PIQA_acc_norm",
+    "ARC-Easy_acc", "ARC-Easy_acc_norm",
+    "MemoTrap",
+]
+
+
+def run_eval(model, tokenizer, device, n=None, seed=42):
     results = {}
+    logger.info("=== Évaluation Qwen2.5-0.5B ===")
 
-    logger.info("=== Évaluation en cours ===")
     skipped = [b for b in [
-        "HE-Dial", "HE-QA", "HE-Summ", "MemoTrap",
-        "TFQA", "MMLU", "NQ", "PopQA", "Winogrande", "WikiText_BPB",
+        "WikiText103_PPL", "PTB_BPB", "LAMBADA",
+        "HellaSwag", "PIQA", "ARC-Easy", "MemoTrap",
     ] if b not in BENCHMARKS_TO_EVALUATE]
     if skipped:
-        logger.info(f"  Benchmarks ignorés : {skipped}")
+        logger.info(f"  Ignorés : {skipped}")
 
-    # --- Hallucination benchmarks ---
-    if "HE-Dial" in BENCHMARKS_TO_EVALUATE:
-        logger.info("HaluEval Dialogue ...")
-        halu_dial = eval_halueval_dial(model, tokenizer, device, n, seed)
-        if halu_dial is not None:
-            results["HE-Dial"] = round(halu_dial, 4)
-            logger.info(f"  HE-Dial     = {halu_dial:.4f}")
+    if "WikiText103_PPL" in BENCHMARKS_TO_EVALUATE:
+        logger.info("WikiText-103 (in-domain, cible du FT) ...")
+        r = eval_wikitext103_ppl(model, tokenizer, device)
+        if r is not None:
+            results["WikiText103_PPL"] = round(r["ppl"], 4)
+            results["WikiText103_BPB"] = round(r["bpb"], 4)
+            logger.info(f"  WT103 PPL   = {r['ppl']:.3f}   BPB = {r['bpb']:.4f}")
 
-    if "HE-QA" in BENCHMARKS_TO_EVALUATE:
-        logger.info("HaluEval QA ...")
-        halu_qa = eval_halueval_qa(model, tokenizer, device, n, seed)
-        if halu_qa is not None:
-            results["HE-QA"] = round(halu_qa, 4)
-            logger.info(f"  HE-QA       = {halu_qa:.4f}")
+    if "PTB_BPB" in BENCHMARKS_TO_EVALUATE:
+        logger.info("PTB (OOD) ...")
+        r = eval_ptb_bpb(model, tokenizer, device)
+        if r is not None:
+            results["PTB_BPB"] = round(r["bpb"], 4)
+            results["PTB_PPL"] = round(r["ppl"], 4)
+            logger.info(f"  PTB   BPB   = {r['bpb']:.4f}   PPL = {r['ppl']:.3f}")
 
-    if "HE-Summ" in BENCHMARKS_TO_EVALUATE:
-        logger.info("HaluEval Summarization ...")
-        halu_summ = eval_halueval_summ(model, tokenizer, device, n, seed)
-        if halu_summ is not None:
-            results["HE-Summ"] = round(halu_summ, 4)
-            logger.info(f"  HE-Summ     = {halu_summ:.4f}")
+    if "LAMBADA" in BENCHMARKS_TO_EVALUATE:
+        logger.info("LAMBADA ...")
+        r = eval_lambada(model, tokenizer, device, n, seed)
+        if r is not None:
+            results["LAMBADA_ppl"] = round(r["ppl"], 4)
+            logger.info(f"  LAMBADA ppl = {r['ppl']:.3f}")
+
+    if "HellaSwag" in BENCHMARKS_TO_EVALUATE:
+        logger.info("HellaSwag ...")
+        r = eval_hellaswag(model, tokenizer, device, n, seed)
+        if r is not None:
+            results["HellaSwag_acc"]      = round(r["acc"], 4)
+            results["HellaSwag_acc_norm"] = round(r["acc_norm"], 4)
+            logger.info(f"  HellaSwag   acc={r['acc']:.4f}  acc_norm={r['acc_norm']:.4f}")
+
+    if "PIQA" in BENCHMARKS_TO_EVALUATE:
+        logger.info("PIQA ...")
+        r = eval_piqa(model, tokenizer, device, n, seed)
+        if r is not None:
+            results["PIQA_acc"]      = round(r["acc"], 4)
+            results["PIQA_acc_norm"] = round(r["acc_norm"], 4)
+            logger.info(f"  PIQA        acc={r['acc']:.4f}  acc_norm={r['acc_norm']:.4f}")
+
+    if "ARC-Easy" in BENCHMARKS_TO_EVALUATE:
+        logger.info("ARC-Easy ...")
+        r = eval_arc_easy(model, tokenizer, device, n, seed)
+        if r is not None:
+            results["ARC-Easy_acc"]      = round(r["acc"], 4)
+            results["ARC-Easy_acc_norm"] = round(r["acc_norm"], 4)
+            logger.info(f"  ARC-Easy    acc={r['acc']:.4f}  acc_norm={r['acc_norm']:.4f}")
 
     if "MemoTrap" in BENCHMARKS_TO_EVALUATE:
         logger.info("MemoTrap ...")
-        memo = eval_memotrap(model, tokenizer, device, n, seed)
-        if memo is not None:
-            results["MemoTrap"] = round(memo, 4)
-            logger.info(f"  MemoTrap    = {memo:.4f}")
-
-    if "TFQA" in BENCHMARKS_TO_EVALUATE:
-        logger.info("TruthfulQA ...")
-        tfqa_mc1, tfqa_mc2 = eval_truthfulqa(model, tokenizer, device, n, seed)
-        if tfqa_mc1 is not None:
-            results["TFQA-MC1"] = round(tfqa_mc1, 4)
-            results["TFQA-MC2"] = round(tfqa_mc2, 4)
-            logger.info(f"  TFQA-MC1    = {tfqa_mc1:.4f}")
-            logger.info(f"  TFQA-MC2    = {tfqa_mc2:.4f}")
-
-    # --- Knowledge benchmarks ---
-    if "MMLU" in BENCHMARKS_TO_EVALUATE:
-        logger.info("MMLU ...")
-        mmlu = eval_mmlu(model, tokenizer, device, n, seed)
-        if mmlu is not None:
-            results["MMLU"] = round(mmlu, 4)
-            logger.info(f"  MMLU        = {mmlu:.4f}")
-
-    if "NQ" in BENCHMARKS_TO_EVALUATE:
-        logger.info("NQ ...")
-        nq = eval_nq(model, tokenizer, device, n, seed)
-        if nq is not None:
-            results["NQ"] = round(nq, 4)
-            logger.info(f"  NQ          = {nq:.4f}")
-
-    if "PopQA" in BENCHMARKS_TO_EVALUATE:
-        logger.info("PopQA ...")
-        popqa = eval_popqa(model, tokenizer, device, n, seed)
-        if popqa is not None:
-            results["PopQA"] = round(popqa, 4)
-            logger.info(f"  PopQA       = {popqa:.4f}")
-
-    if "Winogrande" in BENCHMARKS_TO_EVALUATE:
-        logger.info("WinoGrande ...")
-        wino = eval_winogrande(model, tokenizer, device, n, seed)
-        if wino is not None:
-            results["Winogrande"] = round(wino, 4)
-            logger.info(f"  Winogrande  = {wino:.4f}")
-
-    if "WikiText_BPB" in BENCHMARKS_TO_EVALUATE:
-        logger.info("WikiText BPB ...")
-        wt_bpb = eval_wikitext_bpb(model, tokenizer, device)
-        if wt_bpb is not None:
-            results["WikiText_BPB"] = round(wt_bpb, 4)
-            logger.info(f"  WikiText BPB= {wt_bpb:.4f}")
+        v = eval_memotrap(model, tokenizer, device, n, seed)
+        if v is not None:
+            results["MemoTrap"] = round(v, 4)
+            logger.info(f"  MemoTrap    = {v:.4f}")
 
     return results
 
@@ -789,137 +595,103 @@ def run_eval(model, tokenizer, device, n=1024, seed=42):
 # Point d'entrée
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    import math
 
-    parser = argparse.ArgumentParser()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Évaluation Qwen2.5-0.5B (WikiText-103 FT)")
     parser.add_argument("--model_path", required=True,
-                        help="Chemin vers le modèle fine-tuné ou base model HF")
+                        help="Chemin vers le modèle fine-tuné ou 'Qwen/Qwen2.5-0.5B'")
     parser.add_argument("--base_model", default=None,
-                        help="Si model_path est un dossier LoRA, spécifier le base model ici")
-    parser.add_argument("--n_samples", type=int, default=EVAL_PARAMS["n_samples"])
-    parser.add_argument("--seed", type=int, default=EVAL_PARAMS["seed"])
-    parser.add_argument("--csv", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv"),
-                        help="Path to results.csv (shared across experiments)")
-    parser.add_argument("--csv_column", default=None,
-                        help="Column name to update in results.csv (e.g. 'baseline', 'game-lora', 'exp1')")
-    parser.add_argument(
-        "--reference", choices=["baseline", "game_lora"], default="baseline",
-        help="Colonne de référence de l'article (Table 1) : 'baseline' ou 'game_lora'",
-    )
+                        help="Si model_path est un dossier PEFT adapter sans le base, "
+                             "spécifier le base model ici (sinon résolu depuis adapter_config.json)")
+    parser.add_argument("--n_samples", type=int, default=None,
+                        help="Taille max par benchmark (défaut: set complet). "
+                             "Ne pas descendre sous 1000 sans raison.")
+    parser.add_argument("--seed", type=int, default=EVAL_PARAMS["seed"],
+                        help="Seed pour le sous-échantillonnage (si n_samples < full)")
+    parser.add_argument("--wandb_project", default="Stackelberg-Qwen0.5B",
+                        help="Projet W&B (passer '' pour désactiver)")
+    parser.add_argument("--wandb_run_name", required=True,
+                        help="Nom du run W&B")
+    parser.add_argument("--wandb_group", default=None,
+                        help="Groupe W&B (ex: 'baseline', 'stackelberg_v1')")
+    parser.add_argument("--wandb_tags", nargs="*", default=[],
+                        help="Tags W&B")
     args = parser.parse_args()
 
-    model, tokenizer, device = load_model(args.model_path, args.base_model)
-    results = run_eval(model, tokenizer, device, args.n_samples, args.seed)
+    # Auto-detect multi-run directory structure (run_*/final subdirs)
+    run_dirs = sorted(glob.glob(os.path.join(args.model_path, "run_*/final")))
 
-    logger.info("\n=== Résultats finaux ===")
-    for k, v in results.items():
-        logger.info(f"  {k:<20} = {v:.4f}")
+    # Try to resume the corresponding training wandb run (run_0 for multi-run, parent dir for single)
+    _run_id = None
+    if run_dirs:
+        _id_file = os.path.join(run_dirs[0].replace("/final", ""), "wandb_run_id.txt")
+    else:
+        _id_file = os.path.join(os.path.dirname(os.path.abspath(args.model_path)), "wandb_run_id.txt")
+    if os.path.exists(_id_file):
+        with open(_id_file) as _f:
+            _run_id = _f.read().strip()
 
-    # Table 1 — colonne Baseline
-    REFERENCE_BASELINE = {
-        "HE-Dial":     0.458,
-        "HE-QA":       0.376,
-        "HE-Summ":     0.438,
-        "MemoTrap":    0.642,
-        "TFQA-MC1":    0.252,
-        "TFQA-MC2":    0.401,
-        "MMLU":        0.477,
-        "NQ":          0.066,
-        "PopQA":       0.111,
-        "WikiText_BPB": 0.784,
-        "Winogrande":  0.573,
-    }
-
-    # Table 1 — colonne GAME-LoRA
-    REFERENCE_GAME_LORA = {
-        "HE-Dial":     0.491,
-        "HE-QA":       0.445,
-        "HE-Summ":     0.500,
-        "MemoTrap":    0.650,
-        "TFQA-MC1":    0.263,
-        "TFQA-MC2":    0.412,
-        "MMLU":        0.469,
-        "NQ":          0.067,
-        "PopQA":       0.112,
-        "WikiText_BPB": 0.786,
-        "Winogrande":  0.565,
-    }
-
-    reference = REFERENCE_GAME_LORA if args.reference == "game_lora" else REFERENCE_BASELINE
-    logger.info(f"\nRéférence utilisée : Table 1 — {args.reference}")
-    # Comparaison avec les valeurs de référence de l'article
-
-    # Lower-is-better tasks (negated in relative improvement formula)
-    LOWER_IS_BETTER = {"WikiText_BPB"}
-
-    # Category definitions for aggregate reporting
-    CATEGORIES = {
-        "Hallucination": ["HE-Dial", "HE-QA", "HE-Summ", "MemoTrap", "TFQA-MC1", "TFQA-MC2"],
-        "Knowledge":     ["MMLU", "NQ", "PopQA", "WikiText_BPB", "Winogrande"],
-    }
-
-    logger.info("\n=== Comparaison avec l'article (Baseline) ===")
-    deltas = {}
-    for k, ref in reference.items():
-        if k in results and ref != 0:
-            s = results[k]
-            if k in LOWER_IS_BETTER:
-                pct = (ref - s) / ref * 100.0   # improvement = reduction in BPB
-            else:
-                pct = (s - ref) / ref * 100.0
-            deltas[k] = pct
-            logger.info(f"  {k:<20} : obtenu={s:.4f}  ref={ref:.4f}  Δ={pct:+.2f}%")
-
-    logger.info("\n=== Agrégats par catégorie ===")
-    for cat, tasks in CATEGORIES.items():
-        cat_deltas = [deltas[t] for t in tasks if t in deltas]
-        if cat_deltas:
-            avg = sum(cat_deltas) / len(cat_deltas)
-            logger.info(f"  {cat:<20} : {avg:+.1f}%")
-
-    # --- Update results.csv if --csv_column is specified ---
-    if args.csv_column:
-        import csv
-        csv_path = args.csv
-        # Read existing CSV
-        rows = {}
-        if os.path.exists(csv_path):
-            with open(csv_path, "r") as f:
-                reader = csv.DictReader(f)
-                fieldnames = list(reader.fieldnames) if reader.fieldnames else ["metric"]
-                for row in reader:
-                    rows[row["metric"]] = row
+    use_wandb = bool(args.wandb_project)
+    if use_wandb:
+        import wandb
+        if _run_id:
+            logger.info(f"Resuming wandb run {_run_id} (training run)")
+            wandb.init(
+                project=args.wandb_project,
+                id=_run_id,
+                resume="allow",
+                job_type="eval",
+            )
         else:
-            fieldnames = ["metric"]
+            wandb.init(
+                project=args.wandb_project,
+                name=args.wandb_run_name,
+                group=args.wandb_group,
+                tags=args.wandb_tags,
+                job_type="eval",
+                config={
+                    "model_path": args.model_path,
+                    "seed":       args.seed,
+                    "n_samples":  args.n_samples,
+                },
+            )
 
-        # Ensure column exists
-        col = args.csv_column
-        if col not in fieldnames:
-            fieldnames.append(col)
+    if run_dirs:
+        logger.info(f"Multi-run eval : {len(run_dirs)} runs trouvés dans {args.model_path}")
+        all_results = []
+        for run_dir in run_dirs:
+            logger.info(f"\n--- {run_dir} ---")
+            model, tokenizer, device = load_model(run_dir, args.base_model)
+            r = run_eval(model, tokenizer, device, args.n_samples, args.seed)
+            all_results.append(r)
+            del model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
-        # Canonical metric order
-        METRIC_ORDER = [
-            "HE-Dial", "HE-QA", "HE-Summ", "MemoTrap",
-            "TFQA-MC1", "TFQA-MC2", "MMLU", "NQ", "PopQA",
-            "Winogrande", "WikiText_BPB",
-        ]
+        all_keys = list(all_results[0].keys())
+        results = {k: round(float(np.mean([r[k] for r in all_results])), 4) for k in all_keys}
+        results_std = {k: round(float(np.std([r[k] for r in all_results])), 4) for k in all_keys}
 
-        # Ensure every canonical metric has a row (empty string for unevaluated ones)
-        for m in METRIC_ORDER:
-            if m not in rows:
-                rows[m] = {"metric": m}
-        # Write evaluated metrics into the new column
-        for metric, value in results.items():
-            rows[metric][col] = str(value)
+        logger.info("\n=== Résultats (moyenne ± std sur %d runs) ===" % len(run_dirs))
+        for k in METRIC_ORDER:
+            if k in results:
+                logger.info(f"  {k:<20} = {results[k]:.4f} ± {results_std[k]:.4f}")
+    else:
+        model, tokenizer, device = load_model(args.model_path, args.base_model)
+        results = run_eval(model, tokenizer, device, args.n_samples, args.seed)
+        results_std = {}
 
-        ordered_metrics = [m for m in METRIC_ORDER if m in rows]
-        ordered_metrics += [m for m in rows if m not in METRIC_ORDER]
+        logger.info("\n=== Résultats finaux ===")
+        for k in METRIC_ORDER:
+            if k in results:
+                logger.info(f"  {k:<20} = {results[k]}")
 
-        with open(csv_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for m in ordered_metrics:
-                writer.writerow(rows[m])
+    ordered = [k for k in METRIC_ORDER if k in results]
+    ordered += [k for k in results if k not in METRIC_ORDER]
 
-        logger.info(f"Colonne '{col}' mise à jour dans {csv_path}")
+    if use_wandb:
+        for k in ordered:
+            wandb.run.summary[f"eval/{k}"] = results[k]
+            if k in results_std:
+                wandb.run.summary[f"eval/{k}_std"] = results_std[k]
+        wandb.finish()

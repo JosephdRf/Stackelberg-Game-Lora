@@ -8,11 +8,11 @@
 #SBATCH --error=logs/%A_%a.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
-#SBATCH --array=0-5
+#SBATCH --array=6-8
 
 x=$SLURM_ARRAY_TASK_ID
 
-LAMBDA_LDBS=(0 0.01 0.05 0.1 0.3 1.0)
+LAMBDA_LDBS=(2.0 5.0 10.0)
 
 RUN_NAME=Exp2_45_$((x+1))
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
