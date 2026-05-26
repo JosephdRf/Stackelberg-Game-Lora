@@ -68,6 +68,7 @@ from stackelberg_losses import (
     follower_erank_loss, follower_output_diversity_loss, follower_diversity_loss_cka,
     entropy_heads,
     leader_confidence_loss, leader_confidence_loss_smooth, minus_entropy_head,
+    ldb_loss, head_interaction_matrix,
 )
 
 logger = logging.getLogger(__name__)
@@ -225,6 +226,7 @@ def train_stackelberg(
     lambda_peer: float = 0.0,
     lambda_conf: float = 0.0,
     lambda_rank: float = 0.0,
+    lambda_ldb: float = 0.0,
     leader_indices: list = None,
     conf_loss_type: str = "max",
     div_loss_type: str = "cos",
@@ -271,6 +273,7 @@ def train_stackelberg(
                 "lambda_peer": lambda_peer,
                 "lambda_conf": lambda_conf,
                 "lambda_rank": lambda_rank,
+                "lambda_ldb": lambda_ldb,
                 "conf_loss_type": conf_loss_type,
                 "div_loss_type": div_loss_type,
                 "design_layers": design_layers,
@@ -421,12 +424,13 @@ def train_stackelberg(
         _conf_loss_fn = _CONF_LOSS_FN[conf_loss_type]
         _div_loss_fn = _DIV_LOSS_FN.get(div_loss_type, None)
         logger.info(
-            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  λ_rank={lambda_rank}  "
+            f"λ_lead={lambda_lead}  λ_peer={lambda_peer}  λ_conf={lambda_conf}  "
+            f"λ_rank={lambda_rank}  λ_ldb={lambda_ldb}  "
             f"conf_loss_type={conf_loss_type}  div_loss_type={div_loss_type}  "
             f"— hooks on layers {[dl - 1 for dl in design_layers]}"
         )
     else:
-        logger.info("λ_lead=0  λ_peer=0  λ_conf=0  — CE only (no hook, identical to baseline)")
+        logger.info("λ_lead=0  λ_peer=0  λ_conf=0  λ_ldb=0  — CE only (no hook, identical to baseline)")
 
     # ── Directories & history ──
     os.makedirs(cfg.output_dir, exist_ok=True)
@@ -439,7 +443,7 @@ def train_stackelberg(
     fixed_ids = _fixed_batch["input_ids"][:1].to(device)
 
     history = {
-        "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "conf": []},
+        "train": {"step": [], "ce": [], "ce_ema": [], "div": [], "conf": [], "ldb": []},
         "val": {"step": [], "loss": [], "ppl": []},
         "leaders": {"step": [], "indices": [], "conf_scores": []},
     }
@@ -466,6 +470,7 @@ def train_stackelberg(
     accum_ce = 0.0
     accum_div = 0.0
     accum_conf = 0.0
+    accum_ldb = 0.0
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
@@ -538,6 +543,15 @@ def train_stackelberg(
             else:
                 follower_loss = ce_loss / cfg.grad_accum
 
+            if lambda_ldb > 0:
+                _ldb_per_layer = [
+                    ldb_loss(head_interaction_matrix(model, out.logits, labels, dl, d_head))
+                    for dl in design_layers
+                ]
+                ldb_raw = lambda_ldb * torch.stack(_ldb_per_layer).mean()
+                follower_loss = follower_loss + ldb_raw / cfg.grad_accum
+                accum_ldb += ldb_raw.item()
+
             follower_loss.backward()
             accum_ce += ce_loss.item() / cfg.grad_accum
 
@@ -607,6 +621,13 @@ def train_stackelberg(
                         conf_raw = lambda_conf * torch.stack(_conf_losses).mean()
                         leader_ce_mb = leader_ce_mb + conf_raw / cfg.grad_accum
                         accum_conf += conf_raw.detach().item()
+                    if lambda_ldb > 0:
+                        _ldb_per_layer_l = [
+                            ldb_loss(head_interaction_matrix(model, out_leader.logits, lab, dl, d_head))
+                            for dl in design_layers
+                        ]
+                        ldb_raw_l = lambda_ldb * torch.stack(_ldb_per_layer_l).mean()
+                        leader_ce_mb = leader_ce_mb + ldb_raw_l / cfg.grad_accum
                     leader_ce_mb.backward()
 
                 with torch.no_grad():
@@ -647,6 +668,7 @@ def train_stackelberg(
                 pbar.set_postfix(
                     ce=f"{accum_ce:.4f}", ema=f"{_ema_ce:.4f}",
                     div=f"{accum_div:.4f}", conf=f"{accum_conf:.4f}",
+                    ldb=f"{accum_ldb:.4f}",
                     tok_s=f"{tokens_per_sec:,}",
                 )
 
@@ -661,6 +683,7 @@ def train_stackelberg(
                         f"[train] step {opt_step:>6d}/{total_steps}"
                         f"  CE={accum_ce:.4f}  ema={_ema_ce:.4f}"
                         f"  div={accum_div:.4f}  conf={accum_conf:.4f}"
+                        f"  ldb={accum_ldb:.4f}"
                         f"  lr_L={lr_l:.2e}  lr_F={lr_f:.2e}"
                         f"  tok/s={tokens_per_sec:,}"
                     )
@@ -671,6 +694,7 @@ def train_stackelberg(
                                 "train/ce_ema": _ema_ce,
                                 "train/div_loss": accum_div,
                                 "train/conf_loss": accum_conf,
+                                "train/ldb_loss": accum_ldb,
                                 "train/lr_leader": lr_l,
                                 "train/lr_follower": lr_f,
                                 "train/tokens": opt_step * cfg.seq_len * cfg.effective_batch_size,
@@ -682,6 +706,7 @@ def train_stackelberg(
                     history["train"]["ce_ema"].append(_ema_ce)
                     history["train"]["div"].append(accum_div)
                     history["train"]["conf"].append(accum_conf)
+                    history["train"]["ldb"].append(accum_ldb)
 
                 # ── Eval périodique ──
                 if opt_step % cfg.eval_every == 0:
@@ -841,6 +866,7 @@ def train_stackelberg(
                 accum_ce = 0.0
                 accum_div = 0.0
                 accum_conf = 0.0
+                accum_ldb = 0.0
                 accum_inputs = []
                 accum_labels = []
 
@@ -964,6 +990,10 @@ def parse_args():
         help="Effective rank coefficient for followers (used with --div_loss_type erank)",
     )
     parser.add_argument(
+        "--lambda_ldb", type=float, default=0.0,
+        help="Log-determinant barrier weight (0 = disabled). Applied to both leader and follower.",
+    )
+    parser.add_argument(
         "--leader_idx", nargs="+", type=int, default=[0],
         help="Indices of leader heads (others are followers).",
     )
@@ -1022,6 +1052,7 @@ if __name__ == "__main__":
     logger.info(f"  λ_peer         : {args.lambda_peer}")
     logger.info(f"  λ_conf         : {args.lambda_conf}")
     logger.info(f"  λ_rank         : {args.lambda_rank}")
+    logger.info(f"  λ_ldb          : {args.lambda_ldb}")
     logger.info(f"  Leader heads   : {args.leader_idx}")
     logger.info(f"  Nb runs        : {args.nb_runs}")
     logger.info(f"  Conf loss      : {args.conf_loss_type}")
@@ -1059,6 +1090,7 @@ if __name__ == "__main__":
             lambda_peer=args.lambda_peer,
             lambda_conf=args.lambda_conf,
             lambda_rank=args.lambda_rank,
+            lambda_ldb=args.lambda_ldb,
             leader_indices=args.leader_idx,
             conf_loss_type=args.conf_loss_type,
             div_loss_type=args.div_loss_type,

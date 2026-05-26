@@ -539,12 +539,17 @@ class HeadOutputCapture:
             self._handle = None
 
 
-def get_output_projection_weights(model, design_layer: int = 9) -> torch.Tensor:
+def get_output_projection_weights(model, design_layer: int = 9, detach: bool = True) -> torch.Tensor:
     """
     Extrait les poids W_O effectifs de la couche spécifiée, reshapés par tête.
 
     Architecture Pythia :
       model.gpt_neox.layers[l].attention.dense  (768, 768)
+
+    Args:
+        detach: si True (défaut), W_O et LoRA sont détachés du graphe (utilisation
+                en eval / monitoring). Si False, W_O conserve son grad — nécessaire
+                pour que LDB régularise effectivement les poids d'output projection.
 
     Returns:
         W_O: (H, d, d_h)
@@ -552,13 +557,16 @@ def get_output_projection_weights(model, design_layer: int = 9) -> torch.Tensor:
     attn = model.gpt_neox.layers[design_layer].attention
     dense = attn.dense
 
-    W_O_full = dense.weight.detach()  # (hidden_size, hidden_size) — poids de base
+    W_O_full = dense.weight.detach() if detach else dense.weight
 
     # Avec LoRA, le poids effectif = W_base + scaling · lora_B @ lora_A
     if hasattr(dense, "lora_A") and "default" in dense.lora_A:
         scaling = dense.scaling["default"]
-        lora_A  = dense.lora_A["default"].weight.detach()  # (r, in_features)
-        lora_B  = dense.lora_B["default"].weight.detach()  # (out_features, r)
+        lora_A = dense.lora_A["default"].weight
+        lora_B = dense.lora_B["default"].weight
+        if detach:
+            lora_A = lora_A.detach()
+            lora_B = lora_B.detach()
         W_O_full = W_O_full + scaling * (lora_B @ lora_A)
 
     cfg = attn.config

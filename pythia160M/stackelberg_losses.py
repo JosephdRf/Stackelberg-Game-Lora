@@ -472,3 +472,55 @@ def entropy_heads(attn_weights: torch.Tensor) -> torch.Tensor:
     entropies = -(attn_weights * log_attn).sum(dim=-1).mean(dim=(0, 2))
     assert entropies.shape == (attn_weights.shape[1],)
     return entropies
+
+
+# ---------------------------------------------------------------------------
+# Log-determinant barrier (GAME-LoRA, Chakrabarti & Balachundar 2026)
+# ---------------------------------------------------------------------------
+
+
+def head_interaction_matrix(
+    model,
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    design_layer: int,
+    head_dim: int,
+) -> torch.Tensor:
+    """
+    G = ω ⊙ ρ  (Définition 2.3, Eq 6).
+
+      ω_ij = cosine(W_O^(i), W_O^(j))   — couplage des slices par tête de la
+             projection de sortie du design layer. W_O est passé AVEC autograd
+             pour que L_LDB régularise effectivement ces poids.
+      ρ_ij = cosine(g_i, g_j) avec g_i = W_O^(i)^T · η_mean,
+             η_mean = E[(softmax(logits) − one_hot(labels)) · W_lm_head].
+             ρ est entièrement détaché (statistique fixe du batch utilisée comme
+             pondération).
+
+    Returns: G ∈ R^{H×H}, grad flow only through ω.
+    """
+    from train_utils import HeadInteractionMatrix, get_output_projection_weights
+
+    W_O = get_output_projection_weights(model, design_layer, detach=False)
+    omega = HeadInteractionMatrix.compute_weight_coupling(W_O)            # (H, H), avec grad
+
+    with torch.no_grad():
+        W_O_det = get_output_projection_weights(model, design_layer, detach=True)
+        rho = HeadInteractionMatrix.compute_gradient_coupling(
+            model, logits, labels, W_O_det, head_dim
+        )                                                                  # (H, H), détaché
+
+    return omega * rho
+
+
+def ldb_loss(G: torch.Tensor, epsilon: float = 0.01) -> torch.Tensor:
+    """
+    L_LDB = -log det(G + εI)   (Eq 28).
+
+    G : (H, H) head interaction matrix (sortie de head_interaction_matrix).
+    epsilon : régularisation pour garantir la définie-positivité stricte.
+    """
+    H = G.shape[0]
+    G_reg = G.float() + epsilon * torch.eye(H, device=G.device, dtype=torch.float32)
+    eigvals = torch.linalg.eigvalsh(G_reg).clamp(min=epsilon)
+    return -eigvals.log().sum()

@@ -90,6 +90,7 @@ from gradient_mask import (
     mask_leader_grad,
     assemble_gradients,
 )
+from stackelberg_losses import ldb_loss, head_interaction_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ def train_stackelberg(
     lr_follower: float = 3e-4,
     lr_sim: float = 1e-3,
     leader_idx: int = 0,
+    lambda_ldb: float = 0.0,
     keep_wandb_open: bool = False,
 ):
     seed_everything(cfg.seed)
@@ -128,6 +130,7 @@ def train_stackelberg(
                 "lr_sim": lr_sim,
                 "design_layer": design_layer,
                 "leader_idx": leader_idx,
+                "lambda_ldb": lambda_ldb,
             },
         )
 
@@ -249,6 +252,10 @@ def train_stackelberg(
         num_training_steps=total_steps,
     )
 
+    # ── LDB config (no hook needed — calcule G depuis W_O + logits) ──
+    _d_head_ldb = 768 // 12
+    logger.info(f"λ_ldb={lambda_ldb}")
+
     # ── Directories & history ──
     os.makedirs(cfg.output_dir, exist_ok=True)
     logs_dir = os.path.join(cfg.output_dir, "logs")
@@ -257,7 +264,7 @@ def train_stackelberg(
     os.makedirs(plots_dir, exist_ok=True)
 
     history = {
-        "train": {"step": [], "ce": [], "ce_ema": [], "leader_ce": []},
+        "train": {"step": [], "ce": [], "ce_ema": [], "leader_ce": [], "ldb": []},
         "val": {"step": [], "loss": [], "ppl": []},
     }
     _ema_ce = None
@@ -280,6 +287,7 @@ def train_stackelberg(
     global_step = 0
     accum_ce = 0.0
     accum_leader_ce = 0.0
+    accum_ldb = 0.0
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
@@ -312,6 +320,14 @@ def train_stackelberg(
                 ce_loss = out.loss
 
             follower_loss = ce_loss / cfg.grad_accum
+
+            if lambda_ldb > 0:
+                G = head_interaction_matrix(
+                    model, out.logits, labels, design_layer, _d_head_ldb,
+                )
+                ldb_raw = lambda_ldb * ldb_loss(G)
+                follower_loss = follower_loss + ldb_raw / cfg.grad_accum
+                accum_ldb += ldb_raw.item()
 
             follower_loss.backward()
             accum_ce += ce_loss.item() / cfg.grad_accum
@@ -376,6 +392,12 @@ def train_stackelberg(
                     ):
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
+                    if lambda_ldb > 0:
+                        G_l = head_interaction_matrix(
+                            model, out_leader.logits, lab, design_layer, _d_head_ldb,
+                        )
+                        ldb_raw_l = lambda_ldb * ldb_loss(G_l)
+                        leader_ce_mb = leader_ce_mb + ldb_raw_l / cfg.grad_accum
                     leader_ce_mb.backward()
                     leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
 
@@ -425,6 +447,7 @@ def train_stackelberg(
                     ce=f"{accum_ce:.4f}",
                     ema=f"{_ema_ce:.4f}",
                     l_ce=f"{accum_leader_ce:.4f}",
+                    ldb=f"{accum_ldb:.4f}",
                     tok_s=f"{tokens_per_sec:,}",
                 )
 
@@ -440,6 +463,7 @@ def train_stackelberg(
                         f"[train] step {opt_step:>6d}/{total_steps}"
                         f"  CE={accum_ce:.4f}  ema={_ema_ce:.4f}"
                         f"  leader_CE={accum_leader_ce:.4f}"
+                        f"  ldb={accum_ldb:.4f}"
                         f"  lr_L={lr_l:.2e}  lr_F={lr_f:.2e}"
                         f"  tok/s={tokens_per_sec:,}"
                     )
@@ -449,6 +473,7 @@ def train_stackelberg(
                                 "train/ce_loss": accum_ce,
                                 "train/ce_ema": _ema_ce,
                                 "train/leader_ce": accum_leader_ce,
+                                "train/ldb_loss": accum_ldb,
                                 "train/lr_leader": lr_l,
                                 "train/lr_follower": lr_f,
                                 "train/tokens": opt_step
@@ -461,6 +486,7 @@ def train_stackelberg(
                     history["train"]["ce"].append(accum_ce)
                     history["train"]["ce_ema"].append(_ema_ce)
                     history["train"]["leader_ce"].append(accum_leader_ce)
+                    history["train"]["ldb"].append(accum_ldb)
 
                 # ── Eval périodique ──
                 if opt_step % cfg.eval_every == 0:
@@ -499,6 +525,7 @@ def train_stackelberg(
 
                 accum_ce = 0.0
                 accum_leader_ce = 0.0
+                accum_ldb = 0.0
                 accum_inputs = []
                 accum_labels = []
 
@@ -641,6 +668,10 @@ def parse_args():
         "--run_eval", action="store_true", default=True,
         help="Lancer l'évaluation après l'entraînement et logger les métriques dans le même run wandb.",
     )
+    parser.add_argument(
+        "--lambda_ldb", type=float, default=0.0,
+        help="Weight for the log-determinant barrier loss (0 = disabled).",
+    )
     return parser.parse_args()
 
 
@@ -675,6 +706,7 @@ if __name__ == "__main__":
     logger.info(f"  LR sim step   : {args.lr_sim}")
     logger.info(f"  Leader head   : {args.leader_idx}")
     logger.info(f"  Nb runs       : {args.nb_runs}")
+    logger.info(f"  λ_ldb         : {args.lambda_ldb}")
 
     if os.path.exists(args.output_dir):
         shutil.rmtree(args.output_dir)
@@ -704,6 +736,7 @@ if __name__ == "__main__":
             lr_follower=args.lr_follower,
             lr_sim=args.lr_sim,
             leader_idx=args.leader_idx,
+            lambda_ldb=args.lambda_ldb,
             keep_wandb_open=keep_open,
         )
         _run_durations.append(time.perf_counter() - _t0)
