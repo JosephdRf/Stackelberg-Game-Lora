@@ -11,6 +11,7 @@
 #SBATCH --array=6-8
 
 x=$SLURM_ARRAY_TASK_ID
+i=$((x - 6))   # array=6-8 → indices 0,1,2 pour LAMBDA_LDBS
 
 LAMBDA_LDBS=(2.0 5.0 10.0)
 
@@ -50,7 +51,7 @@ python pythia160M/exp3/train_exp3.py \
     --lr_follower 3e-5 \
     --conf_loss_type entropy \
     --lambda_conf 0.05 \
-    --lambda_ldb ${LAMBDA_LDBS[$x]} \
+    --lambda_ldb ${LAMBDA_LDBS[$i]} \
     --div_loss_type cos \
     --lambda_lead 1e-2 \
     --lambda_peer 1e-2 \
