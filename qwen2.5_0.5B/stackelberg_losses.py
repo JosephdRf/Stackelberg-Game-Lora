@@ -6,12 +6,10 @@ sur des tenseurs (attention weights, head outputs) → indépendantes de
 l'architecture. Seules les fonctions head_interaction_matrix / ldb_loss
 dépendent du modèle (via get_output_projection_weights de train_utils.py).
 
-Note vs Pythia : les utilitaires get_attention_maps / get_attention_outputs
-(qui reconstruisent A,Q,K,V depuis qkv_module fusionné) ne sont pas portés
-car ils s'appuient sur la projection query_key_value fusionnée de Pythia.
-exp1 n'en a pas besoin (seules ldb_loss + head_interaction_matrix sont
-importées). À ajouter ultérieurement avec une implémentation Qwen séparée
-si nécessaire (variantes attention-diversity).
+get_attention_maps / get_attention_outputs : reconstruisent A (et Z=A@V) à
+partir des projections SÉPARÉES q_proj/k_proj/v_proj de Qwen2 + GQA (repeat_kv)
++ RoPE full head_dim + bias. Utilisés par exp3 (diversity/confidence losses).
+exp1 n'en a pas besoin (seules ldb_loss + head_interaction_matrix sont importées).
 
 Normalization :
   - Leader-follower : mean sur |F| × |L| pairs.
@@ -22,6 +20,142 @@ Normalization :
 import torch
 import torch.nn.functional as F
 from typing import List
+
+
+# ---------------------------------------------------------------------------
+# Reconstruction des cartes d'attention (Qwen2 : q/k/v séparés + GQA + RoPE)
+# ---------------------------------------------------------------------------
+
+
+def _rotate_half(x: torch.Tensor) -> torch.Tensor:
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2 :]
+    return torch.cat((-x2, x1), dim=-1)
+
+
+def _apply_rope(q, k, cos, sin):
+    """RoPE Qwen2 (full head_dim). q,k : (B, n_heads, L, d_head) ; cos,sin : (B, L, d_head)."""
+    cos = cos.unsqueeze(1)  # (B, 1, L, d_head)
+    sin = sin.unsqueeze(1)
+    q_embed = (q * cos) + (_rotate_half(q) * sin)
+    k_embed = (k * cos) + (_rotate_half(k) * sin)
+    return q_embed, k_embed
+
+
+def _repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+    """(B, n_kv, L, d) → (B, n_kv*n_rep, L, d) via expand+reshape (contigu, GQA Qwen2)."""
+    B, n_kv, L, d = x.shape
+    if n_rep == 1:
+        return x
+    x = x[:, :, None, :, :].expand(B, n_kv, n_rep, L, d)
+    return x.reshape(B, n_kv * n_rep, L, d)
+
+
+def _lora_linear(module, x: torch.Tensor) -> torch.Tensor:
+    """
+    Applique une projection (avec poids effectif LoRA si présent + bias).
+
+    Gère :
+      - nn.Linear nu                → F.linear(x, weight, bias)
+      - PEFT lora.Linear            → base + scaling · (x @ A^T) @ B^T  (+ bias du base layer)
+    """
+    # Localiser le base layer (PEFT) ou le module lui-même
+    base = getattr(module, "base_layer", module)
+    weight = base.weight
+    bias = getattr(base, "bias", None)
+    out = F.linear(x, weight, bias)
+
+    # Ajouter la contribution LoRA si l'adaptateur existe
+    lora_A = getattr(module, "lora_A", None)
+    lora_B = getattr(module, "lora_B", None)
+    if lora_A is not None and lora_B is not None and len(lora_A) > 0:
+        adapter = next(iter(lora_A.keys()))  # "default" en général
+        A = lora_A[adapter].weight           # (r, in)
+        B = lora_B[adapter].weight           # (out, r)
+        scaling = module.scaling[adapter]
+        out = out + scaling * F.linear(F.linear(x, A), B)
+    return out
+
+
+def _qwen_qkv(
+    hidden, q_mod, k_mod, v_mod,
+    n_q_heads, n_kv_heads, d_head,
+    rotary_emb=None, input_layernorm=None,
+):
+    """
+    Reconstruit Q, K, V (post-RoPE, post-repeat_kv) pour Qwen2.
+
+    hidden : (B, L, hidden_size). Renvoie Q,K,V de shape (B, n_q_heads, L, d_head).
+    """
+    if hidden.ndim != 3:
+        raise ValueError(f"Expected hidden (B, L, H) got {hidden.shape}.")
+
+    if input_layernorm is not None:
+        hidden = input_layernorm(hidden)
+
+    B, L, _ = hidden.shape
+    Q = _lora_linear(q_mod, hidden).view(B, L, n_q_heads, d_head).transpose(1, 2)
+    K = _lora_linear(k_mod, hidden).view(B, L, n_kv_heads, d_head).transpose(1, 2)
+    V = _lora_linear(v_mod, hidden).view(B, L, n_kv_heads, d_head).transpose(1, 2)
+
+    if rotary_emb is not None:
+        position_ids = torch.arange(L, device=hidden.device).unsqueeze(0).expand(B, -1)
+        cos, sin = rotary_emb(hidden, position_ids)
+        Q, K = _apply_rope(Q, K, cos, sin)
+
+    n_rep = n_q_heads // n_kv_heads
+    K = _repeat_kv(K, n_rep)   # (B, n_q_heads, L, d_head)
+    V = _repeat_kv(V, n_rep)
+    return Q, K, V
+
+
+def get_attention_maps(
+    hidden, q_mod, k_mod, v_mod,
+    n_heads: int = 14, d_head: int = 64,
+    rotary_emb=None, n_kv_heads: int = 2, input_layernorm=None,
+) -> torch.Tensor:
+    """
+    Cartes d'attention post-softmax pour Qwen2. Retourne A : (B, n_heads, L, L), float32.
+    """
+    Q, K, _ = _qwen_qkv(
+        hidden, q_mod, k_mod, v_mod, n_heads, n_kv_heads, d_head,
+        rotary_emb=rotary_emb, input_layernorm=input_layernorm,
+    )
+    L = Q.shape[2]
+    scores = Q @ K.transpose(-2, -1) * (d_head ** -0.5)
+    causal_mask = torch.triu(
+        torch.ones(L, L, dtype=torch.bool, device=scores.device), diagonal=1
+    )
+    scores = scores.masked_fill(causal_mask, float("-inf"))
+    return torch.softmax(scores.float(), dim=-1)  # (B, n_heads, L, L)
+
+
+def get_attention_outputs(
+    hidden, q_mod, k_mod, v_mod,
+    n_heads: int = 14, d_head: int = 64,
+    rotary_emb=None, n_kv_heads: int = 2, input_layernorm=None,
+) -> tuple:
+    """
+    Comme get_attention_maps mais retourne aussi Z = A @ V (sorties par tête).
+
+    Returns:
+        A : (B, n_heads, L, L)
+        Z : (B, L, n_heads, d_head)
+    """
+    Q, K, V = _qwen_qkv(
+        hidden, q_mod, k_mod, v_mod, n_heads, n_kv_heads, d_head,
+        rotary_emb=rotary_emb, input_layernorm=input_layernorm,
+    )
+    L = Q.shape[2]
+    scores = Q @ K.transpose(-2, -1) * (d_head ** -0.5)
+    causal_mask = torch.triu(
+        torch.ones(L, L, dtype=torch.bool, device=scores.device), diagonal=1
+    )
+    scores = scores.masked_fill(causal_mask, float("-inf"))
+    A = torch.softmax(scores.float(), dim=-1)
+    Z = A @ V.float()
+    Z = Z.transpose(1, 2).contiguous()  # (B, L, n_heads, d_head)
+    return A, Z
 
 
 # ---------------------------------------------------------------------------
