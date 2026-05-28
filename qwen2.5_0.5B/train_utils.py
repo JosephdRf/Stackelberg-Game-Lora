@@ -114,8 +114,8 @@ class TrainConfig:
     lr: float = 3e-4
     weight_decay: float = 0.01
     warmup_ratio: float = 0.03
-    batch_size_per_gpu: int = 8   # ↓ vs Pythia 16 (Qwen-0.5B en fp32 sur A100)
-    grad_accum: int = 2           # batch effectif = 16
+    batch_size_per_gpu: int = 4   # ↓↓ vs Pythia 16 : vocab Qwen 151936 → logits fp32
+    grad_accum: int = 4           # = (B,L,V)*4 ≈ 2.5 GB par microbatch. Eff batch = 16.
     grad_clip: float = 1.0
     betas: tuple = (0.9, 0.95)
 
@@ -209,6 +209,7 @@ def build_model_and_tokenizer(
     attn_implementation=None,
     torch_dtype=torch.float32,
     use_lora: bool = True,
+    gradient_checkpointing: bool = True,
 ):
     logger.info(f"Chargement de {cfg.model_name} ...")
 
@@ -237,6 +238,19 @@ def build_model_and_tokenizer(
         )
         model = get_peft_model(model, lora_cfg)
         model.print_trainable_parameters()
+
+    # Gradient checkpointing : recompute des activations pendant le backward,
+    # gain mémoire ~50-70% au coût de ~20% de temps. Crucial pour Qwen-0.5B
+    # (vocab 151936 → logits fp32 lourds). Compatible avec LoRA (use_reentrant=False)
+    # et avec eager attention. Désactiver via gradient_checkpointing=False si la
+    # capture du hidden state (exp3 avec λ_*>0) pose problème.
+    if gradient_checkpointing:
+        if hasattr(model, "enable_input_require_grads"):
+            model.enable_input_require_grads()
+        model.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False}
+        )
+        logger.info("Gradient checkpointing : activé (use_reentrant=False)")
     else:
         n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
         n_total = sum(p.numel() for p in model.parameters())
@@ -388,8 +402,8 @@ def add_common_args(parser):
     parser.add_argument("--dataset_name", default="Salesforce/wikitext")
     parser.add_argument("--dataset_config", default="wikitext-103-raw-v1")
     parser.add_argument("--total_tokens", type=int, default=100_000_000)
-    parser.add_argument("--batch_size_per_gpu", type=int, default=8)
-    parser.add_argument("--grad_accum", type=int, default=2)
+    parser.add_argument("--batch_size_per_gpu", type=int, default=4)
+    parser.add_argument("--grad_accum", type=int, default=4)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--wandb_project", default="Stackelberg-Qwen0.5B")
     parser.add_argument("--wandb_group",   default=None,

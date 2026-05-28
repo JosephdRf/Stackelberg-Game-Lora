@@ -22,7 +22,7 @@
 LR_SIMS=(0 3e-4 1e-4 1e-3 3e-5 5e-5 2e-4)
 LR_SIM=${LR_SIMS[$((SLURM_ARRAY_TASK_ID - 8))]}
 
-RUN_NAME=Exp1_qwen_${SLURM_ARRAY_TASK_ID}
+RUN_NAME=Exp1_${SLURM_ARRAY_TASK_ID}
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 
 # Modules
