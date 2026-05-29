@@ -63,5 +63,5 @@ python qwen2.5_0.5B/exp3/train_exp3.py \
     --lambda_conf 0.0 \
     --lambda_lead $LAM \
     --lambda_peer $LAM \
-    --nb_runs 5 \
+    --nb_runs 3 \
     --run_eval

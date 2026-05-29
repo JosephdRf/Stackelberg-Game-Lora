@@ -28,7 +28,10 @@ from typing import List, Tuple, Optional, Dict
 # Kinds that own disjoint row/col slices of the design weight matrix.
 _LEADER_ROW_KINDS = {"qkv_lora_B", "qkv_weight"}
 _LEADER_COL_KINDS = {"dense_lora_A", "dense_weight"}
-_ADDITIVE_KINDS   = _LEADER_ROW_KINDS | _LEADER_COL_KINDS
+# Paramètres ENTIÈREMENT leader (pas de slicing) : ex. le MLP de gating exp6.
+# mask_follower → zéro ; mask_leader → gardé ; assemble → g_L (car g_F=0).
+_GATE_KINDS       = {"gate_leader"}
+_ADDITIVE_KINDS   = _LEADER_ROW_KINDS | _LEADER_COL_KINDS | _GATE_KINDS
 # Shared LoRA params: g_L is zeroed — update comes from g_F only.
 _SHARED_KINDS     = {"qkv_lora_A", "dense_lora_B"}
 
@@ -217,6 +220,9 @@ def mask_follower_grad(assembly: GradAssembly) -> None:
         elif role.kind in _LEADER_COL_KINDS:
             for lo in assembly.leader_o:
                 p.grad[:, lo] = 0
+        elif role.kind in _GATE_KINDS:
+            # paramètre entièrement leader → le follower ne le met pas à jour
+            p.grad.zero_()
 
 
 def mask_leader_grad(assembly: GradAssembly) -> None:
@@ -241,6 +247,9 @@ def mask_leader_grad(assembly: GradAssembly) -> None:
             for lo in assembly.leader_o:
                 mask[:, lo] = 1
             p.grad.mul_(mask)
+        elif role.kind in _GATE_KINDS:
+            # paramètre entièrement leader → gardé tel quel
+            pass
         elif role.kind in _SHARED_KINDS or role.kind == "other":
             p.grad.zero_()
 
@@ -277,6 +286,27 @@ def assemble_gradients(
             p.grad = gf + gl
         else:
             p.grad = gf
+
+
+def add_gate_roles(assembly: "GradAssembly", all_params: list, gate) -> list:
+    """
+    Ajoute les paramètres du module `gate` à l'assembly comme rôles 'gate_leader'
+    (entièrement leader). Renvoie la liste all_params mise à jour (gate inclus).
+    Modifie assembly.roles en place.
+    """
+    seen = {id(r.param) for r in assembly.roles}
+    gate_params = []
+    for n, p in gate.named_parameters():
+        if not p.requires_grad or id(p) in seen:
+            continue
+        assembly.roles.append(ParamRole(param=p, name=f"gate.{n}", kind="gate_leader"))
+        gate_params.append(p)
+    return list(all_params) + gate_params
+
+
+def gate_param_ids(assembly: "GradAssembly") -> set:
+    """id() des paramètres de kind 'gate_leader' (pour le param group lr_leader)."""
+    return {id(r.param) for r in assembly.roles if r.kind in _GATE_KINDS}
 
 
 # ---------------------------------------------------------------------------

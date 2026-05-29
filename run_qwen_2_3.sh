@@ -52,5 +52,5 @@ python qwen2.5_0.5B/exp3/train_exp3.py \
     --div_loss_type cos \
     --lambda_lead 1e-2 \
     --lambda_peer 1e-2 \
-    --nb_runs 5 \
+    --nb_runs 3 \
     --run_eval

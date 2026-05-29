@@ -109,6 +109,18 @@ def load_model(model_path: str):
     model.eval()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
+
+    # Gate exp6 (opt-in) : si gate.pt présent à côté du checkpoint, le ré-enregistrer.
+    # Sans gate.pt (baseline/exp1/exp2/exp3), aucun changement.
+    if is_local:
+        try:
+            from gate import load_gate
+            gate = load_gate(model, model_path, device)
+            if gate is not None:
+                logger.info(f"  Gate exp6 chargé et enregistré ({gate._lh.numel()} têtes leader)")
+        except Exception as e:
+            logger.warning(f"  Gate non chargé ({e}) — éval sans gating")
+
     return model, tokenizer, device
 
 
