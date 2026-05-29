@@ -48,6 +48,7 @@ class LeaderFollowerGate(nn.Module):
         nn.init.zeros_(self.mlp[-1].bias)   # logit 0 → 2·σ(0)=1 → gates ≡ 1
 
         self._handle = None
+        self.last_g = None   # dernier g calculé (detaché), pour le logging des stats
         self.register_buffer("_lh", torch.tensor(self.leader_heads, dtype=torch.long), persistent=False)
         self.register_buffer("_fh", torch.tensor(self.follower_heads, dtype=torch.long), persistent=False)
 
@@ -59,6 +60,7 @@ class LeaderFollowerGate(nn.Module):
         fh = self._fh.to(x.device)
         s = xh.index_select(2, lh).reshape(B, L, -1)
         g = 2.0 * torch.sigmoid(self.mlp(s))     # (B, L, |F|)
+        self.last_g = g.detach()                 # pour le logging
         gate = x.new_ones(B, L, self.n_heads, 1)
         gate = gate.index_copy(2, fh, g.unsqueeze(-1))
         xh = xh * gate
@@ -82,6 +84,35 @@ class LeaderFollowerGate(nn.Module):
             "n_heads": self.n_heads,
             "hidden": self.hidden,
         }
+
+
+def gate_stats(gate):
+    """
+    Stats du dernier g calculé (gate.last_g, shape (B, L, |F|)) pour le logging.
+
+    Returns dict :
+      mean_dev   : mean|g-1|         — activité du gating (0 = inerte = identité)
+      token_std  : std de g sur les tokens, moyenné — conditionnement contextuel
+      saturation : frac(g>1.9 ou g<0.1) — proportion de gates aux bornes
+      per_head   : (|F|,) tensor      — gate moyen par tête follower
+    """
+    g = gate.last_g
+    if g is None:
+        return None
+    mean_dev = (g - 1.0).abs().mean().item()
+    token_std = g.std(dim=1).mean().item()
+    saturation = ((g > 1.9) | (g < 0.1)).float().mean().item()
+    per_head = g.mean(dim=(0, 1))
+    return {"mean_dev": mean_dev, "token_std": token_std,
+            "saturation": saturation, "per_head": per_head}
+
+
+def gate_grad_norm(gate):
+    """Norme L2 du gradient du MLP de gating (confirme qu'il apprend)."""
+    gs = [p.grad.norm() for p in gate.parameters() if p.grad is not None]
+    if not gs:
+        return 0.0
+    return torch.norm(torch.stack(gs)).item()
 
 
 def _find_dense(model, design_layer: int):

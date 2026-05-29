@@ -78,7 +78,7 @@ from gradient_mask import (
     add_gate_roles,
     gate_param_ids,
 )
-from gate import LeaderFollowerGate, save_gate
+from gate import LeaderFollowerGate, save_gate, gate_stats, gate_grad_norm
 
 logger = logging.getLogger(__name__)
 
@@ -344,6 +344,9 @@ def train_stackelberg(
                         r.param.data.copy_(saved_data[id(r.param)])
                     assemble_gradients(grad_assembly, g_follower, g_leader)
 
+                # norme du gradient du gate (avant clip) — confirme qu'il apprend
+                _gate_gnorm = gate_grad_norm(gate)
+
                 torch.nn.utils.clip_grad_norm_(all_params, max_norm=cfg.grad_clip)
                 optimizer.step()
                 scheduler.step()
@@ -368,13 +371,29 @@ def train_stackelberg(
                         f"ema={_ema_ce:.4f}  leader_CE={accum_leader_ce:.4f}  "
                         f"lr_L={lr_l:.2e}  lr_F={lr_f:.2e}  tok/s={tokens_per_sec:,}"
                     )
+                    # ── Stats du gate (signaux exp6) ──
+                    _gs = gate_stats(gate)
+                    if _gs is not None:
+                        logger.info(
+                            f"        gate: mean|g-1|={_gs['mean_dev']:.4f}  "
+                            f"token_std={_gs['token_std']:.4f}  sat={_gs['saturation']:.3f}  "
+                            f"grad_norm={_gate_gnorm:.2e}"
+                        )
                     if use_wandb:
-                        wandb.log({
+                        log_dict = {
                             "train/ce_loss": accum_ce, "train/ce_ema": _ema_ce,
                             "train/leader_ce": accum_leader_ce,
                             "train/lr_leader": lr_l, "train/lr_follower": lr_f,
                             "train/tokens": opt_step * cfg.seq_len * cfg.effective_batch_size,
-                        }, step=opt_step)
+                        }
+                        if _gs is not None:
+                            log_dict["gate/mean_dev"] = _gs["mean_dev"]
+                            log_dict["gate/token_std"] = _gs["token_std"]
+                            log_dict["gate/saturation"] = _gs["saturation"]
+                            log_dict["gate/grad_norm"] = _gate_gnorm
+                            for _h, _v in zip(follower_q_heads, _gs["per_head"].tolist()):
+                                log_dict[f"gate/head_{_h}"] = _v
+                        wandb.log(log_dict, step=opt_step)
                     history["train"]["step"].append(opt_step)
                     history["train"]["ce"].append(accum_ce)
                     history["train"]["ce_ema"].append(_ema_ce)
