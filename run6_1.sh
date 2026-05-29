@@ -4,7 +4,7 @@
 #SBATCH --mem=16G
 #SBATCH --time=10:00:00
 #SBATCH --gres=gpu:a100:1
-#SBATCH --output=logs/%j.out
+#SBATCH --output=/dev/null
 #SBATCH --error=logs/%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
@@ -24,8 +24,7 @@ module load arrow/21.0.0
 
 cd "$SLURM_SUBMIT_DIR"
 
-ls -t logs/*.out 2>/dev/null | tail -n +11 | xargs -r rm --
-ls -t logs/*.err 2>/dev/null | tail -n +11 | xargs -r rm --
+ls -t logs/*.err 2>/dev/null | tail -n +21 | xargs -r rm --
 
 source $SLURM_SUBMIT_DIR/.venv/bin/activate
 

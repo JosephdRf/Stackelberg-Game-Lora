@@ -1,0 +1,139 @@
+"""
+Leader→Follower gating au design layer (Qwen2.5-0.5B).
+
+Idée
+----
+Au design layer, la sortie d'attention est o = Σ_h W_O^(h) z_h (somme des
+contributions par tête, poids fixe 1). On rend les contributions des têtes
+FOLLOWER pondérées par un signal calculé à partir des têtes LEADER :
+
+    s   = concat({z_l}_{l∈leader})            ∈ R^{|L|·d_head}
+    g   = 2·σ(MLP(s))                          ∈ (0,2)^{|F|}     (par token)
+    o   = Σ_{l∈L} W_O^(l) z_l  +  Σ_{i∈F} g_i · W_O^(i) z_i
+
+Mécanisme : le leader "commit" sa sortie, qui détermine combien chaque
+follower contribue (token par token). Couplage STRUCTUREL leader→follower.
+
+Implémentation : forward_pre_hook sur self_attn.o_proj. L'entrée de o_proj
+est exactement concat(z_h) — disponible quelle que soit l'implémentation
+d'attention (SDPA compris). PAS besoin d'eager.
+
+Init : dernière couche du MLP à zéro → g ≡ 1 → couche identique au modèle
+pré-entraîné à l'init (entraînement stable).
+
+Le gate n'est PAS un adaptateur PEFT : il est sauvegardé/rechargé séparément
+(save_gate / load_gate) et ré-enregistré à l'éval.
+"""
+
+import os
+import torch
+import torch.nn as nn
+
+
+class LeaderFollowerGate(nn.Module):
+    """
+    MLP : concat(z_leader) (|L|·d_head) → hidden → |F| gates ∈ (0,2).
+
+    S'enregistre comme forward_pre_hook sur o_proj : intercepte
+    x = concat(z_h) ∈ (B,L,H·d_head), pondère les colonnes des têtes follower.
+    """
+
+    def __init__(self, leader_heads, follower_heads, d_head: int,
+                 n_heads: int, hidden: int = 128):
+        super().__init__()
+        self.leader_heads = list(leader_heads)
+        self.follower_heads = list(follower_heads)
+        self.d_head = d_head
+        self.n_heads = n_heads
+        self.hidden = hidden
+
+        self.mlp = nn.Sequential(
+            nn.Linear(len(self.leader_heads) * d_head, hidden),
+            nn.GELU(),
+            nn.Linear(hidden, len(self.follower_heads)),
+        )
+        # Zero-init de la dernière couche → logit 0 → 2·σ(0)=1 → gates ≡ 1
+        nn.init.zeros_(self.mlp[-1].weight)
+        nn.init.zeros_(self.mlp[-1].bias)
+
+        self._handle = None
+        self.register_buffer("_lh", torch.tensor(self.leader_heads, dtype=torch.long), persistent=False)
+        self.register_buffer("_fh", torch.tensor(self.follower_heads, dtype=torch.long), persistent=False)
+
+    # -- hook ---------------------------------------------------------------
+
+    def _pre_hook(self, module, args):
+        x = args[0]                              # (B, L, H·d_head)
+        B, L, D = x.shape
+        xh = x.view(B, L, self.n_heads, self.d_head)
+        lh = self._lh.to(x.device)
+        fh = self._fh.to(x.device)
+        s = xh.index_select(2, lh).reshape(B, L, -1)         # (B, L, |L|·d_head)
+        g = 2.0 * torch.sigmoid(self.mlp(s))                 # (B, L, |F|)
+        # masque multiplicatif : 1 pour les leaders, g_i pour les followers.
+        # Construit via index_copy sur un tensor frais (différentiable : g porte
+        # le grad, gate sert de support).
+        gate = x.new_ones(B, L, self.n_heads, 1)
+        gate = gate.index_copy(2, fh, g.unsqueeze(-1))
+        xh = xh * gate
+        return (xh.reshape(B, L, D),) + tuple(args[1:])
+
+    def register(self, model, design_layer: int):
+        o_proj = _find_o_proj(model, design_layer)
+        self._handle = o_proj.register_forward_pre_hook(self._pre_hook)
+        return self
+
+    def remove(self):
+        if self._handle is not None:
+            self._handle.remove()
+            self._handle = None
+
+    # -- (de)sérialisation --------------------------------------------------
+
+    def config(self):
+        return {
+            "leader_heads": self.leader_heads,
+            "follower_heads": self.follower_heads,
+            "d_head": self.d_head,
+            "n_heads": self.n_heads,
+            "hidden": self.hidden,
+        }
+
+
+def _find_o_proj(model, design_layer: int):
+    """Localise self_attn.o_proj du design layer (PEFT-wrappé ou mergé)."""
+    target = f"layers.{design_layer}.self_attn.o_proj"
+    for name, mod in model.named_modules():
+        if name.endswith(target):
+            return mod
+    raise RuntimeError(f"o_proj introuvable pour le layer {design_layer}")
+
+
+def save_gate(gate: LeaderFollowerGate, out_dir: str, design_layer: int):
+    """Sauvegarde poids + config dans out_dir/gate.pt."""
+    os.makedirs(out_dir, exist_ok=True)
+    payload = {"state_dict": gate.state_dict(),
+               "config": gate.config(),
+               "design_layer": design_layer}
+    torch.save(payload, os.path.join(out_dir, "gate.pt"))
+
+
+def load_gate(model, ckpt_dir: str, device):
+    """
+    Si ckpt_dir/gate.pt existe : instancie le gate, charge les poids, enregistre
+    le hook sur le design layer, et renvoie le gate. Sinon renvoie None.
+    """
+    path = os.path.join(ckpt_dir, "gate.pt")
+    if not os.path.exists(path):
+        return None
+    payload = torch.load(path, map_location=device)
+    cfg = payload["config"]
+    gate = LeaderFollowerGate(
+        leader_heads=cfg["leader_heads"], follower_heads=cfg["follower_heads"],
+        d_head=cfg["d_head"], n_heads=cfg["n_heads"], hidden=cfg["hidden"],
+    )
+    gate.load_state_dict(payload["state_dict"])
+    gate = gate.to(device)
+    gate.eval()
+    gate.register(model, payload["design_layer"])
+    return gate
