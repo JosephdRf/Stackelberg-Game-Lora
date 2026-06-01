@@ -526,6 +526,7 @@ def train_stackelberg(
                         opt_step,
                         val_loader,
                         wandb_mod=wandb if use_wandb else None,
+                        log_image=(opt_step % (cfg.eval_every * 5) == 0),
                     )
                     if use_wandb:
                         wandb.log({"val/loss": v_loss, "val/ppl": v_ppl}, step=opt_step)

@@ -640,6 +640,7 @@ def log_head_matrices(
     val_loader,
     wandb_mod=None,
     n_batches: int = 20,
+    log_image: bool = True,
 ) -> float:
     """Calcule omega, rho, G pour `design_layer` ; renvoie Γ(G) et logue dans wandb."""
     was_training = model.training
@@ -684,12 +685,14 @@ def log_head_matrices(
         model.train()
 
     if wandb_mod is not None:
-        fig = _matrices_figure(omega, rho, G)
-        wandb_mod.log({
-            "head/matrices": wandb_mod.Image(fig),
-            "head/gamma_G":  gamma,
-        }, step=step)
-        plt.close(fig)
+        # Le scalaire Γ(G) est toujours loggé ; l'image (heatmaps ω/ρ/G) seulement
+        # si log_image (cadence ralentie côté appelant pour alléger le média wandb).
+        log_dict = {"head/gamma_G": gamma}
+        if log_image:
+            fig = _matrices_figure(omega, rho, G)
+            log_dict["head/matrices"] = wandb_mod.Image(fig)
+            plt.close(fig)
+        wandb_mod.log(log_dict, step=step)
 
     logger.info(f"  [head matrices] layer={design_layer}  Γ(G)={gamma:.4f}  "
                 f"(rho sur {n_batches} batches)")

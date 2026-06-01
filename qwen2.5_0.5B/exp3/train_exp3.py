@@ -661,30 +661,34 @@ def train_stackelberg(
                         log_dict = {"val/loss": v_loss, "val/ppl": v_ppl}
                         if need_hook:
                             from matplotlib.colors import LogNorm
+                            # Images : cadence ralentie (×5) pour alléger le média wandb.
+                            # Les scalaires conf_max/l2/entropy restent à chaque éval.
+                            _log_img = (opt_step % (cfg.eval_every * 5) == 0)
                             _conf_max_vals, _conf_l2_vals, _entropy_vals = [], [], []
                             S_sum = torch.zeros(_NQ, _NQ)
                             for dl in design_layers:
                                 ctx = _layer_ctx[dl]
-                                heatmaps = _compute_leader_heatmaps(
-                                    model, fixed_ids, ctx, rotary_emb, leader_indices,
-                                )
-                                for rank, (k, A0) in enumerate(heatmaps.items()):
-                                    fig, ax = plt.subplots(figsize=(7, 6))
-                                    A0_np = A0.numpy()
-                                    _vmax = float(np.percentile(A0_np, 99.5))
-                                    _vmin = max(float(A0_np.min()), _vmax * 1e-4)
-                                    _vmin = max(_vmin, 1e-9)
-                                    if _vmax <= _vmin:
-                                        _vmax = _vmin * 100
-                                    im = ax.imshow(
-                                        A0_np.clip(_vmin, None),
-                                        cmap="inferno", aspect="auto",
-                                        norm=LogNorm(vmin=_vmin, vmax=_vmax),
+                                if _log_img:
+                                    heatmaps = _compute_leader_heatmaps(
+                                        model, fixed_ids, ctx, rotary_emb, leader_indices,
                                     )
-                                    plt.colorbar(im, ax=ax, label="attention weight (log)")
-                                    ax.set_title(f"A_leader_{rank} (head {k}, layer {dl}, step {opt_step})")
-                                    log_dict[f"eval/A_leader_{rank}_layer{dl}_heatmap"] = wandb.Image(fig)
-                                    plt.close(fig)
+                                    for rank, (k, A0) in enumerate(heatmaps.items()):
+                                        fig, ax = plt.subplots(figsize=(7, 6))
+                                        A0_np = A0.numpy()
+                                        _vmax = float(np.percentile(A0_np, 99.5))
+                                        _vmin = max(float(A0_np.min()), _vmax * 1e-4)
+                                        _vmin = max(_vmin, 1e-9)
+                                        if _vmax <= _vmin:
+                                            _vmax = _vmin * 100
+                                        im = ax.imshow(
+                                            A0_np.clip(_vmin, None),
+                                            cmap="inferno", aspect="auto",
+                                            norm=LogNorm(vmin=_vmin, vmax=_vmax),
+                                        )
+                                        plt.colorbar(im, ax=ax, label="attention weight (log)")
+                                        ax.set_title(f"A_leader_{rank} (head {k}, layer {dl}, step {opt_step})")
+                                        log_dict[f"eval/A_leader_{rank}_layer{dl}_heatmap"] = wandb.Image(fig)
+                                        plt.close(fig)
 
                                 S, conf_max, conf_l2, h_entropy = _compute_val_head_metrics(
                                     model, val_loader, ctx, rotary_emb,
@@ -695,21 +699,22 @@ def train_stackelberg(
                                 _conf_l2_vals.append(conf_l2)
                                 _entropy_vals.append(h_entropy)
 
-                            S = S_sum / len(design_layers)
-                            fig, ax = plt.subplots(figsize=(7, 6))
-                            S_np = S.numpy()
-                            _off = S_np[~np.eye(S_np.shape[0], dtype=bool)]
-                            _vext = max(abs(float(np.percentile(_off, 1))),
-                                        abs(float(np.percentile(_off, 99))), 0.05)
-                            im = ax.imshow(
-                                S_np, cmap="RdBu_r", vmin=-_vext, vmax=_vext, aspect="auto",
-                            )
-                            plt.colorbar(im, ax=ax, label="cosine similarity")
-                            ax.set_title(f"S^A cosine similarity (step {opt_step})")
-                            ax.set_xlabel("head j")
-                            ax.set_ylabel("head i")
-                            log_dict["eval/SA_heatmap"] = wandb.Image(fig)
-                            plt.close(fig)
+                            if _log_img:
+                                S = S_sum / len(design_layers)
+                                fig, ax = plt.subplots(figsize=(7, 6))
+                                S_np = S.numpy()
+                                _off = S_np[~np.eye(S_np.shape[0], dtype=bool)]
+                                _vext = max(abs(float(np.percentile(_off, 1))),
+                                            abs(float(np.percentile(_off, 99))), 0.05)
+                                im = ax.imshow(
+                                    S_np, cmap="RdBu_r", vmin=-_vext, vmax=_vext, aspect="auto",
+                                )
+                                plt.colorbar(im, ax=ax, label="cosine similarity")
+                                ax.set_title(f"S^A cosine similarity (step {opt_step})")
+                                ax.set_xlabel("head j")
+                                ax.set_ylabel("head i")
+                                log_dict["eval/SA_heatmap"] = wandb.Image(fig)
+                                plt.close(fig)
                             log_dict["leader/conf_max"] = float(np.mean(_conf_max_vals))
                             log_dict["leader/conf_l2"] = float(np.mean(_conf_l2_vals))
                             log_dict["leader/entropy"] = float(np.mean(_entropy_vals))
