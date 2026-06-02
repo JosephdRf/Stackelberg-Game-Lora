@@ -10,6 +10,11 @@ scontrol show job 59999999, voir détails avancés d'un job
 
 ,récupérer les résultats de WandB après l'exécution du job
 rsync -avz --progress joseph63@narval.computecanada.ca:/home/joseph63/scratch/Stackelberg-Game-Lora/wandb/ wandb/
+rsync -avz --progress \
+  --exclude='*/media/' \
+  joseph63@narval.computecanada.ca:/lustre07/scratch/joseph63/Stackelberg-Game-Lora/wandb/ \
+  wandb/, exclure médias
+
 
 ,synchroniser les résultats de WandB après l'exécution du job
 wandb sync --sync-all wandb/ 
