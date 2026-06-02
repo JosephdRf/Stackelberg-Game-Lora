@@ -5,15 +5,20 @@
 #SBATCH --time=10:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=/dev/null
-#SBATCH --error=logs/%j.err
+#SBATCH --error=logs/%A_%a.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
-#SBATCH --job-name=Exp6
+#SBATCH --array=0-4
 
-# exp6 Pythia-160M : Stackelberg bilevel (CE) + gating leader→followers au
-# design layer (hook sur attention.dense). Le MLP de gating est un paramètre
-# leader (lr_leader). Init gates ≡ 1.
-# lr alignés sur les runs pythia exp2 (3e-5/3e-5/1e-5) pour comparabilité.
+# exp6 Pythia-160M : sweep du lr dédié au MLP de gating (lr_gate).
+# Avec lr_gate=lr_leader (3e-5) le gate bouge à peine → on teste des lr plus
+# grands pour un effet plus marqué. Reste (lr_leader/follower/sim) inchangé.
+# index → lr_gate :
+LR_GATES=(3e-5 3e-4 1e-3 3e-3 1e-2)
+LR_GATE=${LR_GATES[$SLURM_ARRAY_TASK_ID]}
+
+RUN_NAME=Exp6_lrgate_${LR_GATE}
+scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 
 # Modules
 module load StdEnv/2023
@@ -32,9 +37,9 @@ export WANDB_MODE=offline
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-RUN_NAME=Exp6_1
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp6/$RUN_NAME
 
+# nb_runs=1 pour le sweep (comparer les lr_gate). Relancer le meilleur en nb_runs=3.
 python pythia160M/exp6/train_exp6.py \
     --output_dir $CKPT_DIR \
     --wandb_project Stackelberg-Pythia160M --wandb_group Exp6 --run_name $RUN_NAME \
@@ -44,5 +49,6 @@ python pythia160M/exp6/train_exp6.py \
     --lr_leader 3e-5 \
     --lr_follower 3e-5 \
     --lr_sim 1e-5 \
-    --nb_runs 5 \
+    --lr_gate $LR_GATE \
+    --nb_runs 1 \
     --run_eval

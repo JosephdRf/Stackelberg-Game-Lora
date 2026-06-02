@@ -5,14 +5,20 @@
 #SBATCH --time=12:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=/dev/null
-#SBATCH --error=logs/%j.err
+#SBATCH --error=logs/%A_%a.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
-#SBATCH --job-name=Exp6_qwen
+#SBATCH --array=0-4
 
-# exp6 Qwen2.5-0.5B : Stackelberg bilevel (CE) + gating leader→followers au
-# design layer. SDPA (pas d'eager), fp32, batch 4 × grad_accum 4 + grad ckpt.
-# Le MLP de gating est un paramètre leader (lr_leader). Init gates ≡ 1.
+# exp6 Qwen2.5-0.5B : sweep du lr dédié au MLP de gating (lr_gate).
+# Stackelberg bilevel (CE) + gating leader→followers, SDPA, fp32, grad ckpt.
+# lr_leader/follower = 3e-4 ; on teste lr_gate de 3e-4 (= leader) à 3e-2.
+# index → lr_gate :
+LR_GATES=(3e-4 1e-3 3e-3 1e-2 3e-2)
+LR_GATE=${LR_GATES[$SLURM_ARRAY_TASK_ID]}
+
+RUN_NAME=Exp6_qwen_lrgate_${LR_GATE}
+scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 
 # Modules
 module load StdEnv/2023
@@ -31,9 +37,9 @@ export WANDB_MODE=offline
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-RUN_NAME=Exp6_qwen
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp6_qwen/$RUN_NAME
 
+# nb_runs=1 pour le sweep (comparer les lr_gate). Relancer le meilleur en nb_runs=3.
 python qwen2.5_0.5B/exp6/train_exp6.py \
     --output_dir $CKPT_DIR \
     --wandb_project Stackelberg-Qwen0.5B --wandb_group Exp6 --run_name $RUN_NAME \
@@ -44,5 +50,6 @@ python qwen2.5_0.5B/exp6/train_exp6.py \
     --lr_leader 3e-4 \
     --lr_follower 3e-4 \
     --lr_sim 1e-4 \
-    --nb_runs 3 \
+    --lr_gate $LR_GATE \
+    --nb_runs 1 \
     --run_eval

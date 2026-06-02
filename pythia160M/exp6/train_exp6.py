@@ -97,12 +97,15 @@ def train_stackelberg(
     lr_leader: float = 1e-4,
     lr_follower: float = 3e-4,
     lr_sim: float = 1e-3,
+    lr_gate: float = None,
     leader_indices: list = None,
     gate_hidden: int = 128,
     keep_wandb_open: bool = False,
 ):
     if leader_indices is None:
         leader_indices = [0]
+    if lr_gate is None:
+        lr_gate = lr_leader   # rétro-compat : gate au lr_leader si non spécifié
     follower_indices = [h for h in range(_NH) if h not in set(leader_indices)]
 
     seed_everything(cfg.seed)
@@ -121,6 +124,7 @@ def train_stackelberg(
                 **vars(cfg),
                 "lr_leader": lr_leader,
                 "lr_follower": lr_follower,
+                "lr_gate": lr_gate,
                 "lr_sim": lr_sim,
                 "design_layer": design_layer,
                 "leader_indices": leader_indices,
@@ -191,16 +195,21 @@ def train_stackelberg(
     )
     logger.info(f"Design LoRA (θ_L∪θ_F) : {n_design:,}  |  Gate (θ_L) : {n_gate:,}")
 
-    # leader = dense_lora_A (cols leader) + gate ; reste → lr_follower
-    leader_param_ids = {
+    # 3 groupes lr : follower/shared (lr_follower), leader-LoRA dense_lora_A (lr_leader),
+    # gate MLP (lr_gate, séparé pour pouvoir l'accélérer indépendamment).
+    leader_lora_ids = {
         id(r.param) for r in grad_assembly.roles if r.kind == "dense_lora_A"
-    } | _gate_ids
+    }
     param_groups = [
-        {"params": [p for p in all_params if id(p) not in leader_param_ids],
+        {"params": [p for p in all_params
+                    if id(p) not in leader_lora_ids and id(p) not in _gate_ids],
          "lr": lr_follower, "name": "follower_and_shared"},
-        {"params": [p for p in all_params if id(p) in leader_param_ids],
+        {"params": [p for p in all_params if id(p) in leader_lora_ids],
          "lr": lr_leader, "name": "leader"},
+        {"params": [p for p in all_params if id(p) in _gate_ids],
+         "lr": lr_gate, "name": "gate"},
     ]
+    logger.info(f"lr : follower={lr_follower}  leader={lr_leader}  gate={lr_gate}")
     optimizer = torch.optim.AdamW(param_groups, betas=cfg.betas, weight_decay=cfg.weight_decay)
     scheduler = get_cosine_schedule_with_warmup(
         optimizer, num_warmup_steps=cfg.warmup_steps, num_training_steps=total_steps,
@@ -473,6 +482,9 @@ def parse_args():
                         help="Design layer (Pythia-160M : 0-11)")
     parser.add_argument("--lr_leader", type=float, default=1e-4)
     parser.add_argument("--lr_follower", type=float, default=3e-4)
+    parser.add_argument("--lr_gate", type=float, default=None,
+                        help="LR dédié au MLP de gating (défaut = lr_leader). "
+                             "Augmenter (ex. 1e-2) pour un effet plus marqué du gate.")
     parser.add_argument("--lr_sim", type=float, default=1e-3,
                         help="LR du simulated follower step (vanilla SGD)")
     parser.add_argument("--leader_idx", nargs="+", type=int, default=[0],
@@ -504,6 +516,7 @@ if __name__ == "__main__":
     logger.info(f"  Leader heads    : {args.leader_idx}")
     logger.info(f"  Gate hidden     : {args.gate_hidden}")
     logger.info(f"  LR leader/foll/sim : {args.lr_leader}/{args.lr_follower}/{args.lr_sim}")
+    logger.info(f"  LR gate         : {args.lr_gate if args.lr_gate is not None else f'{args.lr_leader} (=lr_leader)'}")
     logger.info(f"  Nb runs         : {args.nb_runs}")
 
     if os.path.exists(args.output_dir):
@@ -524,7 +537,7 @@ if __name__ == "__main__":
         _t0 = time.perf_counter()
         train_stackelberg(
             cfg_i, design_layer=args.design_layer, lr_leader=args.lr_leader,
-            lr_follower=args.lr_follower, lr_sim=args.lr_sim,
+            lr_follower=args.lr_follower, lr_sim=args.lr_sim, lr_gate=args.lr_gate,
             leader_indices=args.leader_idx, gate_hidden=args.gate_hidden,
             keep_wandb_open=keep_open,
         )
