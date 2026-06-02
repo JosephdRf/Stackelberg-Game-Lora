@@ -32,7 +32,7 @@ export WANDB_MODE=offline
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-RUN_NAME=Exp6
+RUN_NAME=Exp6_1
 CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp6/$RUN_NAME
 
 python pythia160M/exp6/train_exp6.py \
