@@ -15,14 +15,37 @@
 #   Chaque job évalue tous les sous-runs (run_*/final) du checkpoint,
 #   reprend le run wandb existant (resume="allow") et uploade via wandb sync.
 
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <run_id1> [run_id2 ...]"
-    exit 1
-fi
-
-# Si on n'est pas dans un job SLURM, soumettre un job par run ID puis sortir.
+# Si on n'est pas dans un job SLURM, on est le lanceur.
 if [ -z "$SLURM_JOB_ID" ]; then
-    for RUN_ID in "$@"; do
+    SUBMIT_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
+    CSV="$SUBMIT_DIR/run_ids_evaluation.csv"
+
+    if [ $# -gt 0 ]; then
+        # IDs passés explicitement en argument
+        IDS=("$@")
+    else
+        # Lecture du CSV : garde les lignes dont le Name commence par Exp
+        if [ ! -f "$CSV" ]; then
+            echo "ERREUR : $CSV introuvable et aucun run ID fourni en argument."
+            exit 1
+        fi
+        mapfile -t IDS < <(python3 - "$CSV" <<'EOF'
+import csv, sys
+with open(sys.argv[1], newline="") as f:
+    for row in csv.DictReader(f):
+        if row["Name"].startswith("Exp"):
+            print(row["ID"])
+EOF
+        )
+        echo "CSV : ${#IDS[@]} runs Exp* trouvés dans $CSV"
+    fi
+
+    if [ ${#IDS[@]} -eq 0 ]; then
+        echo "Aucun run ID à traiter."
+        exit 1
+    fi
+
+    for RUN_ID in "${IDS[@]}"; do
         sbatch "$0" "$RUN_ID"
     done
     exit 0
