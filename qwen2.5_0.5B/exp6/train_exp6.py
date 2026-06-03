@@ -77,6 +77,15 @@ from gradient_mask import (
     assemble_gradients,
     add_gate_roles,
     gate_param_ids,
+    HiddenStateCapture,
+)
+from stackelberg_losses import (
+    get_attention_maps, get_attention_outputs,
+    follower_diversity_loss, follower_diversity_loss_sq, follower_diversity_loss_hadamard,
+    follower_erank_loss, follower_output_diversity_loss, follower_diversity_loss_cka,
+    entropy_heads,
+    leader_confidence_loss, leader_confidence_loss_smooth, minus_entropy_head,
+    ldb_loss, head_interaction_matrix,
 )
 from gate import LeaderFollowerGate, save_gate, gate_stats, gate_grad_norm
 
@@ -88,8 +97,108 @@ _DH = QWEN_D_HEAD         # 64
 _GROUP = _NQ // _NKV      # 7
 
 
+_CONF_LOSS_FN = {
+    "max":     leader_confidence_loss,
+    "smooth":  leader_confidence_loss_smooth,
+    "entropy": minus_entropy_head,
+}
+
+_DIV_LOSS_FN = {
+    "cos":      follower_diversity_loss,
+    "cos_sq":   follower_diversity_loss_sq,
+    "hadamard": follower_diversity_loss_hadamard,
+}
+
+
 def _parse_int_list(s):
     return [int(x) for x in s.split(",") if x.strip()]
+
+
+# ---------------------------------------------------------------------------
+# Reconstruction d'attention (pour les losses exp3) — design_layer unique
+# ---------------------------------------------------------------------------
+
+
+def _resolve_attn_ctx(model, design_layers):
+    """Renvoie (rotary_emb, {dl: {q_mod,k_mod,v_mod,input_layernorm,capture}})."""
+    rotary_emb = next(
+        mod for name, mod in model.named_modules()
+        if name.endswith("model.rotary_emb") or name == "rotary_emb"
+    )
+    ctx = {}
+    for dl in design_layers:
+        q_mod = next(m for n, m in model.named_modules()
+                     if n.endswith(f"layers.{dl}.self_attn.q_proj"))
+        k_mod = next(m for n, m in model.named_modules()
+                     if n.endswith(f"layers.{dl}.self_attn.k_proj"))
+        v_mod = next(m for n, m in model.named_modules()
+                     if n.endswith(f"layers.{dl}.self_attn.v_proj"))
+        ln_mod = next(m for n, m in model.named_modules()
+                      if n.endswith(f"layers.{dl}.input_layernorm"))
+        cap = HiddenStateCapture()
+        cap.register(model, dl - 1)
+        ctx[dl] = {
+            "q_mod": q_mod, "k_mod": k_mod, "v_mod": v_mod,
+            "input_layernorm": ln_mod, "capture": cap,
+        }
+    return rotary_emb, ctx
+
+
+def _A(hidden, ctx, rotary_emb):
+    return get_attention_maps(
+        hidden, ctx["q_mod"], ctx["k_mod"], ctx["v_mod"],
+        n_heads=_NQ, d_head=_DH, rotary_emb=rotary_emb,
+        n_kv_heads=_NKV, input_layernorm=ctx["input_layernorm"],
+    )
+
+
+def _AZ(hidden, ctx, rotary_emb):
+    return get_attention_outputs(
+        hidden, ctx["q_mod"], ctx["k_mod"], ctx["v_mod"],
+        n_heads=_NQ, d_head=_DH, rotary_emb=rotary_emb,
+        n_kv_heads=_NKV, input_layernorm=ctx["input_layernorm"],
+    )
+
+
+@torch.no_grad()
+def _compute_leader_heatmaps(model, fixed_ids, ctx, rotary_emb, leader_indices):
+    model.eval()
+    model(input_ids=fixed_ids)
+    hidden = ctx["capture"].get()
+    A = _A(hidden, ctx, rotary_emb)
+    model.train()
+    return {k: A[0, k].cpu().float() for k in leader_indices}
+
+
+@torch.no_grad()
+def _compute_val_head_metrics(model, val_loader, ctx, rotary_emb,
+                              leader_indices, device, n_batches=20):
+    model.eval()
+    S_accum = torch.zeros(_NQ, _NQ)
+    conf_max_sum = conf_l2_sum = entropy_sum = 0.0
+    count = 0
+    li_t = torch.tensor(leader_indices)
+    for batch in val_loader:
+        if count >= n_batches:
+            break
+        input_ids = batch["input_ids"].to(device)
+        model(input_ids=input_ids)
+        hidden = ctx["capture"].get()
+        if hidden is None:
+            continue
+        A = _A(hidden, ctx, rotary_emb)
+        B, H, L, _ = A.shape
+        A_flat = A.view(B, H, L * L)
+        A_norm = A_flat / A_flat.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        S_accum += torch.bmm(A_norm, A_norm.transpose(1, 2)).mean(0).cpu().float()
+        A_leaders = A[:, li_t, :, :]
+        conf_max_sum += A_leaders.max(dim=-1).values.mean().item()
+        conf_l2_sum += (A_leaders ** 2).sum(dim=-1).mean().item()
+        entropy_sum += entropy_heads(A)[li_t].mean().item()
+        count += 1
+    model.train()
+    n = max(1, count)
+    return S_accum / n, conf_max_sum / n, conf_l2_sum / n, entropy_sum / n
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +213,13 @@ def train_stackelberg(
     lr_follower: float = 3e-4,
     lr_sim: float = 1e-3,
     lr_gate: float = None,
+    lambda_lead: float = 0.0,
+    lambda_peer: float = 0.0,
+    lambda_conf: float = 0.0,
+    lambda_rank: float = 0.0,
+    lambda_ldb: float = 0.0,
+    conf_loss_type: str = "max",
+    div_loss_type: str = "cos",
     leader_q_heads: list = None,
     leader_kv_heads: list = None,
     gate_hidden: int = 128,
@@ -136,6 +252,13 @@ def train_stackelberg(
                 "lr_follower": lr_follower,
                 "lr_sim": lr_sim,
                 "lr_gate": lr_gate,
+                "lambda_lead": lambda_lead,
+                "lambda_peer": lambda_peer,
+                "lambda_conf": lambda_conf,
+                "lambda_rank": lambda_rank,
+                "lambda_ldb": lambda_ldb,
+                "conf_loss_type": conf_loss_type,
+                "div_loss_type": div_loss_type,
                 "design_layer": design_layer,
                 "leader_q_heads": leader_q_heads,
                 "leader_kv_heads": leader_kv_heads,
@@ -236,6 +359,24 @@ def train_stackelberg(
         optimizer, num_warmup_steps=cfg.warmup_steps, num_training_steps=total_steps,
     )
 
+    # ── Losses exp3 (diversity / confidence / LDB) — hooks d'attention ──
+    # Si tous les λ=0 (cas run6_1) : need_hook=False → aucune reconstruction
+    # d'attention, forward identique à l'exp6 "CE+gate" pur.
+    need_div = lambda_lead > 0 or lambda_peer > 0 or lambda_rank > 0
+    need_hook = need_div or lambda_conf > 0
+    rotary_emb = None
+    _layer_ctx = {}
+    if need_hook:
+        rotary_emb, _layer_ctx = _resolve_attn_ctx(model, [design_layer])
+        _conf_loss_fn = _CONF_LOSS_FN[conf_loss_type]
+        _div_loss_fn = _DIV_LOSS_FN.get(div_loss_type, None)
+        logger.info(
+            f"λ_lead={lambda_lead} λ_peer={lambda_peer} λ_conf={lambda_conf} "
+            f"λ_rank={lambda_rank} λ_ldb={lambda_ldb}  conf={conf_loss_type} div={div_loss_type}"
+        )
+    else:
+        logger.info("λ=0 partout — CE + gate uniquement, pas de hook d'attention")
+
     # ── Directories & history ──
     os.makedirs(cfg.output_dir, exist_ok=True)
     logs_dir = os.path.join(cfg.output_dir, "logs")
@@ -243,8 +384,12 @@ def train_stackelberg(
     os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
 
+    _fixed_batch = next(iter(val_loader))
+    fixed_ids = _fixed_batch["input_ids"][:1].to(device)
+
     history = {
-        "train": {"step": [], "ce": [], "ce_ema": [], "leader_ce": []},
+        "train": {"step": [], "ce": [], "ce_ema": [], "leader_ce": [],
+                  "div": [], "conf": [], "ldb": []},
         "val": {"step": [], "loss": [], "ppl": []},
     }
     _ema_ce = None
@@ -266,6 +411,9 @@ def train_stackelberg(
     global_step = 0
     accum_ce = 0.0
     accum_leader_ce = 0.0
+    accum_div = 0.0
+    accum_conf = 0.0
+    accum_ldb = 0.0
     optimizer.zero_grad()
 
     _step_start = time.perf_counter()
@@ -292,7 +440,39 @@ def train_stackelberg(
                 out = model(input_ids=input_ids, labels=labels)
                 ce_loss = out.loss
 
-            follower_loss = ce_loss / cfg.grad_accum
+            # diversity loss sur les followers (exp3)
+            if need_div:
+                ctx = _layer_ctx[design_layer]
+                hidden = ctx["capture"].get()
+                if div_loss_type in ("erank", "output_cos", "cka"):
+                    _A_unused, Z = _AZ(hidden, ctx, rotary_emb)
+                    if div_loss_type == "erank":
+                        div_loss = follower_erank_loss(
+                            Z, n_heads=_NQ, leader_indices=leader_q_heads, lambda_rank=lambda_rank)
+                    elif div_loss_type == "cka":
+                        div_loss = follower_diversity_loss_cka(
+                            Z, n_heads=_NQ, leader_indices=leader_q_heads,
+                            lambda_lead=lambda_lead, lambda_peer=lambda_peer)
+                    else:
+                        div_loss = follower_output_diversity_loss(
+                            Z, n_heads=_NQ, leader_indices=leader_q_heads,
+                            lambda_lead=lambda_lead, lambda_peer=lambda_peer)
+                else:
+                    A = _A(hidden, ctx, rotary_emb)
+                    div_loss = _div_loss_fn(
+                        A, n_heads=_NQ, leader_indices=leader_q_heads,
+                        lambda_lead=lambda_lead, lambda_peer=lambda_peer)
+                follower_loss = (ce_loss + div_loss) / cfg.grad_accum
+                accum_div += div_loss.item()
+            else:
+                follower_loss = ce_loss / cfg.grad_accum
+
+            if lambda_ldb > 0:
+                ldb_raw = lambda_ldb * ldb_loss(
+                    head_interaction_matrix(model, out.logits, labels, design_layer, _DH))
+                follower_loss = follower_loss + ldb_raw / cfg.grad_accum
+                accum_ldb += ldb_raw.item()
+
             follower_loss.backward()
             accum_ce += ce_loss.item() / cfg.grad_accum
 
@@ -335,6 +515,18 @@ def train_stackelberg(
                     ):
                         out_leader = model(input_ids=inp, labels=lab)
                         leader_ce_mb = out_leader.loss / cfg.grad_accum
+                    # confidence loss sur les têtes leader (exp3)
+                    if lambda_conf > 0:
+                        ctx = _layer_ctx[design_layer]
+                        hidden_leader = ctx["capture"].get()
+                        A_leader = _A(hidden_leader, ctx, rotary_emb)
+                        conf_raw = lambda_conf * _conf_loss_fn(A_leader, leader_q_heads)
+                        leader_ce_mb = leader_ce_mb + conf_raw / cfg.grad_accum
+                        accum_conf += conf_raw.detach().item()
+                    if lambda_ldb > 0:
+                        ldb_raw_l = lambda_ldb * ldb_loss(
+                            head_interaction_matrix(model, out_leader.logits, lab, design_layer, _DH))
+                        leader_ce_mb = leader_ce_mb + ldb_raw_l / cfg.grad_accum
                     leader_ce_mb.backward()
                     leader_ce_accum = leader_ce_accum + leader_ce_mb.detach()
                 accum_leader_ce = leader_ce_accum.item()
@@ -378,6 +570,7 @@ def train_stackelberg(
                     logger.info(
                         f"[train] step {opt_step:>6d}/{total_steps}  CE={accum_ce:.4f}  "
                         f"ema={_ema_ce:.4f}  leader_CE={accum_leader_ce:.4f}  "
+                        f"div={accum_div:.4f}  conf={accum_conf:.4f}  ldb={accum_ldb:.4f}  "
                         f"lr_L={lr_l:.2e}  lr_F={lr_f:.2e}  tok/s={tokens_per_sec:,}"
                     )
                     # ── Stats du gate (signaux exp6) ──
@@ -392,6 +585,8 @@ def train_stackelberg(
                         log_dict = {
                             "train/ce_loss": accum_ce, "train/ce_ema": _ema_ce,
                             "train/leader_ce": accum_leader_ce,
+                            "train/div_loss": accum_div, "train/conf_loss": accum_conf,
+                            "train/ldb_loss": accum_ldb,
                             "train/lr_leader": lr_l, "train/lr_follower": lr_f,
                             "train/tokens": opt_step * cfg.seq_len * cfg.effective_batch_size,
                         }
@@ -407,6 +602,9 @@ def train_stackelberg(
                     history["train"]["ce"].append(accum_ce)
                     history["train"]["ce_ema"].append(_ema_ce)
                     history["train"]["leader_ce"].append(accum_leader_ce)
+                    history["train"]["div"].append(accum_div)
+                    history["train"]["conf"].append(accum_conf)
+                    history["train"]["ldb"].append(accum_ldb)
 
                 if opt_step % cfg.eval_every == 0:
                     v_loss, v_ppl = evaluate(model, val_loader, device,
@@ -417,7 +615,46 @@ def train_stackelberg(
                                       wandb_mod=wandb if use_wandb else None,
                                       log_image=(opt_step % (cfg.eval_every * 5) == 0))
                     if use_wandb:
-                        wandb.log({"val/loss": v_loss, "val/ppl": v_ppl}, step=opt_step)
+                        ev_dict = {"val/loss": v_loss, "val/ppl": v_ppl}
+                        if need_hook:
+                            # head-metrics exp3 (scalaires chaque éval, images ×5)
+                            from matplotlib.colors import LogNorm
+                            _log_img = (opt_step % (cfg.eval_every * 5) == 0)
+                            ctx = _layer_ctx[design_layer]
+                            if _log_img:
+                                heatmaps = _compute_leader_heatmaps(
+                                    model, fixed_ids, ctx, rotary_emb, leader_q_heads)
+                                for rank, (k, A0) in enumerate(heatmaps.items()):
+                                    fig, ax = plt.subplots(figsize=(7, 6))
+                                    A0_np = A0.numpy()
+                                    _vmax = float(np.percentile(A0_np, 99.5))
+                                    _vmin = max(max(float(A0_np.min()), _vmax * 1e-4), 1e-9)
+                                    if _vmax <= _vmin:
+                                        _vmax = _vmin * 100
+                                    im = ax.imshow(A0_np.clip(_vmin, None), cmap="inferno",
+                                                   aspect="auto", norm=LogNorm(vmin=_vmin, vmax=_vmax))
+                                    plt.colorbar(im, ax=ax, label="attention weight (log)")
+                                    ax.set_title(f"A_leader_{rank} (head {k}, step {opt_step})")
+                                    ev_dict[f"eval/A_leader_{rank}_heatmap"] = wandb.Image(fig)
+                                    plt.close(fig)
+                            S, conf_max, conf_l2, h_entropy = _compute_val_head_metrics(
+                                model, val_loader, ctx, rotary_emb,
+                                leader_q_heads, device, n_batches=cfg.eval_max_batches)
+                            if _log_img:
+                                fig, ax = plt.subplots(figsize=(7, 6))
+                                S_np = S.numpy()
+                                _off = S_np[~np.eye(S_np.shape[0], dtype=bool)]
+                                _vext = max(abs(float(np.percentile(_off, 1))),
+                                            abs(float(np.percentile(_off, 99))), 0.05)
+                                im = ax.imshow(S_np, cmap="RdBu_r", vmin=-_vext, vmax=_vext, aspect="auto")
+                                plt.colorbar(im, ax=ax, label="cosine similarity")
+                                ax.set_title(f"S^A cosine similarity (step {opt_step})")
+                                ev_dict["eval/SA_heatmap"] = wandb.Image(fig)
+                                plt.close(fig)
+                            ev_dict["leader/conf_max"] = conf_max
+                            ev_dict["leader/conf_l2"] = conf_l2
+                            ev_dict["leader/entropy"] = h_entropy
+                        wandb.log(ev_dict, step=opt_step)
                     history["val"]["step"].append(opt_step)
                     history["val"]["loss"].append(v_loss)
                     history["val"]["ppl"].append(v_ppl)
@@ -428,6 +665,9 @@ def train_stackelberg(
 
                 accum_ce = 0.0
                 accum_leader_ce = 0.0
+                accum_div = 0.0
+                accum_conf = 0.0
+                accum_ldb = 0.0
                 accum_inputs, accum_labels = [], []
 
                 if opt_step % cfg.save_every == 0:
@@ -491,6 +731,9 @@ def train_stackelberg(
         wandb.finish()
 
     gate.remove()
+    if need_hook:
+        for dl in _layer_ctx:
+            _layer_ctx[dl]["capture"].remove()
 
 
 # ---------------------------------------------------------------------------
@@ -520,6 +763,16 @@ def parse_args():
                         help="KV-heads leader (défaut '0')")
     parser.add_argument("--gate_hidden", type=int, default=128,
                         help="Dim cachée du MLP de gating")
+    # ── Losses exp3 (défaut 0 = CE + gate uniquement) ──
+    parser.add_argument("--lambda_lead", type=float, default=0.0)
+    parser.add_argument("--lambda_peer", type=float, default=0.0)
+    parser.add_argument("--lambda_conf", type=float, default=0.0)
+    parser.add_argument("--lambda_rank", type=float, default=0.0)
+    parser.add_argument("--lambda_ldb", type=float, default=0.0)
+    parser.add_argument("--conf_loss_type", choices=["max", "smooth", "entropy"], default="max")
+    parser.add_argument("--div_loss_type",
+                        choices=["cos", "cos_sq", "hadamard", "erank", "output_cos", "cka"],
+                        default="cos")
     parser.add_argument("--nb_runs", type=int, default=3,
                         help="Nombre d'entraînements consécutifs (seeds seed, seed+1, …).")
     parser.add_argument("--run_eval", action="store_true", default=True,
@@ -573,6 +826,10 @@ if __name__ == "__main__":
         train_stackelberg(
             cfg_i, design_layer=args.design_layer, lr_leader=args.lr_leader,
             lr_follower=args.lr_follower, lr_sim=args.lr_sim, lr_gate=args.lr_gate,
+            lambda_lead=args.lambda_lead, lambda_peer=args.lambda_peer,
+            lambda_conf=args.lambda_conf, lambda_rank=args.lambda_rank,
+            lambda_ldb=args.lambda_ldb, conf_loss_type=args.conf_loss_type,
+            div_loss_type=args.div_loss_type,
             leader_q_heads=leader_q, leader_kv_heads=leader_kv,
             gate_hidden=args.gate_hidden, keep_wandb_open=keep_open,
         )

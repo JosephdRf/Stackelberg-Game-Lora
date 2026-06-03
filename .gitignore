@@ -3,6 +3,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Ignore doc
+*.csv
+
 # Ignore Python virtual environments
 .venv/
 venv/

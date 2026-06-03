@@ -140,11 +140,19 @@ def collect_lora_params(
     # Sanity : chaque leader Q-head doit pointer vers une KV-head leader (groupe contigu)
     group_size = n_q_heads // n_kv_heads
     inferred_kv = {h // group_size for h in leader_q_heads}
-    if not inferred_kv.issubset(set(leader_kv_heads)):
-        raise ValueError(
-            f"leader_q_heads={leader_q_heads} → groupes KV {sorted(inferred_kv)}, "
-            f"mais leader_kv_heads={leader_kv_heads}. "
-            "Les Q-heads leader doivent appartenir à des groupes GQA leader."
+    if len(leader_kv_heads) == 0:
+        # Mode KV-follower : le KV partagé reste entièrement follower. Le leader
+        # ne possède que ses tranches Q et O exclusives (ex. leader = 1 tête).
+        pass
+    elif not inferred_kv.issubset(set(leader_kv_heads)):
+        # Couverture partielle : certaines KV-heads leader sont partagées avec
+        # des followers du même groupe GQA (limitation documentée, acceptable
+        # pour étudier le gate). On avertit au lieu de bloquer.
+        import warnings
+        warnings.warn(
+            f"leader_q_heads={leader_q_heads} → groupes KV {sorted(inferred_kv)} "
+            f"non couverts par leader_kv_heads={leader_kv_heads} : "
+            "les followers du même groupe partagent une KV-head marquée leader."
         )
 
     # One slice per leader Q-head (rows in q_proj.lora_B / cols in o_proj.lora_A)
@@ -200,10 +208,13 @@ def collect_fullft_params(
 
     group_size = n_q_heads // n_kv_heads
     inferred_kv = {h // group_size for h in leader_q_heads}
-    if not inferred_kv.issubset(set(leader_kv_heads)):
-        raise ValueError(
-            f"leader_q_heads={leader_q_heads} → groupes KV {sorted(inferred_kv)}, "
-            f"mais leader_kv_heads={leader_kv_heads}."
+    if len(leader_kv_heads) == 0:
+        pass  # mode KV-follower (cf. collect_lora_params)
+    elif not inferred_kv.issubset(set(leader_kv_heads)):
+        import warnings
+        warnings.warn(
+            f"leader_q_heads={leader_q_heads} → groupes KV {sorted(inferred_kv)} "
+            f"non couverts par leader_kv_heads={leader_kv_heads}."
         )
 
     leader_q = [slice(h * d_head, (h + 1) * d_head) for h in leader_q_heads]
