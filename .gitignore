@@ -4,7 +4,7 @@ __pycache__/
 *.pyo
 
 # Ignore doc
-*.csv
+doc_compute_canada.csv
 
 # Ignore Python virtual environments
 .venv/
