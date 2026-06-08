@@ -5,6 +5,8 @@ Les métriques sont stockées sur WandB (projet `Stackelberg-Pythia160M`), visib
 
 **Config LoRA commune** (baseline et GAME-LoRA) : `r=16`, `alpha=32`, `dropout=0.1`, `target_modules=[query_key_value, dense]`, `lr=3e-4`.
 
+Voir le [README global](../README.md) pour la vue d'ensemble du repo et la liste des expériences.
+
 ## 1. Eval du modèle de base (référence)
 
 ```bash
@@ -80,4 +82,43 @@ python pythia160M/exp1/train_exp1.py \
 python pythia160M/eval.py \
     --model_path /Data/joseph.de-roffignac/checkpoints/exp1/final \
     --wandb_project Stackelberg-Pythia160M --wandb_group Exp1 --wandb_run_name Eval_exp1_n
+```
+
+
+## 6. Stackelberg exp3 — bilevel + losses diversity / confiance / LDB
+
+exp1 enrichi : diversity loss sur les followers (`cos/cos_sq/hadamard/erank/output_cos/cka`),
+confidence loss sur les leaders (`max/smooth/entropy`), barrière log-det (LDB) ; supporte
+multi-leaders et multi-design-layers.
+
+```bash
+python pythia160M/exp3/train_exp3.py \
+    --output_dir /Data/joseph.de-roffignac/checkpoints/exp3 \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp3 --run_name Exp3_seed_42 \
+    --design_layer 9 --leader_idx 0 \
+    --div_loss_type cos --lambda_lead 1e-2 --lambda_peer 1e-2 \
+    --conf_loss_type entropy --lambda_conf 0.05 --lambda_ldb 1.0 --run_eval
+```
+
+
+## 7. Stackelberg exp6 — bilevel + gating leader→follower
+
+Un MLP transforme le signal du leader en poids `g ∈ (0,2)` appliqués aux sorties des
+têtes followers (init zéro → `g≡1`, identité au départ). `--lr_gate` = LR dédié du gate.
+Toutes les losses d'exp3 sont disponibles (toutes à 0 par défaut → exp1 + gate pur).
+
+```bash
+# Gate seul (CE + gating)
+python pythia160M/exp6/train_exp6.py \
+    --output_dir /Data/joseph.de-roffignac/checkpoints/exp6 \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp6 --run_name Exp6_seed_42 \
+    --design_layer 9 --leader_idx 0 --gate_hidden 128 --lr_gate 1e-2 --run_eval
+
+# Gate + losses exp3
+python pythia160M/exp6/train_exp6.py \
+    --output_dir /Data/joseph.de-roffignac/checkpoints/exp6 \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp6 --run_name Exp6_full \
+    --design_layer 9 --leader_idx 0 --gate_hidden 128 --lr_gate 1e-2 \
+    --div_loss_type cos --lambda_lead 1e-2 --lambda_peer 1e-2 \
+    --conf_loss_type entropy --lambda_conf 0.05 --lambda_ldb 5.0 --run_eval
 ```

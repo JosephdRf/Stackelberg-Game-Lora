@@ -2,23 +2,16 @@
 #SBATCH --account=def-omar12
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16G
-#SBATCH --time=10:00:00
+#SBATCH --time=04:00:00
 #SBATCH --gres=gpu:a100:1
 #SBATCH --output=/dev/null
-#SBATCH --error=logs/%A_%a.err
+#SBATCH --error=logs/%A.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=joseph.deroffignac@gmail.com
-#SBATCH --array=0-2
 
-# exp6 Pythia-160M : gate + losses run2_45 (div cos + conf entropy + LDB),
-# sweep lambda_ldb (2/5/10). lr_gate FIXE.
-# index → lambda_ldb :
-LAMBDA_LDBS=(2.0 5.0 10.0)
-LDB=${LAMBDA_LDBS[$SLURM_ARRAY_TASK_ID]}
-
-LR_GATE=1e-2     # FIXE — à ajuster avec le meilleur lr_gate de run6_1
-
-RUN_NAME=Exp6_2_ldb_${LDB}
+# Exemple de script de lancement (exp3 Pythia-160M) — sert de gabarit.
+# Stackelberg bilevel + losses diversity (cos) + confiance (entropy) + LDB.
+RUN_NAME=Exp3_test
 scontrol update JobId=$SLURM_JOB_ID JobName=$RUN_NAME
 
 # Modules
@@ -38,24 +31,21 @@ export WANDB_MODE=offline
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp6/$RUN_NAME
+CKPT_DIR=$SLURM_SUBMIT_DIR/checkpoints/exp3/$RUN_NAME
 
-# nb_runs=1 pour le sweep. Relancer le meilleur en nb_runs=5.
-python pythia160M/exp6/train_exp6.py \
+python pythia160M/exp3/train_exp3.py \
     --output_dir $CKPT_DIR \
-    --wandb_project Stackelberg-Pythia160M --wandb_group Exp6 --run_name $RUN_NAME \
+    --wandb_project Stackelberg-Pythia160M --wandb_group Exp3 --run_name $RUN_NAME \
     --design_layer 9 \
     --leader_idx 0 \
-    --gate_hidden 128 \
-    --lr_leader 3e-5 \
-    --lr_follower 3e-5 \
-    --lr_sim 1e-5 \
-    --lr_gate $LR_GATE \
+    --lr_leader 1e-4 \
+    --lr_follower 3e-4 \
+    --lr_sim 1e-3 \
     --div_loss_type cos \
     --lambda_lead 1e-2 \
     --lambda_peer 1e-2 \
     --conf_loss_type entropy \
     --lambda_conf 0.05 \
-    --lambda_ldb $LDB \
+    --lambda_ldb 1.0 \
     --nb_runs 5 \
     --run_eval
