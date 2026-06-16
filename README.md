@@ -1,4 +1,4 @@
-# Stackelberg-Game-LoRA
+# Stackelberg-Multi-Head-Attention
 
 LoRA fine-tuning d'un LLM sous forme de **jeu de Stackelberg** entre têtes d'attention :
 une (ou plusieurs) tête *leader* est optimisée en anticipant la réponse des têtes
